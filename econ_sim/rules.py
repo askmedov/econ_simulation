@@ -10,7 +10,9 @@ from __future__ import annotations
 import numpy as np
 
 from econ_sim.config import Config, SkillConfig
-from econ_sim.population import Population
+from econ_sim.population import NO_JOB, Population
+
+FARMING = 0  # the only business so far
 
 
 def monthly_chance(annual: float | np.ndarray) -> float | np.ndarray:
@@ -39,6 +41,13 @@ def food_need(population: Population, config: Config) -> np.ndarray:
 def is_working_age(population: Population, config: Config) -> np.ndarray:
     age = population.age_years
     return (age >= config.demography.adult_age) & (age < config.demography.retirement_age)
+
+
+def update_jobs(population: Population, config: Config) -> None:
+    """Young people start work when they come of age; the old retire."""
+    working = is_working_age(population, config)
+    population.job[working & (population.job == NO_JOB)] = FARMING
+    population.job[~working] = NO_JOB
 
 
 def season_factors(config: Config) -> np.ndarray:
@@ -241,7 +250,8 @@ def births(
     """Add this month's newborns; returns births per village.
 
     `fertility_mult` per village combines events and how crowded the land is.
-    Newborns start with their mother's health and a fresh skill draw.
+    Newborns join their mother's household, with her health and a fresh
+    skill draw.
     """
     demo, health = config.demography, config.health
     age = population.age_years
@@ -269,6 +279,7 @@ def births(
             health=np.tile(population.health[mothers], 2)[has_people],
             skill=draw_skill(counts, config.skill, rng),
             location=np.tile(population.location[mothers], 2)[has_people],
+            household=np.tile(population.household[mothers], 2)[has_people],
         )
     )
     return by_village

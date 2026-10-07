@@ -8,6 +8,7 @@ import numpy as np
 
 from econ_sim import rules
 from econ_sim.config import Config, EventSpec
+from econ_sim.households import Households, form_households
 from econ_sim.population import Population
 from econ_sim.rng import RandomStreams
 
@@ -26,6 +27,7 @@ class World:
     population: Population
     granary: np.ndarray  # stored food per village, in rations
     land: np.ndarray  # farmland per village, in plots
+    households: Households
     names: tuple[str, ...]  # village names
     active_events: list[ActiveEvent] = field(default_factory=list)
 
@@ -50,6 +52,8 @@ def create_world(config: Config, streams: RandomStreams) -> World:
         population.append(_initial_people(village.population, location, config, rng))
 
     n = len(config.villages)
+    households = form_households(population, n, rng)
+    rules.update_jobs(population, config)
     need = rules.by_location(rules.food_need(population, config), population, n)
     months_of_food = np.array([v.initial_food_months for v in config.villages])
     return World(
@@ -57,6 +61,7 @@ def create_world(config: Config, streams: RandomStreams) -> World:
         population=population,
         granary=need * months_of_food,
         land=np.array([v.land for v in config.villages], dtype=np.float64),
+        households=households,
         names=tuple(v.name for v in config.villages),
     )
 

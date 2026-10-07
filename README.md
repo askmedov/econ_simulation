@@ -1,9 +1,10 @@
 # Village economy simulation
 
 A month-by-month economic simulation for asking **"what happens over the next
-few years if this event hits?"** It starts with a village of 100 people who
-farm, eat, get sick, are born and die, with random events like droughts and
-disease. See [PLAN.md](PLAN.md) for the design and roadmap.
+few years if this event hits?"** It simulates a village of 1,000 people in
+about 200 families who farm, eat, get sick, are born and die, with random
+events like droughts and disease. See [PLAN.md](PLAN.md) for the design and
+roadmap.
 
 ## Setup
 
@@ -69,6 +70,7 @@ All parameters are in [`econ_sim/config.py`](econ_sim/config.py).
 | `econ_sim/population.py` | The population table (one row = `count` identical people) |
 | `econ_sim/rng.py` | Named random streams |
 | `econ_sim/world.py` | World state and the starting village |
+| `econ_sim/households.py` | Families: who lives with whom |
 | `econ_sim/rules.py` | Production, rationing, eating, spoilage, health, births, deaths |
 | `econ_sim/events.py` | Rolling, forcing and combining events |
 | `econ_sim/simulation.py` | The monthly loop |

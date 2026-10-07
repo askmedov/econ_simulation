@@ -16,9 +16,9 @@ EffectValue = float | tuple[float, float]
 @dataclass(frozen=True)
 class VillageConfig:
     name: str = "Village"
-    population: int = 100
+    population: int = 1000
     # Farmland in plots: one plot is what one worker farms at base output.
-    land: float = 35.0
+    land: float = 350.0
     # Starting granary, as months of the starting population's food need.
     initial_food_months: float = 5.0
 

@@ -22,6 +22,7 @@ class MonthRecord:
     children: int
     workers: int
     elderly: int
+    households: int  # with at least one member
     births: int
     deaths: int
     food_produced: float

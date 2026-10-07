@@ -12,6 +12,8 @@ from dataclasses import dataclass, fields
 
 import numpy as np
 
+NO_JOB = -1
+
 DTYPES = {
     "count": np.int64,
     "age_months": np.int32,
@@ -19,7 +21,11 @@ DTYPES = {
     "health": np.float64,
     "skill": np.float64,
     "location": np.int32,
+    "household": np.int64,
+    "job": np.int16,
 }
+# Columns that may be left out when building a table, and their fill value.
+DEFAULTS = {"household": 0, "job": NO_JOB}
 
 
 @dataclass
@@ -30,8 +36,13 @@ class Population:
     health: np.ndarray  # 0-100, group average
     skill: np.ndarray  # work productivity multiplier, group average
     location: np.ndarray  # village index
+    household: np.ndarray | None = None  # family the row's people belong to
+    job: np.ndarray | None = None  # business they work in, or NO_JOB
 
     def __post_init__(self) -> None:
+        for name, fill in DEFAULTS.items():
+            if getattr(self, name) is None:
+                setattr(self, name, np.full(len(self.count), fill))
         lengths = set()
         for name, dtype in DTYPES.items():
             column = np.asarray(getattr(self, name), dtype=dtype)

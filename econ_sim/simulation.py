@@ -6,7 +6,7 @@ import calendar
 
 import numpy as np
 
-from econ_sim import events, metrics, rules
+from econ_sim import events, households, metrics, rules
 from econ_sim.config import Config
 from econ_sim.metrics import MonthRecord
 from econ_sim.rng import RandomStreams
@@ -83,6 +83,7 @@ class Simulation:
         crowding = rules.birth_factor(rules.food_margin(normal, need), config)
         born = rules.births(pop, mods.fertility_mult * crowding, config, streams["births"], n)
         rules.grow_older(pop)
+        rules.update_jobs(pop, config)
 
         # 7. Record the month.
         children, workers, elderly = metrics.age_groups(pop, config)
@@ -94,6 +95,7 @@ class Simulation:
             children=children,
             workers=workers,
             elderly=elderly,
+            households=int((households.sizes(pop, len(world.households)) > 0).sum()),
             births=int(born.sum()),
             deaths=int(died.sum()),
             food_produced=float(produced.sum()),

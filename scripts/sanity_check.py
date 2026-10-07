@@ -135,11 +135,12 @@ def settings(full: bool) -> list[Setting]:
         Setting("default 60 months", replace(base, months=60), seeds),
         Setting("century", replace(base, months=1200), 60 if full else 15, disasters_allowed=0.5),
         Setting("no random events, century", replace(base, months=1200, random_events=False), 10 if full else 3, 0.0),
-        Setting("lots of land", replace(base, villages=(VillageConfig(land=150),)), seeds // 4),
-        Setting("somewhat crowded", replace(base, villages=(VillageConfig(land=25),)), seeds // 4),
+        Setting("lots of land", replace(base, villages=(VillageConfig(land=1500),)), seeds // 4),
+        Setting("somewhat crowded", replace(base, villages=(VillageConfig(land=250),)), seeds // 4),
         Setting("tiny village", replace(base, villages=(VillageConfig(population=20, land=7),)), seeds // 2),
-        Setting("big village", replace(base, villages=(VillageConfig(population=1000, land=350),)), seeds // 10),
-        Setting("two villages", replace(base, villages=(VillageConfig(name="A"), VillageConfig(name="B", land=25))), seeds // 4),
+        Setting("small village", replace(base, villages=(VillageConfig(population=100, land=35),)), seeds // 2),
+        Setting("big village", replace(base, villages=(VillageConfig(population=5000, land=1750),)), seeds // 20),
+        Setting("two villages", replace(base, villages=(VillageConfig(name="A"), VillageConfig(name="B", land=250))), seeds // 4),
         # Harsh: disasters are expected now and then.
         Setting("every bad event at once", replace(base, scheduled_events=all_bad), seeds // 2, disasters_allowed=0.3),
         # Extreme: famine is the right answer.
@@ -150,7 +151,7 @@ def settings(full: bool) -> list[Setting]:
             None,
         ),
         Setting("empty granary in January", replace(base, villages=(VillageConfig(initial_food_months=0),)), seeds // 4, None),
-        Setting("far too little land", replace(base, villages=(VillageConfig(land=12),)), seeds // 4, None),
+        Setting("far too little land", replace(base, villages=(VillageConfig(land=120),)), seeds // 4, None),
     ]
     for month in range(2, 13):
         out.append(Setting(f"start in month {month}", replace(base, start_month=month), seeds // 10))
