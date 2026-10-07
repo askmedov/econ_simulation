@@ -236,8 +236,9 @@ ones.
   from the reserve; families who can't afford food and firewood get coins
   from whatever the treasury holds beyond two months of running costs.
 - **Savings** of families who die out go to the council.
-- What-if levers: `--no-council`, `--no-relief`, and in config the tax
-  rate, levy, reserve size.
+- What-if levers: `--no-council`, `--no-relief`, `--council-forms-later`
+  (start without one and watch it form), and in config the tax rate, levy
+  and reserve size.
 
 First versions failed instructively: a council that kept taxing through a
 famine to fill its reserve (valued at famine prices) hoarded half the
