@@ -6,7 +6,7 @@ import calendar
 
 import numpy as np
 
-from econ_sim import council, economy, events, households, market, metrics, rules
+from econ_sim import council, economy, events, healthcare, households, market, metrics, rules
 from econ_sim.config import Config
 from econ_sim.metrics import MonthRecord
 from econ_sim.rng import RandomStreams
@@ -200,16 +200,20 @@ class Simulation:
         # The council taxes wages (while its treasury is below target), pays
         # its officials, and takes a share of the harvest into its reserve.
         cc = config.council
-        official = council.official_job(config)
+        official, healer = council.official_job(config), healthcare.healer_job(config)
         officials = rules.by_location(np.where(pop.job == official, pop.count, 0).astype(np.float64), pop, n)
+        healers = rules.by_location(np.where(pop.job == healer, pop.count, 0).astype(np.float64), pop, n)
         official_pay = cc.official_pay * average_pay
-        running_costs = officials * official_pay
+        healer_pay = config.healthcare.healer_pay * average_pay
+        running_costs = officials * official_pay + healers * healer_pay
         famine = supply_cover < 1.0
         taxes = council.collect_taxes(income, hh.location, world.council, cc.treasury_months * running_costs, famine, config)
         hh.money += income
-        staff_income, staff_paid = council.pay_staff(pop, world.council, official, official_pay, n_hh)
-        world.council_costs = running_costs
+        staff_income, _ = council.pay_staff(pop, world.council, official, official_pay, n_hh)
         hh.money += staff_income
+        healer_income, _ = council.pay_staff(pop, world.council, healer, healer_pay, n_hh)
+        hh.money += healer_income
+        world.council_costs = running_costs
         levied = council.levy_grain(world.council, produced, world.granary, need, famine, config)
 
         # 7. Some stored food spoils, in the granary and the council's reserve.
@@ -221,10 +225,14 @@ class Simulation:
         cold = config.needs.cold_damage * coldness * (1.0 - warmth)
         rules.update_health(pop, family_share[pop.household], mods.health_delta[pop.location] - cold[pop.household], config)
 
+        # Healers see the people most likely to die first.
+        risk = rules.death_chance(pop, mods.mortality_mult, config)
+        care, treated = healthcare.treat(pop, np.where(world.council.formed, healers, 0.0), risk, config)
+
         # 9. Deaths, births, ageing. Businesses with more orders than workers
         # take people on; those with too many let some go to trades that are
         # short. Farms aim to grow a little more than the village eats.
-        died = rules.deaths(pop, mods.mortality_mult, config, streams["deaths"], n)
+        died = rules.deaths(pop, mods.mortality_mult, config, streams["deaths"], n, care)
         cover = rules.wage_cover(average_pay, world.food_price, need, all_workers)
         crowding = rules.birth_factor(cover, config)
         born = rules.births(pop, mods.fertility_mult * crowding, config, streams["births"], n)
@@ -233,6 +241,8 @@ class Simulation:
         for location in np.flatnonzero(council.check_formation(world.council, people, config)):
             self._note(location, f"The village has formed a council: {cc.tax_rate:.0%} tax, officials, a food reserve")
         council.staff(pop, world.council, official, cc.officials_per_1000, config, streams["council"])
+        per_1000 = config.healthcare.healers_per_1000 if config.healthcare.enabled else 0.0
+        council.staff(pop, world.council, healer, per_1000, config, streams["council"])
         weight = config.trade.orders_memory
         world.orders = (1 - weight) * world.orders + weight * demand
         orders = world.orders[:, product_of]
@@ -293,6 +303,8 @@ class Simulation:
             taxes=float(taxes.sum()),
             food_reserve=float(world.council.reserve.sum()),
             relief=float(relief.sum()),
+            healers=int(round(healers.sum())),
+            treated=int(round(treated.sum())),
             cash_relief=float(cash_relief.sum()),
             shared=float(shared.sum()),
             underfed=int(pop.count[family_share[pop.household] < 0.9].sum()),

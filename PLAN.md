@@ -249,13 +249,21 @@ famine and filling the reserve in kind fixed both.
 about 0 extra deaths, the poorest fifth's worst month at 94% of need and
 1.5 hungry months; without it, about 6 extra deaths, 76% and 16 months.
 
-### 5. Basic healthcare
+### 5. Basic healthcare (built)
 
-- **Healers** are hired and paid by the council: about 5 per 1,000 people.
-- Each healer can see about 30 patients a month: the sickest first (health
-  below 70), then infants.
-- **Treatment** speeds recovery and lowers that month's risk of dying, which
-  matters most in an epidemic or a famine.
+- **Healers** are hired and paid by the council: about 5 per 1,000 people,
+  paid like officials. No council, no healers.
+- **Triage:** each healer can see about 30 patients a month, and they see
+  the people most likely to die first: infants, the old, the starving and
+  anyone hit by an outbreak. (Seeing the sickest by health first missed
+  most outbreak victims, whose risk rises before their health falls.)
+- **Treatment** adds 10 health and cuts that month's risk of dying by 40%.
+- What-if lever: `--no-healthcare`.
+
+**What it does:** about a fifth fewer deaths in normal years (34 against 42
+per 1,000 over two years, mostly infants and the old) and about a sixth
+fewer in an epidemic. In an outbreak more people are at risk than five
+healers can see, so an epidemic still costs extra lives.
 
 ### New measures
 

@@ -32,6 +32,7 @@ METRICS = (
     "avg_health",
     "poor_health",
     "relief",
+    "treated",
     "treasury",
     "food_reserve",
 )
@@ -96,6 +97,7 @@ class Effect:
     highest_price: tuple[float, float]  # food price at its peak
     lowest_health: tuple[float, float]
     relief: tuple[float, float]  # rations the council gave out over the whole run
+    treated: tuple[float, float]  # people healers saw over the whole run
 
 
 def effect(comparison: Comparison) -> Effect:
@@ -115,6 +117,7 @@ def effect(comparison: Comparison) -> Effect:
         highest_price=pair(lambda sims: series(sims, "food_price").max(axis=1)),
         lowest_health=pair(lambda sims: series(sims, "avg_health").min(axis=1)),
         relief=pair(lambda sims: series(sims, "relief").sum(axis=1)),
+        treated=pair(lambda sims: series(sims, "treated").sum(axis=1)),
     )
 
 

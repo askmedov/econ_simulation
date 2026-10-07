@@ -161,8 +161,11 @@ def update_health(
     population.health = np.clip(population.health + change, 0.0, cfg.maximum)
 
 
-def death_chance(population: Population, mortality_mult: np.ndarray, config: Config) -> np.ndarray:
-    """Monthly chance of dying for each row: age risk (scaled by events) plus hunger risk."""
+def death_chance(
+    population: Population, mortality_mult: np.ndarray, config: Config, care: np.ndarray | None = None
+) -> np.ndarray:
+    """Monthly chance of dying for each row: age risk (scaled by events) plus
+    hunger risk, both scaled by `care` (per row; below 1 for people treated)."""
     table = config.demography.annual_mortality
     from_ages = np.array([age for age, _ in table])
     rates = monthly_chance(np.array([rate for _, rate in table]))
@@ -172,7 +175,10 @@ def death_chance(population: Population, mortality_mult: np.ndarray, config: Con
     cfg = config.health
     weakness = np.clip((cfg.danger_threshold - population.health) / cfg.danger_threshold, 0.0, 1.0)
     hunger_risk = cfg.max_extra_mortality * weakness**2
-    return np.clip(age_risk + hunger_risk, 0.0, 1.0)
+    risk = age_risk + hunger_risk
+    if care is not None:
+        risk = risk * care
+    return np.clip(risk, 0.0, 1.0)
 
 
 def deaths(
@@ -181,9 +187,10 @@ def deaths(
     config: Config,
     rng: np.random.Generator,
     n_locations: int,
+    care: np.ndarray | None = None,
 ) -> np.ndarray:
     """Remove the people who die this month; returns deaths per village."""
-    died = rng.binomial(population.count, death_chance(population, mortality_mult, config))
+    died = rng.binomial(population.count, death_chance(population, mortality_mult, config, care))
     by_village = by_location(died, population, n_locations)
     population.count -= died
     population.remove_empty()

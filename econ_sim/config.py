@@ -252,6 +252,23 @@ class CouncilConfig:
 
 
 @dataclass(frozen=True)
+class HealthcareConfig:
+    """Healers hired and paid by the village council."""
+
+    enabled: bool = True
+    healers_per_1000: float = 5.0
+    healer_pay: float = 1.2  # times the average wage
+    patients_per_healer: float = 30.0  # people a healer can see in a month
+    # Healers see the people most likely to die this month first, down to
+    # this monthly risk (0.003 is about 3.5% a year): infants, the old, the
+    # starving and anyone hit by an outbreak.
+    min_risk: float = 0.003
+    # Treatment adds this much health and scales that month's risk of dying.
+    treatment_recovery: float = 10.0
+    treatment_mortality: float = 0.6
+
+
+@dataclass(frozen=True)
 class EventSpec:
     """A kind of random event, described as data.
 
@@ -368,6 +385,7 @@ class Config:
     needs: NeedsConfig = field(default_factory=NeedsConfig)
     trade: TradeConfig = field(default_factory=TradeConfig)
     council: CouncilConfig = field(default_factory=CouncilConfig)
+    healthcare: HealthcareConfig = field(default_factory=HealthcareConfig)
     products: tuple[ProductSpec, ...] = DEFAULT_PRODUCTS
     businesses: tuple[BusinessSpec, ...] = DEFAULT_BUSINESSES
     events: tuple[EventSpec, ...] = DEFAULT_EVENTS

@@ -47,6 +47,8 @@ class MonthRecord:
     food_reserve: float  # rations held by councils for famine relief
     relief: float  # rations given free to families who couldn't buy enough
     cash_relief: float  # coins the council gave families who couldn't afford food and firewood
+    healers: int  # healers employed by the council
+    treated: int  # people healers saw this month
     shared: float  # coins given by better-off families to families short of food money
     underfed: int  # people whose family got less than 90% of its food need
     poorest_fifth_ration: float  # share of food need met for the poorest fifth of people

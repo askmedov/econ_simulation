@@ -28,7 +28,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from econ_sim.config import Config, CouncilConfig, ScheduledEvent, VillageConfig  # noqa: E402
+from econ_sim.config import Config, CouncilConfig, HealthcareConfig, ScheduledEvent, VillageConfig  # noqa: E402
 from econ_sim.metrics import flat  # noqa: E402
 from econ_sim.simulation import Simulation  # noqa: E402
 
@@ -162,6 +162,7 @@ def settings(full: bool) -> list[Setting]:
         Setting("big village", replace(base, villages=(VillageConfig(population=5000, land=1750),)), seeds // 20),
         Setting("two villages", replace(base, villages=(VillageConfig(name="A"), VillageConfig(name="B", land=250))), seeds // 4),
         Setting("no council", replace(base, council=CouncilConfig(enabled=False)), seeds // 2),
+        Setting("no healthcare", replace(base, healthcare=HealthcareConfig(enabled=False)), seeds // 4),
         Setting("council forming", replace(base, villages=(VillageConfig(population=520, land=182),),
                                             council=CouncilConfig(established_at_start=False)), seeds // 4),
         # Harsh: disasters are expected now and then.

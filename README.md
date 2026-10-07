@@ -4,8 +4,8 @@ A month-by-month economic simulation for asking **"what happens over the next
 few years if this event hits?"** It simulates a village of 1,000 people in
 about 200 families who farm, cut wood, weave and make tools, buy and sell
 with coins, get sick, are born and die, with random events like droughts,
-forest fires and disease. A village council taxes, keeps a grain reserve
-and gives famine relief. See [PLAN.md](PLAN.md) for the design and
+forest fires and disease. A village council taxes, keeps a grain reserve,
+gives famine relief and pays healers. See [PLAN.md](PLAN.md) for the design and
 roadmap.
 
 ## Setup
@@ -31,6 +31,10 @@ Python 3.11+. matplotlib is only needed for charts.
 
 # The same drought in a village without a council (no reserve, no relief)
 .venv/bin/python -m econ_sim --event drought@4 --runs 200 --no-council
+
+# What do healers do for an epidemic?
+.venv/bin/python -m econ_sim --event disease@3 --runs 200
+.venv/bin/python -m econ_sim --event disease@3 --runs 200 --no-healthcare
 
 # Start in October, force two events, no other randomness
 .venv/bin/python -m econ_sim --start-month 10 --event disease@3 --event drought@7 --no-random-events
@@ -79,6 +83,7 @@ All parameters are in [`econ_sim/config.py`](econ_sim/config.py).
 | `econ_sim/economy.py` | Businesses: production, tools, supplies, fair prices, who works where |
 | `econ_sim/market.py` | Buying and selling, mark-ups, wages, help between neighbours |
 | `econ_sim/council.py` | The village council: forming, taxes, officials, grain reserve, relief |
+| `econ_sim/healthcare.py` | Healers: who they see and what treatment does |
 | `econ_sim/rules.py` | Production, rationing, eating, spoilage, health, births, deaths |
 | `econ_sim/events.py` | Rolling, forcing and combining events |
 | `econ_sim/simulation.py` | The monthly loop |

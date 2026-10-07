@@ -135,6 +135,8 @@ def create_world(config: Config, streams: RandomStreams) -> World:
     if cc.enabled and cc.established_at_start:
         councils.formed = people >= cc.forms_at_population
         council.staff(population, councils, council.official_job(config), cc.officials_per_1000, config, rng)
+        if config.healthcare.enabled:
+            council.staff(population, councils, council.official_job(config) + 1, config.healthcare.healers_per_1000, config, rng)
         officials = rules.by_location(
             np.where(population.job == council.official_job(config), population.count, 0).astype(np.float64), population, n
         )
