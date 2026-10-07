@@ -20,6 +20,11 @@ def work_factor(population: Population, config: Config) -> np.ndarray:
     return floor + (1.0 - floor) * population.health / config.health.maximum
 
 
+def in_business(population: Population, config: Config) -> np.ndarray:
+    """Rows working in a business (not children, the elderly or council staff)."""
+    return (population.job >= 0) & (population.job < len(config.businesses))
+
+
 def headcount(population: Population, n_locations: int, config: Config) -> np.ndarray:
     """Workers in each business (villages x businesses)."""
     return _by_business(population.count.astype(np.float64), population, n_locations, config)
@@ -48,7 +53,7 @@ def labor(
 
 def _by_business(values: np.ndarray, population: Population, n_locations: int, config: Config) -> np.ndarray:
     n_business = len(config.businesses)
-    working = population.job != NO_JOB
+    working = in_business(population, config)
     index = population.location[working].astype(np.int64) * n_business + population.job[working]
     sums = np.bincount(index, weights=values[working], minlength=n_locations * n_business)
     return sums.astype(np.float64).reshape(n_locations, n_business)
@@ -179,7 +184,7 @@ def move_workers(population: Population, wanted: np.ndarray, config: Config, rng
     surplus = np.maximum(workers - wanted, 0.0)
     shortfall = np.maximum(wanted - workers, 0.0)
     leave_share = np.divide(config.trade.hiring_rate * surplus, workers, out=np.zeros_like(surplus), where=workers > 0)
-    working = population.job != NO_JOB
+    working = in_business(population, config)
     job = np.where(working, population.job, 0)
     chance = np.where(working, np.clip(leave_share[population.location, job], 0.0, 1.0), 0.0)
     leaving = rng.binomial(population.count, chance)

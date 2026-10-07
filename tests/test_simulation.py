@@ -33,7 +33,8 @@ def test_food_is_accounted_for():
     stock = sim.world.granary.sum()
     for _ in range(240):
         r = sim.step()
-        stock += r.food_produced - r.food_eaten - r.food_spoiled - r.food_lost
+        # Families eat what they buy plus relief from the council's reserve.
+        stock += r.food_produced - (r.food_eaten - r.relief) - r.food_spoiled - r.food_lost - r.food_levied
         assert np.isclose(stock, r.food_stock)
 
 

@@ -3,7 +3,7 @@ from dataclasses import replace
 import numpy as np
 
 from econ_sim import market
-from econ_sim.config import Config, ScheduledEvent, VillageConfig
+from econ_sim.config import Config, CouncilConfig, ScheduledEvent, VillageConfig
 from econ_sim.households import Households, pass_on_savings
 from econ_sim.population import Population
 from econ_sim.scenarios import compare, series
@@ -132,11 +132,12 @@ def test_money_is_never_created_or_destroyed():
     total = sim.world.money
     for _ in range(36):
         r = sim.step()
-        assert np.isclose(r.savings + r.business_cash, total)
+        assert np.isclose(r.savings + r.business_cash + r.treasury, total)
 
 
 def test_drought_raises_food_price_and_hits_the_poorest_hardest():
-    result = compare(Config(seed=0, months=24), (ScheduledEvent("drought", 4),), runs=5)
+    # Without a council's relief, the market alone decides who eats.
+    result = compare(Config(seed=0, months=24, council=CouncilConfig(enabled=False)), (ScheduledEvent("drought", 4),), runs=5)
     price_gap = series(result.scenario, "food_price").max(axis=1) - series(result.baseline, "food_price").max(axis=1)
     assert (price_gap > 0).all()
     poorest = series(result.scenario, "poorest_fifth_ration").min(axis=1)

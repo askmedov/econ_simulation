@@ -6,7 +6,8 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from econ_sim import economy, rules
+from econ_sim import council, economy, rules
+from econ_sim.council import Councils
 from econ_sim.config import Config, EventSpec
 from econ_sim.households import Households, form_households
 from econ_sim.population import Population
@@ -37,8 +38,14 @@ class World:
     pay: np.ndarray  # running average monthly pay per worker (villages x businesses)
     orders: np.ndarray  # running average units asked for a month (villages x products)
     food: int  # index of the food product
+    council: Councils
     names: tuple[str, ...]  # village names
     active_events: list[ActiveEvent] = field(default_factory=list)
+    council_costs: np.ndarray | None = None  # last month's council running costs, per village
+
+    def __post_init__(self) -> None:
+        if self.council_costs is None:
+            self.council_costs = np.zeros(len(self.names))
 
     @property
     def granary(self) -> np.ndarray:
@@ -73,7 +80,7 @@ class World:
     @property
     def money(self) -> float:
         """All coins in the world; never changes."""
-        return float(self.households.money.sum() + self.cash.sum())
+        return float(self.households.money.sum() + self.cash.sum() + self.council.treasury.sum())
 
 
 def create_world(config: Config, streams: RandomStreams) -> World:
@@ -120,6 +127,20 @@ def create_world(config: Config, streams: RandomStreams) -> World:
     stock = config.trade.stock_target_months * orders
     stock[:, food] = food_need * np.array([v.initial_food_months for v in config.villages])
     supplies = economy.input_needs(config)[None, :, :] * made[:, :, None]  # a month's worth
+
+    # Big villages start with an established council.
+    councils = Councils.none(n)
+    cc = config.council
+    people = rules.by_location(population.count.astype(np.float64), population, n)
+    if cc.enabled and cc.established_at_start:
+        councils.formed = people >= cc.forms_at_population
+        council.staff(population, councils, council.official_job(config), cc.officials_per_1000, config, rng)
+        officials = rules.by_location(
+            np.where(population.job == council.official_job(config), population.count, 0).astype(np.float64), population, n
+        )
+        councils.treasury = np.where(councils.formed, cc.treasury_months * officials * cc.official_pay * wage, 0.0)
+        councils.reserve = np.where(councils.formed, cc.reserve_months * food_need, 0.0)
+        councils.months_ready = np.where(councils.formed, cc.forms_after_months, 0)
     return World(
         month=config.start_month - 1,
         population=population,
@@ -135,6 +156,7 @@ def create_world(config: Config, streams: RandomStreams) -> World:
         pay=np.tile(wage[:, None], (1, n_business)),
         orders=orders,
         food=food,
+        council=councils,
         names=tuple(v.name for v in config.villages),
     )
 

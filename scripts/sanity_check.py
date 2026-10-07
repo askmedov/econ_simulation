@@ -28,7 +28,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from econ_sim.config import Config, ScheduledEvent, VillageConfig  # noqa: E402
+from econ_sim.config import Config, CouncilConfig, ScheduledEvent, VillageConfig  # noqa: E402
 from econ_sim.metrics import flat  # noqa: E402
 from econ_sim.simulation import Simulation  # noqa: E402
 
@@ -58,16 +58,17 @@ def problems(sim: Simulation, extreme: bool = False) -> list[tuple[str, int]]:
     def flag(name: str, month: int) -> None:
         found.append((name, month))
 
-    money = records[0].savings + records[0].business_cash if records else 0.0
+    money = records[0].savings + records[0].business_cash + records[0].treasury if records else 0.0
     start_prices = dict(records[0].prices) if records else {}
     hungry_amid_plenty = 0
     for r in records:
         values = flat(r)
         if any(isinstance(v, float) and not math.isfinite(v) for v in values.values()):
             flag("not-a-number value", r.month_number)
-        if min(r.population, r.food_stock, r.food_eaten, r.food_produced, r.avg_health, r.savings, r.business_cash) < 0:
+        if min(r.population, r.food_stock, r.food_eaten, r.food_produced, r.avg_health, r.savings, r.business_cash,
+               r.treasury, r.food_reserve) < 0:
             flag("negative value", r.month_number)
-        if not math.isclose(r.savings + r.business_cash, money, rel_tol=1e-6, abs_tol=1e-6):
+        if not math.isclose(r.savings + r.business_cash + r.treasury, money, rel_tol=1e-6, abs_tol=1e-6):
             flag("money created or destroyed", r.month_number)
         if not all(price > 0 for price in r.prices.values()) and r.population > 0:
             flag("price not positive", r.month_number)
@@ -160,6 +161,9 @@ def settings(full: bool) -> list[Setting]:
         Setting("small village", replace(base, villages=(VillageConfig(population=100, land=35),)), seeds // 2),
         Setting("big village", replace(base, villages=(VillageConfig(population=5000, land=1750),)), seeds // 20),
         Setting("two villages", replace(base, villages=(VillageConfig(name="A"), VillageConfig(name="B", land=250))), seeds // 4),
+        Setting("no council", replace(base, council=CouncilConfig(enabled=False)), seeds // 2),
+        Setting("council forming", replace(base, villages=(VillageConfig(population=520, land=182),),
+                                            council=CouncilConfig(established_at_start=False)), seeds // 4),
         # Harsh: disasters are expected now and then.
         Setting("every bad event at once", replace(base, scheduled_events=all_bad), seeds // 2, disasters_allowed=0.3),
         # Extreme: famine is the right answer.

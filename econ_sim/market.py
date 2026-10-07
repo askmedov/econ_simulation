@@ -11,8 +11,8 @@ from dataclasses import dataclass
 import numpy as np
 
 from econ_sim.config import Config
-from econ_sim.economy import work_factor
-from econ_sim.population import NO_JOB, Population
+from econ_sim.economy import in_business, work_factor
+from econ_sim.population import Population
 
 
 def by_household(values: np.ndarray, population: Population, n_households: int) -> np.ndarray:
@@ -105,7 +105,7 @@ def pay_wages(
     """
     n_locations, n_business = cash.shape
     effort = population.count * population.skill * work_factor(population, config)
-    working = population.job != NO_JOB
+    working = in_business(population, config)
     index = population.location.astype(np.int64) * n_business + np.where(working, population.job, 0)
     total = np.bincount(index[working], weights=effort[working], minlength=n_locations * n_business)
     total = total.reshape(n_locations, n_business)

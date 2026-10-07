@@ -30,6 +30,7 @@ def main(argv: list[str] | None = None) -> None:
         start_month=args.start_month,
         villages=(village,),
         random_events=not args.no_random_events,
+        council=replace(defaults.council, enabled=not args.no_council, relief=not args.no_relief),
     )
     forced = tuple(_parse_event(text) for text in args.event)
     # Check the forced events before running anything.
@@ -85,6 +86,8 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--start-month", type=int, default=defaults.start_month, help="calendar month to start in, 1-12 (default %(default)s)")
     parser.add_argument("--event", action="append", default=[], metavar="NAME@MONTH", help="force an event, e.g. drought@4; repeatable")
     parser.add_argument("--no-random-events", action="store_true", help="only the forced events happen")
+    parser.add_argument("--no-council", action="store_true", help="the village never has a council (no taxes, reserve or relief)")
+    parser.add_argument("--no-relief", action="store_true", help="the council gives no famine relief")
     parser.add_argument("--population", type=int, default=village.population, help="villagers at the start (default %(default)s)")
     parser.add_argument("--land", type=float, default=village.land, help="farmland in plots (default %(default)s)")
     parser.add_argument("--food-months", type=float, default=village.initial_food_months, help="months of food in store at the start (default %(default)s)")
@@ -111,6 +114,13 @@ def _print_header(config: Config, forced: tuple[ScheduledEvent, ...], runs: int)
     when = f"{calendar.month_name[config.start_month]} of year 1"
     randomness = "random events on" if config.random_events else "no random events"
     print(f"{config.months} months from {when}; seed {config.seed}; {runs} run{'s' * (runs != 1)}; {randomness}")
+    cc = config.council
+    if not cc.enabled:
+        print("No council")
+    elif v.population >= cc.forms_at_population and cc.established_at_start:
+        print(f"Council: {cc.tax_rate:.0%} tax, {cc.reserve_months:g}-month food reserve, relief {'on' if cc.relief else 'off'}")
+    else:
+        print(f"A council forms once the village has {cc.forms_at_population} people for {cc.forms_after_months} months")
     if forced:
         print("Forced: " + ", ".join(f"{e.event.replace('_', ' ')} in month {e.month}" for e in forced))
     print()
@@ -202,6 +212,8 @@ def _print_effect(result: Effect, forced: tuple[ScheduledEvent, ...], runs: int,
         f"{result.hungry_months[1]:{months_fmt}} with"
     )
     print(f"  {'Lowest average health':<28}{result.lowest_health[0]:.0f} without, {result.lowest_health[1]:.0f} with")
+    if result.relief[1] > 0 or result.relief[0] > 0:
+        print(f"  {'Council relief (rations)':<28}{result.relief[0]:.0f} without, {result.relief[1]:.0f} with")
 
 
 def _print_outlook(sims: list[Simulation]) -> None:

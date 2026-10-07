@@ -27,10 +27,11 @@ class MonthRecord:
     deaths: int
     food_produced: float
     food_needed: float
-    food_eaten: float
+    food_eaten: float  # bought, plus relief from the council's reserve
     ration: float  # share of food need met, 1.0 = everyone fully fed
     food_spoiled: float
     food_lost: float  # destroyed by events
+    food_levied: float  # taken by the council into its reserve
     food_stock: float  # at the end of the month
     food_margin: float  # normal harvest over need; below ~1.05 the land is crowded
     food_cover: float  # stores plus expected harvests, as a share of the coming year's need
@@ -39,6 +40,13 @@ class MonthRecord:
     wage: float  # average monthly wage of a worker, in coins
     savings: float  # coins held by families
     business_cash: float  # coins held by businesses
+    treasury: float  # coins held by village councils
+    councils: int  # villages with a council
+    officials: int  # council officials
+    taxes: float  # coins collected in tax this month
+    food_reserve: float  # rations held by councils for famine relief
+    relief: float  # rations given free to families who couldn't buy enough
+    cash_relief: float  # coins the council gave families who couldn't afford food and firewood
     shared: float  # coins given by better-off families to families short of food money
     underfed: int  # people whose family got less than 90% of its food need
     poorest_fifth_ration: float  # share of food need met for the poorest fifth of people

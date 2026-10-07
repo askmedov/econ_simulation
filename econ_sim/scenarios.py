@@ -31,6 +31,9 @@ METRICS = (
     "underfed",
     "avg_health",
     "poor_health",
+    "relief",
+    "treasury",
+    "food_reserve",
 )
 
 
@@ -92,6 +95,7 @@ class Effect:
     hungry_months: tuple[float, float]  # months in which the village ate under 97% of its need
     highest_price: tuple[float, float]  # food price at its peak
     lowest_health: tuple[float, float]
+    relief: tuple[float, float]  # rations the council gave out over the whole run
 
 
 def effect(comparison: Comparison) -> Effect:
@@ -110,6 +114,7 @@ def effect(comparison: Comparison) -> Effect:
         hungry_months=pair(lambda sims: (series(sims, "ration") < 0.97).sum(axis=1)),
         highest_price=pair(lambda sims: series(sims, "food_price").max(axis=1)),
         lowest_health=pair(lambda sims: series(sims, "avg_health").min(axis=1)),
+        relief=pair(lambda sims: series(sims, "relief").sum(axis=1)),
     )
 
 

@@ -87,12 +87,23 @@ def sizes(population: Population, n_households: int) -> np.ndarray:
     return np.bincount(population.household, weights=population.count, minlength=n_households).astype(np.int64)
 
 
-def pass_on_savings(households: Households, size: np.ndarray) -> None:
-    """Savings of families with nobody left go to the other families of their village."""
+def pass_on_savings(
+    households: Households, size: np.ndarray, treasury: np.ndarray | None = None, council: np.ndarray | None = None
+) -> None:
+    """Savings of families with nobody left go to the village council if
+    there is one (`council` per village, paid into `treasury`), otherwise to
+    the other families of their village."""
     gone = (size == 0) & (households.money > 0)
     if not gone.any():
         return
     n = int(households.location.max()) + 1
+    if council is not None and council.any():
+        to_council = gone & council[households.location]
+        treasury += np.bincount(households.location[to_council], weights=households.money[to_council], minlength=n)
+        households.money[to_council] = 0.0
+        gone &= ~to_council
+        if not gone.any():
+            return
     left = np.bincount(households.location[gone], weights=households.money[gone], minlength=n)
     alive = size > 0
     heirs = np.bincount(households.location[alive], minlength=n)

@@ -226,6 +226,32 @@ class MoneyConfig:
 
 
 @dataclass(frozen=True)
+class CouncilConfig:
+    enabled: bool = True  # False: the village never forms a council
+    # A council forms once the village has had this many people for this long.
+    forms_at_population: int = 500
+    forms_after_months: int = 6
+    # Villages already that big at the start have had a council for years:
+    # officials in place, a full reserve and a working treasury.
+    established_at_start: bool = True
+    tax_rate: float = 0.1  # share of wages taken in tax
+    # The council stops taxing while its treasury holds this many months of
+    # its running costs. Neither taxes nor the grain levy are taken in a
+    # famine year (grain on hand plus expected harvests short of the year's need).
+    treasury_months: float = 6.0
+    officials_per_1000: float = 4.0
+    official_pay: float = 1.2  # times the average wage
+    # A grain levy (a tithe in kind): this share of each harvest goes into the
+    # council's reserve until it holds `reserve_months` of the village's need.
+    grain_levy: float = 0.05
+    reserve_months: float = 2.0
+    # Famine relief: families who can't buy enough food get it free from the
+    # reserve, and families who can't afford food and firewood get coins
+    # from whatever the treasury holds beyond two months of running costs.
+    relief: bool = True
+
+
+@dataclass(frozen=True)
 class EventSpec:
     """A kind of random event, described as data.
 
@@ -341,6 +367,7 @@ class Config:
     money: MoneyConfig = field(default_factory=MoneyConfig)
     needs: NeedsConfig = field(default_factory=NeedsConfig)
     trade: TradeConfig = field(default_factory=TradeConfig)
+    council: CouncilConfig = field(default_factory=CouncilConfig)
     products: tuple[ProductSpec, ...] = DEFAULT_PRODUCTS
     businesses: tuple[BusinessSpec, ...] = DEFAULT_BUSINESSES
     events: tuple[EventSpec, ...] = DEFAULT_EVENTS

@@ -218,20 +218,36 @@ workers chasing the best pay stampeded into whichever trade was briefly
 dear (once leaving the village to starve). The rules above are the stable
 ones.
 
-### 4. A council forms
+### 4. A council forms (built)
 
-- **When:** after the village has had 500 or more people for 6 months (so
-  a 1,000-person village forms one early in a run, and a 100-person village
-  never does).
-- **Taxes:** 10% of wages, into a treasury.
+- **When:** after the village has had 500 or more people for 6 months. A
+  village already that big at the start has had a council for years:
+  officials in place, a full reserve and a working treasury. A 100-person
+  village never forms one; a 520-person village forms one in its sixth month.
 - **Officials:** about 4 per 1,000 people, hired from the trades and paid
-  a little above the average wage.
-- **Food reserve:** in good times the council buys surplus grain until it
-  holds about 2 months of the village's needs.
-- **Famine relief:** families who can't buy enough food get it free from
-  the reserve.
-- What-if levers: tax rate, reserve size, relief on or off, or no council
-  at all.
+  20% above the average wage.
+- **Taxes:** 10% of wages, only while the treasury holds less than six
+  months of running costs, and never in a famine year (grain on hand plus
+  expected harvests short of the year's need).
+- **Food reserve:** filled by a grain levy (a tithe in kind) of 5% of each
+  harvest, until it holds 2 months of the village's needs; no levy in a
+  famine.
+- **Famine relief:** families who can't buy enough food get the rest free
+  from the reserve; families who can't afford food and firewood get coins
+  from whatever the treasury holds beyond two months of running costs.
+- **Savings** of families who die out go to the council.
+- What-if levers: `--no-council`, `--no-relief`, and in config the tax
+  rate, levy, reserve size.
+
+First versions failed instructively: a council that kept taxing through a
+famine to fill its reserve (valued at famine prices) hoarded half the
+village's money while the poor starved, and one that bought its reserve
+with coins sat on a third of the money for months. Suspending taxes in
+famine and filling the reserve in kind fixed both.
+
+**What it does** (April drought, 36 months, 30 runs): with the council,
+about 0 extra deaths, the poorest fifth's worst month at 94% of need and
+1.5 hungry months; without it, about 6 extra deaths, 76% and 16 months.
 
 ### 5. Basic healthcare
 

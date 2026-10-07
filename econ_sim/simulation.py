@@ -6,7 +6,7 @@ import calendar
 
 import numpy as np
 
-from econ_sim import economy, events, households, market, metrics, rules
+from econ_sim import council, economy, events, households, market, metrics, rules
 from econ_sim.config import Config
 from econ_sim.metrics import MonthRecord
 from econ_sim.rng import RandomStreams
@@ -104,6 +104,11 @@ class Simulation:
         family_fuel = members * firewood_need * mods.heating_mult[hh.location]
         essentials = family_food * world.prices[hh.location, food] + family_fuel * world.prices[hh.location, fuel]
         shared = market.share_with_neighbours(hh.money, essentials, hh.location, n, config)
+        # The council helps families who still can't afford them.
+        keep = 2.0 * world.council_costs
+        cash_relief = council.cash_relief(
+            world.council, hh.money, np.maximum(essentials - hh.money, 0.0), hh.location, keep, config
+        )
 
         # 5. Markets, most needed first. Businesses buy supplies and tools
         # with part of their cash, before paying wages.
@@ -168,6 +173,9 @@ class Simulation:
             else:
                 trade(product, None, None, business_want(product))
 
+        # The council gives food from its reserve to families who couldn't buy enough.
+        relief = council.give_relief(world.council, bought[food], family_food, hh.location, config)
+        bought[food] = bought[food] + relief
         family_share = np.divide(bought[food], family_food, out=np.ones_like(family_food), where=family_food > 0)
         warmth = np.divide(bought[fuel], family_fuel, out=np.ones_like(family_fuel), where=family_fuel > 0)
         eaten = market.by_village(bought[food], hh.location, n)
@@ -181,15 +189,32 @@ class Simulation:
         boost = np.array([b.tool_boost for b in config.businesses])
         tools_cost = np.where(boost > 0, config.trade.tool_wear * workers * world.prices[:, tool, None], 0.0)
         income, payout = market.pay_wages(world.cash, pop, n_hh, config, keep=supplies_cost + tools_cost)
-        hh.money += income
         paid = np.divide(payout, workers, out=np.zeros_like(payout), where=workers > 0)
         empty = workers < 1
         hoped = economy.potential_pay(world.prices, per_worker, config)
         weight = config.trade.pay_memory
         world.pay = np.where(empty, hoped, (1 - weight) * world.pay + weight * paid)
+        all_workers = workers.sum(axis=1)
+        average_pay = np.divide((world.pay * workers).sum(axis=1), all_workers, out=np.zeros(n), where=all_workers > 0)
 
-        # 7. Some stored food spoils.
+        # The council taxes wages (while its treasury is below target), pays
+        # its officials, and takes a share of the harvest into its reserve.
+        cc = config.council
+        official = council.official_job(config)
+        officials = rules.by_location(np.where(pop.job == official, pop.count, 0).astype(np.float64), pop, n)
+        official_pay = cc.official_pay * average_pay
+        running_costs = officials * official_pay
+        famine = supply_cover < 1.0
+        taxes = council.collect_taxes(income, hh.location, world.council, cc.treasury_months * running_costs, famine, config)
+        hh.money += income
+        staff_income, staff_paid = council.pay_staff(pop, world.council, official, official_pay, n_hh)
+        world.council_costs = running_costs
+        hh.money += staff_income
+        levied = council.levy_grain(world.council, produced, world.granary, need, famine, config)
+
+        # 7. Some stored food spoils, in the granary and the council's reserve.
         spoiled = rules.spoil(world.granary, config.food.spoilage)
+        rules.spoil(world.council.reserve, config.food.spoilage)
 
         # 8. Health follows each family's food and warmth, plus events.
         coldness = firewood_need / max(config.needs.firewood)
@@ -200,12 +225,14 @@ class Simulation:
         # take people on; those with too many let some go to trades that are
         # short. Farms aim to grow a little more than the village eats.
         died = rules.deaths(pop, mods.mortality_mult, config, streams["deaths"], n)
-        all_workers = workers.sum(axis=1)
-        average_pay = np.divide((world.pay * workers).sum(axis=1), all_workers, out=np.zeros(n), where=all_workers > 0)
         cover = rules.wage_cover(average_pay, world.food_price, need, all_workers)
         crowding = rules.birth_factor(cover, config)
         born = rules.births(pop, mods.fertility_mult * crowding, config, streams["births"], n)
         rules.grow_older(pop)
+        people = rules.by_location(pop.count.astype(np.float64), pop, n)
+        for location in np.flatnonzero(council.check_formation(world.council, people, config)):
+            self._note(location, f"The village has formed a council: {cc.tax_rate:.0%} tax, officials, a food reserve")
+        council.staff(pop, world.council, official, cc.officials_per_1000, config, streams["council"])
         weight = config.trade.orders_memory
         world.orders = (1 - weight) * world.orders + weight * demand
         orders = world.orders[:, product_of]
@@ -216,7 +243,7 @@ class Simulation:
         economy.assign_new_workers(pop, wanted, config)
         switched = economy.move_workers(pop, wanted, config, streams["jobs"])
         size = households.sizes(pop, n_hh)
-        households.pass_on_savings(hh, size)
+        households.pass_on_savings(hh, size, world.council.treasury, world.council.formed)
 
         # 10. Mark-ups move with the gap between demand and supply: for most
         # goods, what was asked for against what was made this month plus any
@@ -251,6 +278,7 @@ class Simulation:
             ration=float(eaten.sum() / need.sum()) if need.sum() > 0 else 1.0,
             food_spoiled=float(spoiled.sum()),
             food_lost=float(lost.sum()),
+            food_levied=float(levied.sum()),
             food_stock=float(world.granary.sum()),
             food_margin=float(normal.sum() / need.sum()) if need.sum() > 0 else 0.0,
             food_cover=float(np.average(supply_cover, weights=np.maximum(need, 1e-9))),
@@ -259,6 +287,13 @@ class Simulation:
             wage=float(payout.sum() / workers.sum()) if workers.sum() > 0 else 0.0,
             savings=float(hh.money.sum()),
             business_cash=float(world.cash.sum()),
+            treasury=float(world.council.treasury.sum()),
+            councils=int(world.council.formed.sum()),
+            officials=int(round(officials.sum())),
+            taxes=float(taxes.sum()),
+            food_reserve=float(world.council.reserve.sum()),
+            relief=float(relief.sum()),
+            cash_relief=float(cash_relief.sum()),
             shared=float(shared.sum()),
             underfed=int(pop.count[family_share[pop.household] < 0.9].sum()),
             poorest_fifth_ration=metrics.poorest_fifth_ration(hh.money, size, bought[food], family_food),
