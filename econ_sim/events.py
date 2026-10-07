@@ -13,24 +13,28 @@ import numpy as np
 from econ_sim.config import EffectValue, EventSpec, HealthConfig, ScheduledEvent
 from econ_sim.world import ActiveEvent, World
 
-EFFECTS = ("production_mult", "health_delta", "mortality_mult", "fertility_mult", "granary_loss")
+EFFECTS = ("production_mult", "health_delta", "mortality_mult", "fertility_mult", "granary_loss", "heating_mult")
 PERSON_EFFECTS = ("health_delta",)
 
 
 @dataclass
 class Modifiers:
-    """Combined effect of all active events, one value per village."""
+    """Combined effect of all active events: one value per village, except
+    production_mult, which is per village and business."""
 
     production_mult: np.ndarray
     health_delta: np.ndarray
     mortality_mult: np.ndarray
     fertility_mult: np.ndarray
     granary_loss: np.ndarray
+    heating_mult: np.ndarray
 
     @classmethod
-    def neutral(cls, n_locations: int) -> Modifiers:
+    def neutral(cls, n_locations: int, n_businesses: int = 1) -> Modifiers:
         ones, zeros = np.ones(n_locations), np.zeros(n_locations)
-        return cls(ones.copy(), zeros.copy(), ones.copy(), ones.copy(), zeros.copy())
+        return cls(
+            np.ones((n_locations, n_businesses)), zeros.copy(), ones.copy(), ones.copy(), zeros.copy(), ones.copy()
+        )
 
 
 def validate(specs: tuple[EventSpec, ...]) -> None:
@@ -169,22 +173,31 @@ def apply_person_events(
     return hits
 
 
-def production_outlook(world: World, months: int) -> np.ndarray:
-    """Production multiplier in each of the next `months` months from events under way."""
+def _hits(event: ActiveEvent, business: str) -> bool:
+    return event.spec.businesses is None or business in event.spec.businesses
+
+
+def production_outlook(world: World, months: int, business: str) -> np.ndarray:
+    """Multiplier on one business's output in each of the next `months` months from events under way."""
     outlook = np.ones((world.n_locations, months))
     for event in world.active_events:
         mult = event.effects.get("production_mult")
-        if mult is not None:
+        if mult is not None and _hits(event, business):
             outlook[event.location, : event.months_left - 1] *= mult
     return outlook
 
 
-def modifiers(world: World) -> Modifiers:
-    mods = Modifiers.neutral(world.n_locations)
+def modifiers(world: World, businesses: tuple[str, ...] = ("farming",)) -> Modifiers:
+    """Combine active events; `businesses` names the columns of production_mult."""
+    mods = Modifiers.neutral(world.n_locations, len(businesses))
     for event in world.active_events:
         loc = event.location
         for effect, value in event.effects.items():
-            if effect == "health_delta":
+            if effect == "production_mult":
+                for b, name in enumerate(businesses):
+                    if _hits(event, name):
+                        mods.production_mult[loc, b] *= value
+            elif effect == "health_delta":
                 mods.health_delta[loc] += value
             elif effect == "granary_loss":
                 mods.granary_loss[loc] = 1.0 - (1.0 - mods.granary_loss[loc]) * (1.0 - value)

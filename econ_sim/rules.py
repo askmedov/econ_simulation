@@ -10,9 +10,7 @@ from __future__ import annotations
 import numpy as np
 
 from econ_sim.config import Config, SkillConfig
-from econ_sim.population import NO_JOB, Population
-
-FARMING = 0  # the only business so far
+from econ_sim.population import Population
 
 
 def monthly_chance(annual: float | np.ndarray) -> float | np.ndarray:
@@ -43,50 +41,10 @@ def is_working_age(population: Population, config: Config) -> np.ndarray:
     return (age >= config.demography.adult_age) & (age < config.demography.retirement_age)
 
 
-def update_jobs(population: Population, config: Config) -> None:
-    """Young people start work when they come of age; the old retire."""
-    working = is_working_age(population, config)
-    population.job[working & (population.job == NO_JOB)] = FARMING
-    population.job[~working] = NO_JOB
-
-
 def season_factors(config: Config) -> np.ndarray:
     """Output multiplier for each calendar month (index 0 = January), averaging 1."""
     seasonality = np.asarray(config.food.seasonality, dtype=np.float64)
     return seasonality / seasonality.mean()
-
-
-def capacity(
-    population: Population,
-    land: np.ndarray,
-    production_mult: np.ndarray,
-    config: Config,
-    rng: np.random.Generator | None,
-    at_full_health: bool = False,
-) -> np.ndarray:
-    """Food each village can grow in an average-season month with today's workers.
-
-    Capacity = base x events x labour^a x land^(1-a). With a < 1, more workers
-    on the same land each produce less, which caps how many people a village
-    can feed. This month's output is capacity x the season's factor. Without
-    an `rng` there are no good or bad days; `at_full_health` ignores how weak
-    the workers are right now (both used for estimates).
-    """
-    food, health = config.food, config.health
-    floor = health.work_at_zero_health
-    work_factor = 1.0 if at_full_health else floor + (1.0 - floor) * population.health / health.maximum
-    noise = 1.0
-    if rng is not None:
-        noise_sd = food.output_noise / np.sqrt(np.maximum(population.count, 1))
-        noise = np.maximum(0.0, 1.0 + rng.normal(0.0, noise_sd))
-    labor = np.where(
-        is_working_age(population, config),
-        population.count * population.skill * work_factor * noise,
-        0.0,
-    )
-    labor_by_location = by_location(labor, population, len(land))
-    a = food.labor_share
-    return food.base_output * production_mult * labor_by_location**a * land ** (1.0 - a)
 
 
 def harvest_outlook(
@@ -102,14 +60,17 @@ def harvest_outlook(
     return normal_capacity[:, None] * season_factors(config)[upcoming][None, :] * event_outlook
 
 
-def plan_ration(stock: np.ndarray, need: np.ndarray, outlook: np.ndarray, config: Config) -> np.ndarray:
+def plan_ration(
+    stock: np.ndarray, need: np.ndarray, outlook: np.ndarray, config: Config, most: float = 1.0
+) -> np.ndarray:
     """Share of the full ration each village allows itself this month.
 
     The village eats the largest steady ration that keeps it from running out
     over the coming months, counting the stock (which keeps spoiling) and the
     harvests in `outlook` (one column per coming month). When a poor harvest
     leaves the granary short, it tightens belts early and spreads the
-    shortage instead of eating well until it is empty.
+    shortage instead of eating well until it is empty. The result is capped
+    at `most` (above 1: how much more than needed could safely be sold).
     """
     if config.food.planning_months <= 0:
         return np.ones_like(need)
@@ -123,11 +84,11 @@ def plan_ration(stock: np.ndarray, need: np.ndarray, outlook: np.ndarray, config
         required = required * keep + need
         ratio = np.divide(available, required, out=np.ones_like(available), where=required > 0)
         affordable = np.minimum(affordable, ratio)
-    return np.clip(affordable, 0.0, 1.0)
+    return np.clip(affordable, 0.0, most)
 
 
 def plan_ration_realistically(
-    stock: np.ndarray, need: np.ndarray, normal_outlook: np.ndarray, config: Config, rounds: int = 3
+    stock: np.ndarray, need: np.ndarray, normal_outlook: np.ndarray, config: Config, rounds: int = 3, most: float = 1.0
 ) -> np.ndarray:
     """Plan rations knowing that hungry workers grow less.
 
@@ -135,10 +96,10 @@ def plan_ration_realistically(
     them and shrinks future harvests, so re-plan with the work they could do
     on the planned ration, a few times until the plan and the harvest agree.
     """
-    ration = plan_ration(stock, need, normal_outlook, config)
+    ration = plan_ration(stock, need, normal_outlook, config, most)
     for _ in range(rounds):
-        effort = expected_work_factor(ration, config) ** config.food.labor_share
-        ration = plan_ration(stock, need, normal_outlook * effort[:, None], config)
+        effort = expected_work_factor(np.minimum(ration, 1.0), config) ** config.food.labor_share
+        ration = plan_ration(stock, need, normal_outlook * effort[:, None], config, most)
     return ration
 
 
@@ -180,10 +141,10 @@ def update_health(
     health_delta: np.ndarray,
     config: Config,
 ) -> None:
-    """Health drifts toward a level set by how well people eat; events add their toll.
+    """Health drifts toward a level set by how well people eat; events and cold add their toll.
 
-    `food_share` is per row (each person eats with their family);
-    `health_delta` is per village. Full rations lead to full health;
+    `food_share` and `health_delta` are per row (each person eats and keeps
+    warm with their family). Full rations lead to full health;
     `starvation_ration` or less leads to 0. Health rises at most `recovery` a
     month and falls at most `hunger_damage` times the share of food missing,
     so mild shortages wear people down slowly.
@@ -196,7 +157,7 @@ def update_health(
         np.minimum(gap, cfg.recovery),
         np.maximum(gap, -cfg.hunger_damage * (1.0 - share)),
     )
-    change = change + health_delta[population.location]
+    change = change + health_delta
     population.health = np.clip(population.health + change, 0.0, cfg.maximum)
 
 
@@ -234,11 +195,18 @@ def food_margin(normal_capacity: np.ndarray, need: np.ndarray) -> np.ndarray:
     return np.divide(normal_capacity, need, out=np.full_like(need, np.inf), where=need > 0)
 
 
-def birth_factor(margin: np.ndarray, config: Config) -> np.ndarray:
-    """How much the land's ability to feed another family encourages births."""
+def wage_cover(average_pay: np.ndarray, food_price: np.ndarray, need: np.ndarray, workers: np.ndarray) -> np.ndarray:
+    """Food a typical month's pay buys, over the village's food need per worker."""
+    bought = np.divide(average_pay, food_price, out=np.zeros_like(average_pay), where=food_price > 0)
+    per_worker = np.divide(need, workers, out=np.full_like(need, np.inf), where=workers > 0)
+    return np.divide(bought, per_worker, out=np.zeros_like(bought), where=np.isfinite(per_worker) & (per_worker > 0))
+
+
+def birth_factor(cover: np.ndarray, config: Config) -> np.ndarray:
+    """How much being able to feed another family encourages births."""
     demo = config.demography
-    low, high = demo.food_margin_for_births
-    room = np.clip((margin - low) / (high - low), 0.0, 1.0)
+    low, high = demo.wage_cover_for_births
+    room = np.clip((cover - low) / (high - low), 0.0, 1.0)
     return demo.crowded_birth_factor + (1.0 - demo.crowded_birth_factor) * room
 
 

@@ -40,21 +40,32 @@ def test_each_village_has_its_own_market():
     assert np.allclose(money, [8.0, 2.0])
 
 
-def test_price_rises_with_shortage_and_falls_with_glut():
-    price = np.ones(3)
-    new = market.adjust_price(price, demand=np.array([110.0, 100.0, 80.0]), supply=np.array([100.0, 100.0, 100.0]), config=CONFIG)
+def test_markup_rises_with_shortage_and_falls_with_glut():
+    new = market.adjust_markup(np.ones(3), np.array([110.0, 100.0, 80.0]), np.array([100.0, 100.0, 100.0]), CONFIG)
     assert new[0] > 1.0 and new[1] == 1.0 and new[2] < 1.0
 
 
-def test_price_moves_are_capped():
-    cap = CONFIG.money.max_price_change
-    new = market.adjust_price(np.ones(2), np.array([1000.0, 0.0]), np.array([1.0, 1000.0]), CONFIG)
+def test_markup_moves_are_capped_and_bounded():
+    cap = CONFIG.trade.max_markup_change
+    low, high = CONFIG.trade.markup_range
+    new = market.adjust_markup(np.ones(2), np.array([1000.0, 0.0]), np.array([1.0, 1000.0]), CONFIG)
     assert np.allclose(new, [1 + cap, 1 - cap])
+    assert market.adjust_markup(np.array([high]), np.array([10.0]), np.array([1.0]), CONFIG)[0] == high
+    assert market.adjust_markup(np.array([low]), np.array([0.0]), np.array([1.0]), CONFIG)[0] == low
 
 
-def test_price_rises_when_nothing_is_on_offer():
-    new = market.adjust_price(np.ones(1), np.array([10.0]), np.array([0.0]), CONFIG)
-    assert new[0] > 1.0
+def test_markup_rises_when_nothing_is_on_offer():
+    assert market.adjust_markup(np.ones(1), np.array([10.0]), np.array([0.0]), CONFIG)[0] > 1.0
+
+
+def test_grain_price_follows_king_davenant():
+    normal = CONFIG.food.normal_cover
+    markup = np.ones(3)
+    for _ in range(100):  # let it settle
+        markup = market.grain_markup(markup, np.array([normal, 0.9 * normal, 0.8 * normal]), CONFIG)
+    assert np.isclose(markup[0], 1.0)
+    assert 1.25 < markup[1] < 1.35  # 10% short: about 30% dearer
+    assert 1.65 < markup[2] < 1.85  # 20% short: about 80% dearer
 
 
 def test_sharing_moves_money_from_comfortable_to_short_families():
@@ -83,16 +94,29 @@ def people(skill, health, job, household):
 
 def test_wages_go_to_workers_by_skill_and_health():
     pop = people(skill=[1.0, 2.0, 1.0], health=[100.0, 100.0, 100.0], job=[0, 0, -1], household=[0, 1, 2])
-    cash = np.array([100.0])
-    income, paid = market.pay_wages(cash, pop.job == 0, pop, 3, CONFIG)
-    assert np.isclose(paid[0], 100.0 * CONFIG.money.wage_payout)
+    cash = np.array([[100.0, 0.0, 0.0, 0.0]])
+    income, paid = market.pay_wages(cash, pop, 3, CONFIG)
+    assert np.isclose(paid[0, 0], 100.0 * CONFIG.money.wage_payout)
     assert np.isclose(income[1], 2 * income[0]) and income[2] == 0.0
-    assert np.isclose(income.sum() + cash[0], 100.0)
+    assert np.isclose(income.sum() + cash.sum(), 100.0)
+
+
+def test_each_business_pays_its_own_workers():
+    pop = people(skill=[1.0, 1.0], health=[100.0, 100.0], job=[0, 2], household=[0, 1])
+    income, _ = market.pay_wages(np.array([[100.0, 0.0, 10.0, 0.0]]), pop, 2, CONFIG)
+    assert np.isclose(income[0], 90.0) and np.isclose(income[1], 9.0)
+
+
+def test_businesses_set_money_aside_before_paying_wages():
+    pop = people(skill=[1.0], health=[100.0], job=[0], household=[0])
+    cash = np.array([[100.0, 0.0, 0.0, 0.0]])
+    income, _ = market.pay_wages(cash, pop, 1, CONFIG, keep=np.array([[60.0, 0.0, 0.0, 0.0]]))
+    assert np.isclose(income[0], 40.0 * CONFIG.money.wage_payout)
 
 
 def test_weak_workers_earn_less():
     pop = people(skill=[1.0, 1.0], health=[100.0, 0.0], job=[0, 0], household=[0, 1])
-    income, _ = market.pay_wages(np.array([100.0]), pop.job == 0, pop, 2, CONFIG)
+    income, _ = market.pay_wages(np.array([[100.0, 0.0, 0.0, 0.0]]), pop, 2, CONFIG)
     assert income[1] < income[0]
 
 
@@ -105,7 +129,7 @@ def test_savings_of_families_with_nobody_left_go_to_neighbours():
 def test_money_is_never_created_or_destroyed():
     config = Config(seed=3, months=36, villages=(VillageConfig(name="A"), VillageConfig(name="B", population=300, land=100)))
     sim = Simulation(replace(config, scheduled_events=(ScheduledEvent("drought", 4),)))
-    total = sim.world.households.money.sum() + sim.world.farm_cash.sum()
+    total = sim.world.money
     for _ in range(36):
         r = sim.step()
         assert np.isclose(r.savings + r.business_cash, total)

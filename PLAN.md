@@ -143,7 +143,7 @@ families with money, taxes need money, healers need someone to pay them.
 | 5 | `claude/basic-healthcare` | healers paid by the council treat the sickest |
 | 6 | `claude/phase2-reporting` | prices, wages, inequality and public finances in the CLI, chart and checks |
 
-### 1. A village of 1,000 in families
+### 1. A village of 1,000 in families (built)
 
 - People get two new columns: `household` and `job`.
 - **Families at the start:** each woman aged 18–49 heads a household;
@@ -158,23 +158,25 @@ families with money, taxes need money, healers need someone to pay them.
 - Land is scaled so 1,000 people sit at the same food margin as the
   100-person village.
 
-### 2. Money and a food market
+### 2. Money and a food market (built)
 
 - **Families hold coins.** Each month they are paid wages and buy food at
   the market price.
 - **Farms** (all farmers together, as one business for now) own the
   harvest store. Each month they offer what the existing rationing plan
   allows, so a poor harvest means less on the market. They pay out their
-  takings as wages, by skill and health, keeping a small cash buffer.
-- **The price** rises when families want more than is on offer and falls
-  when food goes unsold, by at most 15% a month.
+  takings as wages, by skill and health.
 - **Families buy what they need if they can afford it.** If food is short,
   everyone gets the same share of what they asked for; if a family runs
   out of money, it eats less. Each person's health follows their family's
   food, so in the same drought some families go hungry and others don't.
+- **Neighbours help:** families with more than two months of food money
+  saved give a quarter of the excess each month to families who can't
+  afford food. Without this, families with many children and few earners
+  went hungry next to full purses even in normal years.
 - Money is never created or destroyed: the total is checked every month.
 
-### 3. Businesses and products
+### 3. Businesses and products (built)
 
 Products and business types are data, like events:
 
@@ -185,18 +187,36 @@ Products and business types are data, like events:
 | Weaving | clothing | |
 | Smithing | tools | burns firewood |
 
-- **Needs:** food every month; firewood mostly in winter (cold does
-  damage health without it); clothing is a comfort bought with what's left
-  over.
-- **Families spend in order:** food, then firewood, then part of what's
-  left on clothing, saving the rest.
+- **Needs:** food every month; firewood for cooking and, mostly, winter
+  heating (cold harms health without it); clothing is a comfort.
+- **Families spend in order:** food, then firewood; they keep about three
+  months of those costs as savings and spend 30% of anything above that
+  on clothing each month. Comforts are open-ended: the better off the
+  village, the more it buys.
 - **Tools** make farmers and woodcutters more productive and wear out, so
-  those businesses buy new ones from smiths.
-- **People change trades** toward better pay: each month a few workers in
-  a poorly paid trade move to the best-paid one. Specialisation follows
-  prices instead of being set by hand.
+  those businesses buy new ones from smiths. Businesses set aside a
+  month's cost of supplies and tools before paying wages.
+- **Prices** are a fair price (a customary wage over output per worker,
+  plus supplies) times a mark-up between half and triple. For most goods
+  the mark-up rises when orders outrun what is made and falls when goods
+  pile up. Grain follows how well stores plus expected harvests cover the
+  coming year, by the King–Davenant law (a harvest 10% short raises grain
+  prices ~30%, 20% short ~80%).
+- **Who works where:** each trade aims for workers in proportion to the
+  work its orders need, nudged up when its goods sell dear and down when
+  cheap; necessities (food, firewood, tools) are staffed first and
+  comforts share whoever is left. A few percent of the gap moves each
+  month. Businesses also work less when unsold goods pile up.
+- **Births** follow the real wage: how much food a month's pay buys,
+  against the food need per worker. Dear grain or crowded land lowers it.
 - Events can hit one business: a drought hits farming, a new forest fire
   hits woodcutting, a harsh winter raises the need for firewood.
+
+Simpler rules were tried first and failed the sanity checks: pure
+supply-and-demand prices compounded into 20x swings and collapses, and
+workers chasing the best pay stampeded into whichever trade was briefly
+dear (once leaving the village to starve). The rules above are the stable
+ones.
 
 ### 4. A council forms
 

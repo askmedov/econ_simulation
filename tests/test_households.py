@@ -2,7 +2,7 @@ from dataclasses import replace
 
 import numpy as np
 
-from econ_sim import households, rules
+from econ_sim import economy, households, rules
 from econ_sim.config import Config, VillageConfig
 from econ_sim.population import NO_JOB
 from econ_sim.rng import RandomStreams
@@ -74,9 +74,13 @@ def test_working_age_people_have_jobs_and_others_do_not():
 def test_jobs_follow_people_as_they_age():
     world, config = village()
     pop = world.population
+    wanted = np.array([[0.0, 0.0, 10.0, 0.0]])  # only weaving is short of workers
     pop.age_months[:] = 14 * 12 + 11  # everyone about to turn 15
-    rules.update_jobs(pop, config)
+    economy.assign_new_workers(pop, wanted, config)
     assert (pop.job == NO_JOB).all()
     rules.grow_older(pop)
-    rules.update_jobs(pop, config)
-    assert (pop.job != NO_JOB).all()
+    economy.assign_new_workers(pop, wanted, config)
+    assert (pop.job == config.business_index("weaving")).all()
+    pop.age_months[:] = 60 * 12  # everyone retires
+    economy.assign_new_workers(pop, wanted, config)
+    assert (pop.job == NO_JOB).all()

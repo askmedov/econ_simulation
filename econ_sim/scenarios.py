@@ -46,7 +46,7 @@ def run_batch(config: Config, runs: int) -> list[Simulation]:
 
 def series(sims: list[Simulation], metric: str) -> np.ndarray:
     """A metric as a (runs x months) array."""
-    return np.array([[getattr(r, metric) for r in sim.records] for sim in sims], dtype=np.float64)
+    return np.array([[r.value(metric) for r in sim.records] for sim in sims], dtype=np.float64)
 
 
 @dataclass

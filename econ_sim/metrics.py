@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import csv
-from dataclasses import asdict, dataclass, fields
+from dataclasses import dataclass, fields
 from pathlib import Path
 
 import numpy as np
@@ -33,6 +33,8 @@ class MonthRecord:
     food_lost: float  # destroyed by events
     food_stock: float  # at the end of the month
     food_margin: float  # normal harvest over need; below ~1.05 the land is crowded
+    food_cover: float  # stores plus expected harvests, as a share of the coming year's need
+    wage_cover: float  # food a month's pay buys, over food need per worker
     food_price: float  # coins per ration (averaged over villages)
     wage: float  # average monthly wage of a worker, in coins
     savings: float  # coins held by families
@@ -40,10 +42,33 @@ class MonthRecord:
     shared: float  # coins given by better-off families to families short of food money
     underfed: int  # people whose family got less than 90% of its food need
     poorest_fifth_ration: float  # share of food need met for the poorest fifth of people
+    warmth: float  # share of the firewood families needed that they got
+    clothing: float  # garments bought per person this month
+    job_changes: int  # workers who moved to a better-paid trade
+    prices: dict[str, float]  # coins per unit of each product
+    jobs: dict[str, int]  # workers in each business
     avg_health: float
     poor_health: int  # people below the danger threshold
     accidents: int
     events: str  # active village events
+
+    def value(self, name: str) -> float:
+        """A measure by name, including flattened ones like "price_firewood" or "jobs_farming"."""
+        return flat(self)[name]
+
+
+def flat(record: MonthRecord) -> dict:
+    """The record as one flat dict: prices and jobs become price_<product> and jobs_<business>."""
+    row = {}
+    for f in fields(record):
+        value = getattr(record, f.name)
+        if f.name == "prices":
+            row.update({f"price_{k}": v for k, v in value.items()})
+        elif f.name == "jobs":
+            row.update({f"jobs_{k}": v for k, v in value.items()})
+        else:
+            row[f.name] = value
+    return row
 
 
 def age_groups(population: Population, config: Config) -> tuple[int, int, int]:
@@ -80,8 +105,8 @@ def poorest_fifth_ration(money: np.ndarray, size: np.ndarray, bought: np.ndarray
 def write_csv(records: list[MonthRecord], path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=[field.name for field in fields(MonthRecord)])
+        rows = [flat(record) for record in records]
+        writer = csv.DictWriter(f, fieldnames=list(rows[0]) if rows else [f.name for f in fields(MonthRecord)])
         writer.writeheader()
-        for record in records:
-            row = asdict(record)
+        for row in rows:
             writer.writerow({k: round(v, 3) if isinstance(v, float) else v for k, v in row.items()})

@@ -39,26 +39,6 @@ def test_seasons_average_to_one():
     assert np.isclose(rules.season_factors(CONFIG).mean(), 1.0)
 
 
-def test_more_workers_on_same_land_each_produce_less():
-    land, mult = np.array([50.0]), np.ones(1)
-    one = rules.capacity(people([30], count=50), land, mult, CONFIG, rng=None)[0]
-    two = rules.capacity(people([30], count=100), land, mult, CONFIG, rng=None)[0]
-    assert one < two < 2 * one
-
-
-def test_children_and_elderly_do_not_work():
-    land, mult = np.array([50.0]), np.ones(1)
-    assert rules.capacity(people([5, 70]), land, mult, CONFIG, rng=None)[0] == 0.0
-
-
-def test_events_scale_production():
-    land = np.array([50.0])
-    pop = people([30], count=50)
-    normal = rules.capacity(pop, land, np.ones(1), CONFIG, rng=None)
-    drought = rules.capacity(pop, land, np.array([0.6]), CONFIG, rng=None)
-    assert np.isclose(drought, normal * 0.6)
-
-
 def test_consume_gives_full_rations_when_food_is_plentiful():
     granary = np.array([100.0])
     eaten, share = rules.consume(granary, need=np.array([40.0]), ration=np.ones(1))
@@ -123,17 +103,6 @@ def test_harvest_outlook_follows_seasons_and_events():
     season = rules.season_factors(CONFIG)
     assert np.isclose(ahead[0, 0], 100.0 * season[3] * 0.5)  # April, drought
     assert np.isclose(ahead[0, 3], 100.0 * season[6])  # July, drought over
-
-
-def test_capacity_at_full_health_ignores_current_weakness():
-    land, mult = np.array([50.0]), np.ones(1)
-    weak = people([30], count=50, health=10.0)
-    strong = people([30], count=50, health=100.0)
-    assert rules.capacity(weak, land, mult, CONFIG, rng=None) < rules.capacity(strong, land, mult, CONFIG, rng=None)
-    assert np.isclose(
-        rules.capacity(weak, land, mult, CONFIG, rng=None, at_full_health=True),
-        rules.capacity(strong, land, mult, CONFIG, rng=None),
-    )
 
 
 def test_spoilage_takes_a_share_of_the_stock():
@@ -225,17 +194,17 @@ def test_people_grow_older():
     assert pop.age_months[0] == 30 * 12 + 1
 
 
-def test_food_margin_compares_normal_harvest_to_need():
-    margin = rules.food_margin(np.array([110.0, 50.0, 0.0]), np.array([100.0, 100.0, 0.0]))
-    assert np.allclose(margin[:2], [1.1, 0.5]) and np.isinf(margin[2])
+def test_wage_cover_is_food_a_wage_buys_over_need_per_worker():
+    # Pay 2 coins, food 1 coin: a wage buys 2 rations; need is 1.5 per worker.
+    cover = rules.wage_cover(np.array([2.0]), np.array([1.0]), np.array([150.0]), np.array([100.0]))
+    assert np.isclose(cover[0], 2.0 / 1.5)
 
 
-def test_births_slow_when_land_is_crowded():
-    low, high = CONFIG.demography.food_margin_for_births
+def test_births_slow_when_a_wage_can_barely_feed_a_family():
+    low, high = CONFIG.demography.wage_cover_for_births
     factor = rules.birth_factor(np.array([low - 0.1, (low + high) / 2, high + 0.1]), CONFIG)
     floor = CONFIG.demography.crowded_birth_factor
     assert np.allclose(factor, [floor, (1 + floor) / 2, 1.0])
-
 
 def test_realistic_plan_allows_for_weaker_workers():
     # Half the year's food has to come from future harvests; on short rations

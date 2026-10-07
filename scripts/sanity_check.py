@@ -21,7 +21,7 @@ import argparse
 import math
 import sys
 from collections import defaultdict
-from dataclasses import asdict, dataclass, replace
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 import numpy as np
@@ -29,6 +29,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from econ_sim.config import Config, ScheduledEvent, VillageConfig  # noqa: E402
+from econ_sim.metrics import flat  # noqa: E402
 from econ_sim.simulation import Simulation  # noqa: E402
 
 
@@ -58,17 +59,17 @@ def problems(sim: Simulation, extreme: bool = False) -> list[tuple[str, int]]:
         found.append((name, month))
 
     money = records[0].savings + records[0].business_cash if records else 0.0
-    start_price = records[0].food_price if records else 1.0
+    start_prices = dict(records[0].prices) if records else {}
     hungry_amid_plenty = 0
     for r in records:
-        values = asdict(r)
+        values = flat(r)
         if any(isinstance(v, float) and not math.isfinite(v) for v in values.values()):
             flag("not-a-number value", r.month_number)
         if min(r.population, r.food_stock, r.food_eaten, r.food_produced, r.avg_health, r.savings, r.business_cash) < 0:
             flag("negative value", r.month_number)
         if not math.isclose(r.savings + r.business_cash, money, rel_tol=1e-6, abs_tol=1e-6):
             flag("money created or destroyed", r.month_number)
-        if not r.food_price > 0:
+        if not all(price > 0 for price in r.prices.values()) and r.population > 0:
             flag("price not positive", r.month_number)
         if not 0 <= r.ration <= 1 + 1e-9 or r.avg_health > 100 + 1e-9:
             flag("ration or health out of range", r.month_number)
@@ -82,8 +83,10 @@ def problems(sim: Simulation, extreme: bool = False) -> list[tuple[str, int]]:
             flag("more than 3 years of food in store", r.month_number)
         if r.population >= 20 and r.ration < 0.5:
             flag("starvation rations (below 50%)", r.month_number)
-        if not start_price / 20 < r.food_price < 20 * start_price:
-            flag("food price off by 20x", r.month_number)
+        if any(not start_prices[k] / 20 < v < 20 * start_prices[k] for k, v in r.prices.items()):
+            flag("a price off by 20x", r.month_number)
+        if r.population >= 50 and r.jobs.get("farming", 1) == 0:
+            flag("nobody farms", r.month_number)
         # Families too poor to buy food while the granary is full, for months.
         plenty = one_village and r.food_stock > 6 * r.food_needed
         hungry_amid_plenty = hungry_amid_plenty + 1 if plenty and r.underfed > r.population / 6 else 0

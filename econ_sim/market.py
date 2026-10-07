@@ -11,7 +11,8 @@ from dataclasses import dataclass
 import numpy as np
 
 from econ_sim.config import Config
-from econ_sim.population import Population
+from econ_sim.economy import work_factor
+from econ_sim.population import NO_JOB, Population
 
 
 def by_household(values: np.ndarray, population: Population, n_households: int) -> np.ndarray:
@@ -76,36 +77,41 @@ def buy(
     return Sale(bought=bought, spent=spent, sold=by_village(bought, location, n), demand=demand)
 
 
-def adjust_price(price: np.ndarray, demand: np.ndarray, supply: np.ndarray, config: Config) -> np.ndarray:
-    """Prices rise when families want more than is on offer and fall when goods go unsold."""
-    cfg = config.money
+def adjust_markup(markup: np.ndarray, demand: np.ndarray, supply: np.ndarray, config: Config) -> np.ndarray:
+    """Mark-ups rise when buyers want more than is on offer and fall when goods go unsold."""
+    cfg = config.trade
     gap = np.divide(demand - supply, supply, out=np.zeros_like(supply), where=supply > 0)
     gap = np.where((supply <= 0) & (demand > 0), 1.0, gap)  # nothing on offer at all
-    change = np.clip(cfg.price_speed * gap, -cfg.max_price_change, cfg.max_price_change)
-    return price * (1.0 + change)
+    change = np.clip(cfg.markup_speed * gap, -cfg.max_markup_change, cfg.max_markup_change)
+    return np.clip(markup * (1.0 + change), *cfg.markup_range)
+
+
+def grain_markup(markup: np.ndarray, cover: np.ndarray, config: Config) -> np.ndarray:
+    """Move the grain mark-up toward the level set by how short the year's supply is."""
+    food = config.food
+    target = (food.normal_cover / np.maximum(cover, 1e-6)) ** food.price_elasticity
+    target = np.clip(target, *config.trade.markup_range)
+    return markup + food.price_adjustment * (target - markup)
 
 
 def pay_wages(
-    cash: np.ndarray,
-    workers: np.ndarray,
-    population: Population,
-    n_households: int,
-    config: Config,
+    cash: np.ndarray, population: Population, n_households: int, config: Config, keep: np.ndarray | None = None
 ) -> tuple[np.ndarray, np.ndarray]:
-    """A business pays out part of its cash to its workers, by skill and health.
+    """Each business pays out part of its cash to its workers, by skill and health.
 
-    `cash` is per village, `workers` a boolean mask of the rows working there.
-    Takes the wages out of `cash`; returns (income per household, wages paid
-    per village).
+    It first sets aside `keep` (villages x businesses), e.g. next month's
+    supplies. `cash` has the wages taken out. Returns (income per household,
+    wages paid per village and business).
     """
-    health = config.health
-    floor = health.work_at_zero_health
-    effort = population.count * population.skill * (floor + (1 - floor) * population.health / health.maximum)
-    effort = np.where(workers, effort, 0.0)
-    n = len(cash)
-    total_effort = np.bincount(population.location, weights=effort, minlength=n)
-    payout = np.where(total_effort > 0, config.money.wage_payout * cash, 0.0)
-    rate = np.divide(payout, total_effort, out=np.zeros_like(payout), where=total_effort > 0)
-    income = by_household(effort * rate[population.location], population, n_households)
+    n_locations, n_business = cash.shape
+    effort = population.count * population.skill * work_factor(population, config)
+    working = population.job != NO_JOB
+    index = population.location.astype(np.int64) * n_business + np.where(working, population.job, 0)
+    total = np.bincount(index[working], weights=effort[working], minlength=n_locations * n_business)
+    total = total.reshape(n_locations, n_business)
+    spare = cash if keep is None else np.maximum(cash - keep, 0.0)
+    payout = np.where(total > 0, config.money.wage_payout * spare, 0.0)
+    rate = np.divide(payout, total, out=np.zeros_like(payout), where=total > 0)
+    earned = np.where(working, effort * rate.reshape(-1)[index], 0.0)
     cash -= payout
-    return income, payout
+    return by_household(earned, population, n_households), payout
