@@ -120,28 +120,131 @@ Fixed after the first sweep:
 - The starting state is generated, not taken from real data.
 - Parameters are plausible guesses, not calibrated to historical data.
 
-## Roadmap
+## Phase 2: a village economy (design)
 
-Each phase adds one economic idea, keeping the near-term what-if as the main
-output.
+A village of 1,000 people with families, money, several businesses, a
+council that forms once the village is big enough, and basic healthcare.
+The near-term what-if stays the main output, now with new questions: how
+far do food prices rise after a drought, which families go hungry, does the
+council's reserve help, does healthcare blunt an epidemic?
 
-2. **Households and private property.** Families with their own stores;
-   children and elders depend on them. Inequality: in the same drought some
-   families go hungry and others don't. A second need (firewood in winter)
-   and a first division of labour.
-3. **Trade and prices.** Barter, then money; local markets where prices rise
-   when demand exceeds supply. Near-term question: how fast do food prices
-   spike after a drought, and who is hurt?
-4. **Land, tools and labour.** Ownership, wages, saving and lending: who
-   sells land or borrows in a bad year.
-5. **Government.** Taxes, a famine reserve, relief policy: "a drought hits in
-   month 4: does opening the reserve in month 7 prevent the deaths?"
-6. **Many villages → a country.** Regions, trade between them, migration;
+### Build order
+
+Each step is its own branch on top of the previous one, and each leaves a
+working, tested simulation. The order follows dependencies: markets need
+families with money, taxes need money, healers need someone to pay them.
+
+| Step | Branch | Adds |
+|---|---|---|
+| 1 | `claude/village-of-1000` | 1,000 people in families; jobs |
+| 2 | `claude/money-and-markets` | coins, wages, a food market with a moving price |
+| 3 | `claude/businesses-and-products` | firewood, clothing, tools; people move to better-paid trades |
+| 4 | `claude/village-administration` | a council forms: taxes, officials, food reserve, famine relief |
+| 5 | `claude/basic-healthcare` | healers paid by the council treat the sickest |
+| 6 | `claude/phase2-reporting` | prices, wages, inequality and public finances in the CLI, chart and checks |
+
+### 1. A village of 1,000 in families
+
+- People get two new columns: `household` and `job`.
+- **Families at the start:** each woman aged 18–49 heads a household;
+  men pair with women of similar age; children join a woman old enough to
+  be their mother; older people live with a family. About 220 households of
+  around 4–5 people.
+- Newborns join their mother's household. When a household has nobody
+  left, its savings pass to the remaining families (or the council, once
+  there is one).
+- **Jobs:** working-age people (15–59) have a job; children and the elderly
+  don't. Young people pick a trade when they turn 15.
+- Land is scaled so 1,000 people sit at the same food margin as the
+  100-person village.
+
+### 2. Money and a food market
+
+- **Families hold coins.** Each month they are paid wages and buy food at
+  the market price.
+- **Farms** (all farmers together, as one business for now) own the
+  harvest store. Each month they offer what the existing rationing plan
+  allows, so a poor harvest means less on the market. They pay out their
+  takings as wages, by skill and health, keeping a small cash buffer.
+- **The price** rises when families want more than is on offer and falls
+  when food goes unsold, by at most 15% a month.
+- **Families buy what they need if they can afford it.** If food is short,
+  everyone gets the same share of what they asked for; if a family runs
+  out of money, it eats less. Each person's health follows their family's
+  food, so in the same drought some families go hungry and others don't.
+- Money is never created or destroyed: the total is checked every month.
+
+### 3. Businesses and products
+
+Products and business types are data, like events:
+
+| Business | Makes | Notes |
+|---|---|---|
+| Farming | food | land, seasons, tools raise output |
+| Woodcutting | firewood | tools raise output |
+| Weaving | clothing | |
+| Smithing | tools | burns firewood |
+
+- **Needs:** food every month; firewood mostly in winter (cold does
+  damage health without it); clothing is a comfort bought with what's left
+  over.
+- **Families spend in order:** food, then firewood, then part of what's
+  left on clothing, saving the rest.
+- **Tools** make farmers and woodcutters more productive and wear out, so
+  those businesses buy new ones from smiths.
+- **People change trades** toward better pay: each month a few workers in
+  a poorly paid trade move to the best-paid one. Specialisation follows
+  prices instead of being set by hand.
+- Events can hit one business: a drought hits farming, a new forest fire
+  hits woodcutting, a harsh winter raises the need for firewood.
+
+### 4. A council forms
+
+- **When:** after the village has had 500 or more people for 6 months (so
+  a 1,000-person village forms one early in a run, and a 100-person village
+  never does).
+- **Taxes:** 10% of wages, into a treasury.
+- **Officials:** about 4 per 1,000 people, hired from the trades and paid
+  a little above the average wage.
+- **Food reserve:** in good times the council buys surplus grain until it
+  holds about 2 months of the village's needs.
+- **Famine relief:** families who can't buy enough food get it free from
+  the reserve.
+- What-if levers: tax rate, reserve size, relief on or off, or no council
+  at all.
+
+### 5. Basic healthcare
+
+- **Healers** are hired and paid by the council: about 5 per 1,000 people.
+- Each healer can see about 30 patients a month: the sickest first (health
+  below 70), then infants.
+- **Treatment** speeds recovery and lowers that month's risk of dying, which
+  matters most in an epidemic or a famine.
+
+### New measures
+
+Prices of each product, average wage, workers in each trade, money held by
+families, the treasury and the reserve, relief given, people treated, and
+how the poorest fifth of families eat compared with the rest.
+
+### Kept simple for now
+
+- Each business type is one business per village (individual firms later).
+- No new households form; families just grow.
+- No lending, land ownership or rents.
+- The council's rules are fixed policies, not decisions.
+
+## Roadmap after Phase 2
+
+3. **Land, credit and firms.** Land ownership and rents, lending and debt
+   (who borrows or sells land in a bad year), individual firms instead of
+   one business per trade.
+4. **Many villages → a country.** Regions, trade between them, migration;
    people batched into groups (`count` > 1) with split and merge; national
    money and inflation.
-7. **Calibration and starting state.** Start from realistic data (age
+5. **Calibration and starting state.** Start from realistic data (age
    structure, stores, prices) so near-term forecasts mean something.
-8. **Interactive dashboard** to pick events and compare scenarios.
+6. **Interactive dashboard** to pick events and compare scenarios.
 
 ## Open questions
 
