@@ -18,12 +18,14 @@ GRID = "#e1e0d9"
 BASELINE_COLOR = "#2a78d6"  # categorical slot 1 (blue)
 SCENARIO_COLOR = "#eb6834"  # categorical slot 2 (orange)
 
-# (metric, panel title, cumulative?)
+# (metric, panel title, cumulative?, scale, fixed y-range, tick format)
 PANELS = (
-    ("food_stock", "Food in store (rations)", False),
-    ("ration", "Share of food need met (%)", False),
-    ("avg_health", "Average health (0-100)", False),
-    ("deaths", "Deaths so far", True),
+    ("food_stock", "Food in store (rations)", False, 1, None, "{:,.0f}"),
+    ("food_price", "Food price (coins per ration)", False, 1, None, "{:.1f}"),
+    ("avg_health", "Average health (0-100)", False, 1, (0, 100), "{:,.0f}"),
+    ("ration", "Food need met: whole village (%)", False, 100, (0, 105), "{:,.0f}"),
+    ("poorest_fifth_ration", "Food need met: poorest fifth (%)", False, 100, (0, 105), "{:,.0f}"),
+    ("deaths", "Deaths so far", True, 1, None, "{:,.0f}"),
 )
 
 
@@ -48,8 +50,8 @@ def plot(
     if scenario is not None:
         lines.append((scenario, SCENARIO_COLOR, f"With {event_label(forced)}"))
 
-    fig, axes = plt.subplots(2, 2, figsize=(11, 6.6), sharex=True, facecolor=SURFACE)
-    for ax, (metric, title, cumulative) in zip(axes.flat, PANELS):
+    fig, axes = plt.subplots(2, 3, figsize=(14, 7), sharex=True, facecolor=SURFACE)
+    for ax, (metric, title, cumulative, scale, fixed, fmt) in zip(axes.flat, PANELS):
         ax.set_facecolor(SURFACE)
         ax.set_title(title, loc="left", fontsize=11, color=TEXT, pad=8)
         ax.grid(axis="y", color=GRID, linewidth=0.8)
@@ -58,16 +60,15 @@ def plot(
             ax.spines[side].set_visible(False)
         ax.spines["bottom"].set_color(GRID)
         ax.tick_params(colors=MUTED, labelsize=9, length=0)
-        ax.yaxis.set_major_locator(MaxNLocator(nbins=4, integer=True))
-        ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{v:,.0f}"))
+        ax.yaxis.set_major_locator(MaxNLocator(nbins=4, integer=fmt.endswith(".0f}")))
+        ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _, fmt=fmt: fmt.format(v)))
 
         ends = []
         for sims, color, label in lines:
             values = series(sims, metric)
             if cumulative:
                 values = values.cumsum(axis=1)
-            if metric == "ration":
-                values = values * 100
+            values = values * scale
             s = spread(values)
             if len(sims) > 1:
                 ax.fill_between(months, s.low, s.high, color=color, alpha=0.14, linewidth=0)
@@ -76,13 +77,9 @@ def plot(
 
         for item in forced:
             ax.axvline(item.month, color=MUTED, linewidth=0.8)
-        ax.set_ylim(bottom=0)
-        if metric == "ration":
-            ax.set_ylim(0, 105)
-        if metric == "avg_health":
-            ax.set_ylim(0, 100)
+        ax.set_ylim(*(fixed or (0, None)))
         ax.set_xlim(months[0], months[-1] + max(1, len(months) // 12))
-        _label_ends(ax, months[-1], ends, TEXT_SECONDARY)
+        _label_ends(ax, months[-1], ends, TEXT_SECONDARY, fmt)
 
     for ax in axes[1]:
         ax.set_xlabel("Month", color=MUTED, fontsize=9)
@@ -101,8 +98,8 @@ def plot(
 
     runs = len(baseline)
     subtitle = "One run" if runs == 1 else f"Average of {runs} runs; shading shows where 80% of runs fall"
-    fig.suptitle(f"Village over {len(months)} months", x=0.06, y=0.98, ha="left", va="top", fontsize=13, color=TEXT)
-    fig.text(0.06, 0.935, subtitle, fontsize=9, color=TEXT_SECONDARY, va="top")
+    fig.suptitle(f"Village over {len(months)} months", x=0.045, y=0.98, ha="left", va="top", fontsize=13, color=TEXT)
+    fig.text(0.045, 0.935, subtitle, fontsize=9, color=TEXT_SECONDARY, va="top")
     if scenario is not None:
         fig.legend(
             *axes[0, 0].get_legend_handles_labels(),
@@ -119,7 +116,7 @@ def plot(
     plt.close(fig)
 
 
-def _label_ends(ax, x: float, values: list[float], color: str) -> None:
+def _label_ends(ax, x: float, values: list[float], color: str, fmt: str = "{:,.0f}") -> None:
     """Value labels at the line ends; skip one if two would overlap."""
     low, high = ax.get_ylim()
     placed: list[float] = []
@@ -127,7 +124,7 @@ def _label_ends(ax, x: float, values: list[float], color: str) -> None:
         if any(abs(value - other) < 0.06 * (high - low) for other in placed):
             continue
         ax.annotate(
-            f"{value:,.0f}",
+            fmt.format(value),
             xy=(x, value),
             xytext=(4, 0),
             textcoords="offset points",

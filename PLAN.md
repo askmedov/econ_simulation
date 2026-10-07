@@ -120,7 +120,7 @@ Fixed after the first sweep:
 - The starting state is generated, not taken from real data.
 - Parameters are plausible guesses, not calibrated to historical data.
 
-## Phase 2: a village economy (design)
+## Phase 2: a village economy (built)
 
 A village of 1,000 people with families, money, several businesses, a
 council that forms once the village is big enough, and basic healthcare.
@@ -265,11 +265,17 @@ per 1,000 over two years, mostly infants and the old) and about a sixth
 fewer in an epidemic. In an outbreak more people are at risk than five
 healers can see, so an epidemic still costs extra lives.
 
-### New measures
+### New measures (built)
 
-Prices of each product, average wage, workers in each trade, money held by
-families, the treasury and the reserve, relief given, people treated, and
-how the poorest fifth of families eat compared with the rest.
+Every month records, besides Phase 1's: the price of each product, workers
+in each trade, the average wage, money held by families, businesses and
+the council, taxes, the grain reserve and relief given, healers and people
+treated, how warm families kept, clothing bought, how much food a wage
+buys, how well stores cover the coming year, and how the poorest fifth of
+people ate compared with the village. The overview chart shows food in
+store, food price, health, food need met for the village and for its
+poorest fifth, and deaths; comparisons report the peak food price, the
+poorest fifth's worst month, relief given and people treated.
 
 ### Kept simple for now
 

@@ -147,14 +147,15 @@ def _print_months(sims: list[Simulation]) -> None:
         return
     # Many runs: averages, with the range 80% of runs fall into.
     print("Averages across runs (80% of runs fall in the range in brackets)")
-    print(f"{'Month':<12} {'Pop':>14} {'Died so far':>16} {'Stock':>18} {'Ration':>17} {'Health':>8}")
+    print(f"{'Month':<12} {'Pop':>18} {'Died so far':>16} {'Food price':>17} {'Ration':>17} {'Poorest fifth':>17} {'Health':>7}")
     pop, deaths = spread(series(sims, "population")), spread(series(sims, "deaths").cumsum(axis=1))
-    stock, ration = spread(series(sims, "food_stock")), spread(series(sims, "ration"))
-    health = spread(series(sims, "avg_health"))
+    price, ration = spread(series(sims, "food_price")), spread(series(sims, "ration"))
+    poorest, health = spread(series(sims, "poorest_fifth_ration")), spread(series(sims, "avg_health"))
     for i, r in enumerate(sims[0].records):
         print(
-            f"{_label(r):<12} {_range(pop, i, '{:.0f}'):>14} {_range(deaths, i, '{:.1f}'):>16} "
-            f"{_range(stock, i, '{:,.0f}'):>18} {_range(ration, i, '{:.0%}'):>17} {health.mean[i]:>8.0f}"
+            f"{_label(r):<12} {_range(pop, i, '{:.0f}'):>18} {_range(deaths, i, '{:.1f}'):>16} "
+            f"{_range(price, i, '{:.2f}'):>17} {_range(ration, i, '{:.0%}'):>17} {_range(poorest, i, '{:.0%}'):>17} "
+            f"{health.mean[i]:>7.0f}"
         )
 
 
@@ -227,12 +228,12 @@ def _print_effect(result: Effect, forced: tuple[ScheduledEvent, ...], runs: int,
 def _print_outlook(sims: list[Simulation]) -> None:
     pop = series(sims, "population")
     deaths, births = series(sims, "deaths").sum(axis=1), series(sims, "births").sum(axis=1)
-    hungry = (series(sims, "ration") < 1.0).sum(axis=1)
+    hungry = (series(sims, "ration") < 0.97).sum(axis=1)
     start = sims[0].records[0].population - sims[0].records[0].births + sims[0].records[0].deaths
     months = pop.shape[1]
     print(f"\nAfter {months} months" + ("" if len(sims) == 1 else f" (average of {len(sims)} runs)") + ":")
     print(f"  Population {start} -> {pop[:, -1].mean():.0f}; births {births.mean():.0f}, deaths {deaths.mean():.0f}")
-    print(f"  Months on short rations: {hungry.mean():.1f}")
+    print(f"  Months the village ate under 97% of its food need: {hungry.mean():.1f}")
 
 
 def _print_events(config: Config) -> None:

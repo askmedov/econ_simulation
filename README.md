@@ -44,7 +44,10 @@ Python 3.11+. matplotlib is only needed for charts.
 ```
 
 Other options: `--months`, `--seed`, `--population`, `--land`,
-`--food-months`, `--out`. See `--help`.
+`--food-months`, `--out`, and the policy levers `--no-council`,
+`--no-relief`, `--no-healthcare`. See `--help`. Everything else (products,
+businesses, prices, tax rate, reserve size, healers...) is in
+`econ_sim/config.py`.
 
 A single paired run is noisy: in one run, a drought can even "save" a life
 by chance. Use `--runs 100` or more to see the real effect and its range.
@@ -53,11 +56,11 @@ by chance. Use `--runs 100` or more to see the real effect and its range.
 
 | File | Contents |
 |---|---|
-| `run1.csv` | Every month of the first run: population, births, deaths, food produced, eaten, spoiled and in store, prices of every product, workers in every trade, wages, savings, how well the village and its poorest fifth ate, how warm families kept, health, active events |
+| `run1.csv` | Every month of the first run: population, births, deaths, food produced, eaten, spoiled and in store, prices of every product, workers in every trade, wages, savings, how well the village and its poorest fifth ate, how warm families kept, the council's treasury, taxes, grain reserve and relief, healers and people treated, health, active events |
 | `run1_with_event.csv` | The same run with the forced events |
-| `summary.csv` | Each measure's average and 10–90% range across runs, for the baseline, with the events (`_event`), and the difference (`_diff`) |
-| `log.txt` | Notable happenings in the first run |
-| `overview.png` | Food in store, ration, health and deaths over time (with `--plot`) |
+| `summary.csv` | Key measures' average and 10–90% range across runs (population, births, deaths, food stock and price, wage, how well the village and its poorest fifth ate, health, relief, people treated, treasury, grain reserve), for the baseline, with the events (`_event`), and the difference (`_diff`) |
+| `log.txt` | Notable happenings in the first run (events, food shortages, a council forming) |
+| `overview.png` | Food in store, food price, health, food need met for the village and its poorest fifth, and deaths over time (with `--plot`) |
 
 ## Using it from Python
 
