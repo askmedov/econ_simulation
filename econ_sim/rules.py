@@ -117,18 +117,6 @@ def expected_work_factor(food_share: np.ndarray, config: Config) -> np.ndarray:
     return floor + (1.0 - floor) * target_health(food_share, config) / cfg.maximum
 
 
-def consume(granary: np.ndarray, need: np.ndarray, ration: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """Everyone eats from their village granary, all getting the same share.
-
-    Eats up to `ration` x need (if the granary holds that much), takes the
-    food out of `granary` and returns (eaten, share of need met).
-    """
-    eaten = np.minimum(granary, need * ration)
-    share = np.divide(eaten, need, out=np.ones_like(need), where=need > 0)
-    granary -= eaten
-    return eaten, share
-
-
 def spoil(granary: np.ndarray, rate: float) -> np.ndarray:
     spoiled = granary * rate
     granary -= spoiled
@@ -195,11 +183,6 @@ def deaths(
     population.count -= died
     population.remove_empty()
     return by_village
-
-
-def food_margin(normal_capacity: np.ndarray, need: np.ndarray) -> np.ndarray:
-    """What each village grows in a normal year over what it needs (1.0 = just enough)."""
-    return np.divide(normal_capacity, need, out=np.full_like(need, np.inf), where=need > 0)
 
 
 def wage_cover(average_pay: np.ndarray, food_price: np.ndarray, need: np.ndarray, workers: np.ndarray) -> np.ndarray:

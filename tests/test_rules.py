@@ -39,24 +39,6 @@ def test_seasons_average_to_one():
     assert np.isclose(rules.season_factors(CONFIG).mean(), 1.0)
 
 
-def test_consume_gives_full_rations_when_food_is_plentiful():
-    granary = np.array([100.0])
-    eaten, share = rules.consume(granary, need=np.array([40.0]), ration=np.ones(1))
-    assert eaten.tolist() == [40.0] and share.tolist() == [1.0] and granary.tolist() == [60.0]
-
-
-def test_consume_shares_out_what_is_left():
-    granary = np.array([30.0])
-    eaten, share = rules.consume(granary, need=np.array([40.0]), ration=np.ones(1))
-    assert eaten.tolist() == [30.0] and share.tolist() == [0.75] and granary.tolist() == [0.0]
-
-
-def test_consume_respects_planned_ration():
-    granary = np.array([100.0])
-    eaten, share = rules.consume(granary, need=np.array([40.0]), ration=np.array([0.8]))
-    assert np.isclose(eaten[0], 32.0) and np.isclose(share[0], 0.8)
-
-
 NO_SPOILAGE = replace(CONFIG, food=replace(CONFIG.food, spoilage=0.0))
 
 
