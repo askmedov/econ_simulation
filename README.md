@@ -32,6 +32,9 @@ Python 3.11+. matplotlib is only needed for charts.
 # The same drought in a village without a council (no reserve, no relief)
 .venv/bin/python -m econ_sim --event drought@4 --runs 200 --no-council
 
+# Watch a council form: no council at the start, one forms after six months
+.venv/bin/python -m econ_sim --council-forms-later
+
 # What do healers do for an epidemic?
 .venv/bin/python -m econ_sim --event disease@3 --runs 200
 .venv/bin/python -m econ_sim --event disease@3 --runs 200 --no-healthcare
@@ -45,7 +48,7 @@ Python 3.11+. matplotlib is only needed for charts.
 
 Other options: `--months`, `--seed`, `--population`, `--land`,
 `--food-months`, `--out`, and the policy levers `--no-council`,
-`--no-relief`, `--no-healthcare`. See `--help`. Everything else (products,
+`--no-relief`, `--no-healthcare`, `--council-forms-later`. See `--help`. Everything else (products,
 businesses, prices, tax rate, reserve size, healers...) is in
 `econ_sim/config.py`.
 

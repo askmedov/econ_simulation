@@ -38,3 +38,9 @@ def test_unknown_event_is_rejected(tmp_path):
 def test_list_events(capsys):
     main(["--list-events"])
     assert "drought" in capsys.readouterr().out
+
+
+def test_council_can_form_during_the_run(tmp_path, capsys):
+    main(["--months", "8", "--council-forms-later", "--out", str(tmp_path)])
+    out = capsys.readouterr().out
+    assert "A council forms once" in out and "formed a council" in out

@@ -30,7 +30,12 @@ def main(argv: list[str] | None = None) -> None:
         start_month=args.start_month,
         villages=(village,),
         random_events=not args.no_random_events,
-        council=replace(defaults.council, enabled=not args.no_council, relief=not args.no_relief),
+        council=replace(
+            defaults.council,
+            enabled=not args.no_council,
+            relief=not args.no_relief,
+            established_at_start=not args.council_forms_later,
+        ),
         healthcare=replace(defaults.healthcare, enabled=not args.no_healthcare),
     )
     forced = tuple(_parse_event(text) for text in args.event)
@@ -90,6 +95,10 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--no-council", action="store_true", help="the village never has a council (no taxes, reserve or relief)")
     parser.add_argument("--no-relief", action="store_true", help="the council gives no famine relief")
     parser.add_argument("--no-healthcare", action="store_true", help="the council employs no healers")
+    parser.add_argument(
+        "--council-forms-later", action="store_true",
+        help="no council at the start; one forms once the village has had 500 people for 6 months",
+    )
     parser.add_argument("--population", type=int, default=village.population, help="villagers at the start (default %(default)s)")
     parser.add_argument("--land", type=float, default=village.land, help="farmland in plots (default %(default)s)")
     parser.add_argument("--food-months", type=float, default=village.initial_food_months, help="months of food in store at the start (default %(default)s)")
@@ -237,12 +246,12 @@ def _print_outlook(sims: list[Simulation]) -> None:
 
 
 def _print_events(config: Config) -> None:
-    print(f"{'Event':<14} {'Scope':<9} {'Chance':>8}  {'When':<10} {'Lasts':<8} Effects")
+    print(f"{'Event':<14} {'Scope':<9} {'Chance':>8}  {'When':<14} {'Lasts':<8} Effects")
     for spec in config.events:
         when = ", ".join(calendar.month_abbr[m] for m in spec.months) if spec.months else "any month"
         lasts = "-".join(map(str, spec.duration)) if isinstance(spec.duration, tuple) else str(spec.duration)
         effects = ", ".join(f"{k} {v}" for k, v in spec.effects.items())
-        print(f"{spec.name:<14} {spec.scope:<9} {spec.chance:>8.1%}  {when:<10} {lasts + ' mo':<8} {effects}")
+        print(f"{spec.name:<14} {spec.scope:<9} {spec.chance:>8.1%}  {when:<14} {lasts + ' mo':<8} {effects}")
     print("\nForce a village event with --event NAME@MONTH, e.g. --event drought@4")
 
 
