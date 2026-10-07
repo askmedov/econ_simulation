@@ -118,11 +118,15 @@ def _print_header(config: Config, forced: tuple[ScheduledEvent, ...], runs: int)
 
 def _print_months(sims: list[Simulation]) -> None:
     if len(sims) == 1:
-        print(f"{'Month':<12} {'Pop':>5} {'Born':>5} {'Died':>5} {'Stock':>7} {'Ration':>7} {'Health':>7}  Events")
+        print(
+            f"{'Month':<12} {'Pop':>5} {'Born':>5} {'Died':>5} {'Stock':>7} {'Price':>6} {'Wage':>6} "
+            f"{'Ration':>7} {'Poorest':>8} {'Health':>7}  Events"
+        )
         for r in sims[0].records:
             print(
                 f"{_label(r):<12} {r.population:>5} {r.births:>5} {r.deaths:>5} {r.food_stock:>7,.0f} "
-                f"{r.ration:>7.0%} {r.avg_health:>7.0f}  {r.events.replace('_', ' ').replace('+', ', ')}"
+                f"{r.food_price:>6.2f} {r.wage:>6.2f} {r.ration:>7.0%} {r.poorest_fifth_ration:>8.0%} "
+                f"{r.avg_health:>7.0f}  {r.events.replace('_', ' ').replace('+', ', ')}"
             )
         return
     # Many runs: averages, with the range 80% of runs fall into.
@@ -146,10 +150,14 @@ def _print_comparison(baseline: list[Simulation], scenario: list[Simulation]) ->
     averaged = len(baseline) > 1
     if averaged:
         print(f"Averages of {len(baseline)} paired runs")
-    print(f"{'':<12} {'Food in store':>15} {'Ration':>15} {'Health':>13} {'Extra':>8} {'Fewer':>8}")
-    print(f"{'Month':<12} {'without':>8}{'with':>7} {'without':>8}{'with':>7} {'without':>8}{'with':>5} {'deaths':>8} {'births':>8}")
+    print(f"{'':<12} {'Food in store':>15} {'Food price':>15} {'Ration':>15} {'Health':>13} {'Extra':>8} {'Fewer':>8}")
+    print(
+        f"{'Month':<12} {'without':>8}{'with':>7} {'without':>8}{'with':>7} {'without':>8}{'with':>7} "
+        f"{'without':>8}{'with':>5} {'deaths':>8} {'births':>8}"
+    )
     mean = lambda sims, metric: series(sims, metric).mean(axis=0)
     stock = mean(baseline, "food_stock"), mean(scenario, "food_stock")
+    price = mean(baseline, "food_price"), mean(scenario, "food_price")
     ration = mean(baseline, "ration"), mean(scenario, "ration")
     health = mean(baseline, "avg_health"), mean(scenario, "avg_health")
     extra_deaths = (series(scenario, "deaths") - series(baseline, "deaths")).cumsum(axis=1).mean(axis=0)
@@ -157,7 +165,8 @@ def _print_comparison(baseline: list[Simulation], scenario: list[Simulation]) ->
     count = "{:>8.1f}" if averaged else "{:>8.0f}"
     for i, r in enumerate(baseline[0].records):
         print(
-            f"{_label(r):<12} {stock[0][i]:>8,.0f}{stock[1][i]:>7,.0f} {ration[0][i]:>8.0%}{ration[1][i]:>7.0%} "
+            f"{_label(r):<12} {stock[0][i]:>8,.0f}{stock[1][i]:>7,.0f} {price[0][i]:>8.2f}{price[1][i]:>7.2f} "
+            f"{ration[0][i]:>8.0%}{ration[1][i]:>7.0%} "
             f"{health[0][i]:>8.0f}{health[1][i]:>5.0f} {count.format(extra_deaths[i])} {count.format(fewer_births[i])}"
         )
 
@@ -176,18 +185,23 @@ def _print_effect(result: Effect, forced: tuple[ScheduledEvent, ...], runs: int,
         text = number(s.mean, sign, 1 if runs > 1 else 0)
         if runs > 1:
             text += f"  ({number(s.low, sign, 0)} to {number(s.high, sign, 0)})"
-        print(f"  {name:<26}{text}")
+        print(f"  {name:<28}{text}")
 
     show("Extra deaths", result.extra_deaths, "+")
     show("Fewer births", result.fewer_births)
     show("Population at the end", result.population_change, "+")
-    print(f"  {'Lowest ration':<26}{result.lowest_ration[0]:.0%} without, {result.lowest_ration[1]:.0%} with")
+    print(f"  {'Highest food price':<28}{result.highest_price[0]:.2f} without, {result.highest_price[1]:.2f} with")
+    print(f"  {'Lowest ration':<28}{result.lowest_ration[0]:.0%} without, {result.lowest_ration[1]:.0%} with")
+    print(
+        f"  {'Poorest fifth, worst month':<28}{result.poorest_lowest_ration[0]:.0%} without, "
+        f"{result.poorest_lowest_ration[1]:.0%} with"
+    )
     months_fmt = ".1f" if runs > 1 else ".0f"
     print(
-        f"  {'Months on short rations':<26}{result.hungry_months[0]:{months_fmt}} without, "
+        f"  {'Months on short rations':<28}{result.hungry_months[0]:{months_fmt}} without, "
         f"{result.hungry_months[1]:{months_fmt}} with"
     )
-    print(f"  {'Lowest average health':<26}{result.lowest_health[0]:.0f} without, {result.lowest_health[1]:.0f} with")
+    print(f"  {'Lowest average health':<28}{result.lowest_health[0]:.0f} without, {result.lowest_health[1]:.0f} with")
 
 
 def _print_outlook(sims: list[Simulation]) -> None:

@@ -21,9 +21,13 @@ MOTHER_AGE_GAP = (18, 45)  # a child joins a woman this much older
 @dataclass
 class Households:
     location: np.ndarray  # village of each household
+    money: np.ndarray | None = None  # savings, in coins
 
     def __post_init__(self) -> None:
         self.location = np.asarray(self.location, dtype=np.int32)
+        if self.money is None:
+            self.money = np.zeros(len(self.location))
+        self.money = np.asarray(self.money, dtype=np.float64)
 
     def __len__(self) -> int:
         return len(self.location)
@@ -81,3 +85,18 @@ def _form_village(
 def sizes(population: Population, n_households: int) -> np.ndarray:
     """People in each household."""
     return np.bincount(population.household, weights=population.count, minlength=n_households).astype(np.int64)
+
+
+def pass_on_savings(households: Households, size: np.ndarray) -> None:
+    """Savings of families with nobody left go to the other families of their village."""
+    gone = (size == 0) & (households.money > 0)
+    if not gone.any():
+        return
+    n = int(households.location.max()) + 1
+    left = np.bincount(households.location[gone], weights=households.money[gone], minlength=n)
+    alive = size > 0
+    heirs = np.bincount(households.location[alive], minlength=n)
+    share = np.divide(left, heirs, out=np.zeros_like(left), where=heirs > 0)
+    inherited = np.where(alive, share[households.location], 0.0)
+    keep = gone & (heirs[households.location] == 0)  # nobody left in the village at all
+    households.money = np.where(gone & ~keep, 0.0, households.money) + inherited

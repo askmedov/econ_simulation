@@ -28,6 +28,8 @@ class World:
     granary: np.ndarray  # stored food per village, in rations
     land: np.ndarray  # farmland per village, in plots
     households: Households
+    food_price: np.ndarray  # coins per ration, per village
+    farm_cash: np.ndarray  # coins held by the farms, per village
     names: tuple[str, ...]  # village names
     active_events: list[ActiveEvent] = field(default_factory=list)
 
@@ -54,12 +56,18 @@ def create_world(config: Config, streams: RandomStreams) -> World:
     n = len(config.villages)
     households = form_households(population, n, rng)
     rules.update_jobs(population, config)
-    need = rules.by_location(rules.food_need(population, config), population, n)
+    need_rows = rules.food_need(population, config)
+    need = rules.by_location(need_rows, population, n)
     months_of_food = np.array([v.initial_food_months for v in config.villages])
+    price = np.full(n, config.money.food_price)
+    family_need = np.bincount(population.household, weights=need_rows, minlength=len(households))
+    households.money = config.money.initial_savings_months * family_need * price[households.location]
     return World(
         month=config.start_month - 1,
         population=population,
         granary=need * months_of_food,
+        food_price=price,
+        farm_cash=config.money.initial_business_cash_months * need * price,
         land=np.array([v.land for v in config.villages], dtype=np.float64),
         households=households,
         names=tuple(v.name for v in config.villages),

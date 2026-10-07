@@ -6,7 +6,7 @@ import calendar
 
 import numpy as np
 
-from econ_sim import events, households, metrics, rules
+from econ_sim import events, households, market, metrics, rules
 from econ_sim.config import Config
 from econ_sim.metrics import MonthRecord
 from econ_sim.rng import RandomStreams
@@ -63,29 +63,49 @@ class Simulation:
         produced = capacity * rules.season_factors(config)[world.month_of_year - 1]
         world.granary += produced
 
-        # 3. Everyone eats; if food looks short for the year ahead, all get the same smaller ration.
-        need = rules.by_location(rules.food_need(pop, config), pop, n)
+        # 3. Farms offer what their plan allows; families buy at the market price.
+        hh = world.households
+        need_rows = rules.food_need(pop, config)
+        need = rules.by_location(need_rows, pop, n)
         normal = rules.capacity(pop, world.land, np.ones(n), config, rng=None, at_full_health=True)
         ahead = events.production_outlook(world, max(config.food.planning_months - 1, 0))
         outlook = rules.harvest_outlook(normal, ahead, world.month_of_year, config)
-        ration = rules.plan_ration_realistically(world.granary, need, outlook, config)
-        eaten, share = rules.consume(world.granary, need, ration)
+        offer = need * rules.plan_ration_realistically(world.granary, need, outlook, config)
+        family_need = market.by_household(need_rows, pop, len(hh))
+        cost = family_need * world.food_price[hh.location]
+        shared = market.share_with_neighbours(hh.money, cost, hh.location, n, config)
+        sale = market.buy(hh.money, family_need, world.food_price, np.minimum(offer, world.granary), hh.location)
+        world.granary = np.maximum(world.granary - sale.sold, 0.0)  # no rounding dust below zero
+        world.farm_cash += market.by_village(sale.spent, hh.location, n)
+        family_share = np.divide(sale.bought, family_need, out=np.ones_like(family_need), where=family_need > 0)
+        eaten = sale.sold
+        share = np.divide(eaten, need, out=np.ones_like(need), where=need > 0)
         self._track_shortages(share)
 
-        # 4. Some stored food spoils.
+        # 4. Farms pay out their takings as wages.
+        income, wages = market.pay_wages(world.farm_cash, pop.job == rules.FARMING, pop, len(hh), config)
+        hh.money += income
+        farmers = int(pop.count[pop.job == rules.FARMING].sum())
+
+        # 5. Some stored food spoils.
         spoiled = rules.spoil(world.granary, config.food.spoilage)
 
-        # 5. Health responds to food and events.
-        rules.update_health(pop, share, mods.health_delta, config)
+        # 6. Health responds to each family's food and to events.
+        rules.update_health(pop, family_share[pop.household], mods.health_delta, config)
 
-        # 6. Deaths, births, ageing.
+        # 7. Deaths, births, ageing.
         died = rules.deaths(pop, mods.mortality_mult, config, streams["deaths"], n)
         crowding = rules.birth_factor(rules.food_margin(normal, need), config)
         born = rules.births(pop, mods.fertility_mult * crowding, config, streams["births"], n)
         rules.grow_older(pop)
         rules.update_jobs(pop, config)
+        size = households.sizes(pop, len(hh))
+        households.pass_on_savings(hh, size)
 
-        # 7. Record the month.
+        # 8. Prices move with the gap between what families wanted and what was on offer.
+        world.food_price = market.adjust_price(world.food_price, sale.demand, offer, config)
+
+        # 9. Record the month.
         children, workers, elderly = metrics.age_groups(pop, config)
         record = MonthRecord(
             month_number=month_number,
@@ -95,7 +115,7 @@ class Simulation:
             children=children,
             workers=workers,
             elderly=elderly,
-            households=int((households.sizes(pop, len(world.households)) > 0).sum()),
+            households=int((size > 0).sum()),
             births=int(born.sum()),
             deaths=int(died.sum()),
             food_produced=float(produced.sum()),
@@ -106,6 +126,13 @@ class Simulation:
             food_lost=float(lost.sum()),
             food_stock=float(world.granary.sum()),
             food_margin=float(normal.sum() / need.sum()) if need.sum() > 0 else 0.0,
+            food_price=float(np.average(world.food_price, weights=np.maximum(need, 1e-9))),
+            wage=wages.sum() / farmers if farmers else 0.0,
+            savings=float(hh.money.sum()),
+            business_cash=float(world.farm_cash.sum()),
+            shared=float(shared.sum()),
+            underfed=int(pop.count[family_share[pop.household] < 0.9].sum()),
+            poorest_fifth_ration=metrics.poorest_fifth_ration(hh.money, size, sale.bought, family_need),
             avg_health=metrics.average_health(pop),
             poor_health=metrics.poor_health(pop, config),
             accidents=sum(hits.values()),
@@ -125,12 +152,12 @@ class Simulation:
     def _track_shortages(self, share) -> None:
         for location, fed in enumerate(share):
             started = self._short_since.get(location)
-            if fed < 1.0 and started is None:
+            if fed < 0.97 and started is None:
                 self._short_since[location] = self.world.month
-                self._note(location, f"Rationing began: {fed:.0%} of full rations")
-            elif fed >= 1.0 and started is not None:
+                self._note(location, f"Food short: the village ate {fed:.0%} of what it needs")
+            elif fed >= 0.99 and started is not None:
                 months = self.world.month - started
-                self._note(location, f"Full rations again after {months} month{'s' * (months != 1)}")
+                self._note(location, f"Enough food again after {months} month{'s' * (months != 1)}")
                 del self._short_since[location]
 
     def _active_event_names(self) -> str:

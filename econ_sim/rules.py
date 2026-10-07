@@ -182,12 +182,14 @@ def update_health(
 ) -> None:
     """Health drifts toward a level set by how well people eat; events add their toll.
 
-    Full rations lead to full health; `starvation_ration` or less leads to 0.
-    Health rises at most `recovery` a month and falls at most `hunger_damage`
-    times the share of food missing, so mild shortages wear people down slowly.
+    `food_share` is per row (each person eats with their family);
+    `health_delta` is per village. Full rations lead to full health;
+    `starvation_ration` or less leads to 0. Health rises at most `recovery` a
+    month and falls at most `hunger_damage` times the share of food missing,
+    so mild shortages wear people down slowly.
     """
     cfg = config.health
-    share = food_share[population.location]
+    share = food_share
     gap = target_health(share, config) - population.health
     change = np.where(
         gap > 0,

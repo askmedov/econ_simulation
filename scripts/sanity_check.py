@@ -37,6 +37,8 @@ IMPOSSIBLE = {
     "negative value",
     "ration or health out of range",
     "age groups don't add up",
+    "money created or destroyed",
+    "price not positive",
 }
 DISASTERS = {"starvation rations (below 50%)", "deaths above 30% in a year"}
 
@@ -55,12 +57,19 @@ def problems(sim: Simulation, extreme: bool = False) -> list[tuple[str, int]]:
     def flag(name: str, month: int) -> None:
         found.append((name, month))
 
+    money = records[0].savings + records[0].business_cash if records else 0.0
+    start_price = records[0].food_price if records else 1.0
+    hungry_amid_plenty = 0
     for r in records:
         values = asdict(r)
         if any(isinstance(v, float) and not math.isfinite(v) for v in values.values()):
             flag("not-a-number value", r.month_number)
-        if min(r.population, r.food_stock, r.food_eaten, r.food_produced, r.avg_health) < 0:
+        if min(r.population, r.food_stock, r.food_eaten, r.food_produced, r.avg_health, r.savings, r.business_cash) < 0:
             flag("negative value", r.month_number)
+        if not math.isclose(r.savings + r.business_cash, money, rel_tol=1e-6, abs_tol=1e-6):
+            flag("money created or destroyed", r.month_number)
+        if not r.food_price > 0:
+            flag("price not positive", r.month_number)
         if not 0 <= r.ration <= 1 + 1e-9 or r.avg_health > 100 + 1e-9:
             flag("ration or health out of range", r.month_number)
         if r.children + r.workers + r.elderly != r.population:
@@ -73,6 +82,13 @@ def problems(sim: Simulation, extreme: bool = False) -> list[tuple[str, int]]:
             flag("more than 3 years of food in store", r.month_number)
         if r.population >= 20 and r.ration < 0.5:
             flag("starvation rations (below 50%)", r.month_number)
+        if not start_price / 20 < r.food_price < 20 * start_price:
+            flag("food price off by 20x", r.month_number)
+        # Families too poor to buy food while the granary is full, for months.
+        plenty = one_village and r.food_stock > 6 * r.food_needed
+        hungry_amid_plenty = hungry_amid_plenty + 1 if plenty and r.underfed > r.population / 6 else 0
+        if hungry_amid_plenty == 6:
+            flag("many go hungry for months while the granary is full", r.month_number)
     if extreme:
         return found
 

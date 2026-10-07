@@ -103,6 +103,25 @@ class SkillConfig:
 
 
 @dataclass(frozen=True)
+class MoneyConfig:
+    food_price: float = 1.0  # starting price of a ration, in coins
+    # Families start with this many months of their food cost saved.
+    initial_savings_months: float = 3.0
+    # Businesses start with this many months of the village's food bill in cash.
+    initial_business_cash_months: float = 0.5
+    # How strongly a price moves with the gap between demand and supply
+    # (0.5: demand 10% above supply raises the price 5%), at most this much a month.
+    price_speed: float = 0.5
+    max_price_change: float = 0.15
+    # Share of a business's cash paid out as wages each month.
+    wage_payout: float = 0.9
+    # Families with savings above this many months of their food cost give
+    # `sharing_rate` of the excess each month to families who can't afford food.
+    sharing_threshold_months: float = 2.0
+    sharing_rate: float = 0.25
+
+
+@dataclass(frozen=True)
 class EventSpec:
     """A kind of random event, described as data.
 
@@ -201,6 +220,7 @@ class Config:
     food: FoodConfig = field(default_factory=FoodConfig)
     health: HealthConfig = field(default_factory=HealthConfig)
     skill: SkillConfig = field(default_factory=SkillConfig)
+    money: MoneyConfig = field(default_factory=MoneyConfig)
     events: tuple[EventSpec, ...] = DEFAULT_EVENTS
     random_events: bool = True  # False: only scheduled events happen
     scheduled_events: tuple[ScheduledEvent, ...] = ()

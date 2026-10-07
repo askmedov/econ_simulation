@@ -44,7 +44,7 @@ by chance. Use `--runs 100` or more to see the real effect and its range.
 
 | File | Contents |
 |---|---|
-| `run1.csv` | Every month of the first run: population, births, deaths, food produced, eaten, spoiled, in store, ration, health, active events |
+| `run1.csv` | Every month of the first run: population, births, deaths, food produced, eaten, spoiled and in store, food price, wages, savings, how well the village and its poorest fifth ate, health, active events |
 | `run1_with_event.csv` | The same run with the forced events |
 | `summary.csv` | Each measure's average and 10–90% range across runs, for the baseline, with the events (`_event`), and the difference (`_diff`) |
 | `log.txt` | Notable happenings in the first run |
@@ -70,7 +70,8 @@ All parameters are in [`econ_sim/config.py`](econ_sim/config.py).
 | `econ_sim/population.py` | The population table (one row = `count` identical people) |
 | `econ_sim/rng.py` | Named random streams |
 | `econ_sim/world.py` | World state and the starting village |
-| `econ_sim/households.py` | Families: who lives with whom |
+| `econ_sim/households.py` | Families: who lives with whom, and their savings |
+| `econ_sim/market.py` | Buying and selling, prices, wages, help between neighbours |
 | `econ_sim/rules.py` | Production, rationing, eating, spoilage, health, births, deaths |
 | `econ_sim/events.py` | Rolling, forcing and combining events |
 | `econ_sim/simulation.py` | The monthly loop |

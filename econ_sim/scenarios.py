@@ -19,7 +19,19 @@ from econ_sim.config import Config, ScheduledEvent
 from econ_sim.simulation import Simulation
 
 # Monthly measures worth comparing, in the order they are reported.
-METRICS = ("population", "births", "deaths", "food_stock", "ration", "avg_health", "poor_health")
+METRICS = (
+    "population",
+    "births",
+    "deaths",
+    "food_stock",
+    "food_price",
+    "wage",
+    "ration",
+    "poorest_fifth_ration",
+    "underfed",
+    "avg_health",
+    "poor_health",
+)
 
 
 def run_batch(config: Config, runs: int) -> list[Simulation]:
@@ -76,7 +88,9 @@ class Effect:
     fewer_births: Spread
     population_change: Spread  # at the end
     lowest_ration: tuple[float, float]  # (baseline, scenario), averaged over runs
-    hungry_months: tuple[float, float]  # months with less than full rations
+    poorest_lowest_ration: tuple[float, float]  # the poorest fifth's worst month
+    hungry_months: tuple[float, float]  # months in which the village ate under 97% of its need
+    highest_price: tuple[float, float]  # food price at its peak
     lowest_health: tuple[float, float]
 
 
@@ -92,7 +106,9 @@ def effect(comparison: Comparison) -> Effect:
         fewer_births=spread(-comparison.difference("births").sum(axis=1)),
         population_change=spread(comparison.difference("population")[:, -1]),
         lowest_ration=pair(lambda sims: series(sims, "ration").min(axis=1)),
-        hungry_months=pair(lambda sims: (series(sims, "ration") < 1.0).sum(axis=1)),
+        poorest_lowest_ration=pair(lambda sims: series(sims, "poorest_fifth_ration").min(axis=1)),
+        hungry_months=pair(lambda sims: (series(sims, "ration") < 0.97).sum(axis=1)),
+        highest_price=pair(lambda sims: series(sims, "food_price").max(axis=1)),
         lowest_health=pair(lambda sims: series(sims, "avg_health").min(axis=1)),
     )
 

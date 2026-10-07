@@ -33,6 +33,13 @@ class MonthRecord:
     food_lost: float  # destroyed by events
     food_stock: float  # at the end of the month
     food_margin: float  # normal harvest over need; below ~1.05 the land is crowded
+    food_price: float  # coins per ration (averaged over villages)
+    wage: float  # average monthly wage of a worker, in coins
+    savings: float  # coins held by families
+    business_cash: float  # coins held by businesses
+    shared: float  # coins given by better-off families to families short of food money
+    underfed: int  # people whose family got less than 90% of its food need
+    poorest_fifth_ration: float  # share of food need met for the poorest fifth of people
     avg_health: float
     poor_health: int  # people below the danger threshold
     accidents: int
@@ -55,6 +62,19 @@ def average_health(population: Population) -> float:
 
 def poor_health(population: Population, config: Config) -> int:
     return int(population.count[population.health < config.health.danger_threshold].sum())
+
+
+def poorest_fifth_ration(money: np.ndarray, size: np.ndarray, bought: np.ndarray, need: np.ndarray) -> float:
+    """Share of food need met for the fifth of people in the poorest families (savings per person)."""
+    lived = size > 0
+    if not lived.any():
+        return 1.0
+    money, size, bought, need = money[lived], size[lived], bought[lived], need[lived]
+    order = np.argsort(money / size, kind="stable")
+    people_before = np.cumsum(size[order]) - size[order]
+    poorest = order[people_before < 0.2 * size.sum()]
+    wanted = need[poorest].sum()
+    return float(bought[poorest].sum() / wanted) if wanted > 0 else 1.0
 
 
 def write_csv(records: list[MonthRecord], path: Path) -> None:
