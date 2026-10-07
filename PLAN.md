@@ -62,15 +62,19 @@ are recipes (inputs → outputs) defined as data.
   winter. Weak people work less.
 - **Shared granary per village,** 2% spoilage a month.
 - **Rationing with foresight:** each month the village eats the largest
-  steady ration that keeps stock plus expected harvests from running out
-  over the next 12 months. Expectations are a slowly moving average of
-  output (about 10 months of memory), so one bad month doesn't cause panic
-  but a drought does tighten belts early.
+  steady ration that keeps its stock (which keeps spoiling) plus expected
+  harvests from running out over the next 12 months. Expected harvests are
+  what today's workers would grow in normal health, times the effect of
+  events already under way (villagers see a drought ruining this year's
+  crop, but don't expect one next year). The plan also allows for hungry
+  workers growing less.
 - **Health** drifts toward a level set by the ration (full rations → 100,
-  half rations or less → 0), gaining up to 10 a month and losing faster the
+  40% rations or less → 0), gaining up to 10 a month and losing faster the
   worse the shortage.
-- **Deaths:** yearly risk by age, plus extra risk below health 50. **Births:**
-  women 16–45, less likely when health is poor.
+- **Deaths:** yearly risk by age, plus extra risk below health 50.
+- **Births:** women 16–45, fewer when health is poor and when the land can
+  barely feed everyone (people marry later: the "preventive check"). This
+  keeps the village from growing until a drought tips it into famine.
 - **Events:** good weather / drought (April, one or the other), harsh winter,
   disease, granary fire, personal accidents. Any village event can also be
   forced at a chosen month.
@@ -80,14 +84,37 @@ are recipes (inputs → outputs) defined as data.
 
 ### What a drought does (default village, April drought, 200 runs)
 
-Short rations start in July and last about 15 months (lowest ration about
-80%), average health falls from 99 to about 76, about 1 fewer birth and 1–2
-extra deaths over 36 months. By the third harvest rations and health are
-nearly back to normal, but stores are still about a quarter lower.
+Short rations start in summer and last about 13 months (lowest ration
+about 86%), average health falls from about 99 to 76 and there are slightly
+fewer births, but hardly any extra deaths: one bad harvest is hardship, not
+famine. It takes a drought on top of disease, or two bad years in a row, to
+push rations below half.
+
+### Sanity checks
+
+`scripts/sanity_check.py` runs hundreds (`--full`: thousands) of seeds
+across settings: short and century-long runs, all twelve start months, tiny
+and big villages, too little and too much land, every bad event at once,
+empty granaries. It fails on impossible values (negative food, broken
+accounting), on nonsense (hunger with a full granary, a year of hunger with
+no cause, implausible birth rates, lopsided sex ratios), and on disasters
+(starvation rations, 30% dying in a year) that happen more often than the
+setting allows.
+
+Fixed after the first sweep:
+- Villagers judged next year's harvest by recent bad ones and kept
+  themselves hungry long after a drought ended (a poverty trap).
+- Planning ignored spoilage and how little weak workers grow, so granaries
+  ran dry before the harvest.
+- Population grew until people were already malnourished, so every century
+  run ended in a famine that killed a third of the village.
+- Starting villages could be lopsided between men and women by chance.
 
 ### Known simplifications
 
 - The village shares food equally; no households or private stores yet.
+- No coping beyond rationing (no wild foods, selling livestock or help
+  from neighbours).
 - Hunger risk doesn't depend on age (famines really hit infants and the old
   hardest).
 - The starting state is generated, not taken from real data.

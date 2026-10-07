@@ -31,6 +31,7 @@ class MonthRecord:
     food_spoiled: float
     food_lost: float  # destroyed by events
     food_stock: float  # at the end of the month
+    food_margin: float  # normal harvest over need; below ~1.05 the land is crowded
     avg_health: float
     poor_health: int  # people below the danger threshold
     accidents: int

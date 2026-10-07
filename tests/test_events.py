@@ -117,3 +117,13 @@ def test_person_events_hit_individuals_and_split_groups():
     assert pop.size == people_before  # nobody lost, just regrouped
     assert len(pop) > rows_before
     assert pop.count[pop.health == 70.0].sum() == hits["accident"]
+
+
+def test_production_outlook_covers_the_rest_of_an_event():
+    w = world(villages=2)
+    events.start_location_events(w, (sure("drought", duration=4, effects={"production_mult": 0.6}),), np.random.default_rng(0))
+    w.active_events = [e for e in w.active_events if e.location == 1]
+    outlook = events.production_outlook(w, 6)
+    # This month plus 3 more: the next 3 months are hit, then back to normal.
+    assert np.allclose(outlook[1], [0.6, 0.6, 0.6, 1, 1, 1])
+    assert np.allclose(outlook[0], 1)

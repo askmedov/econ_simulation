@@ -26,8 +26,6 @@ class World:
     population: Population
     granary: np.ndarray  # stored food per village, in rations
     land: np.ndarray  # farmland per village, in plots
-    # Villagers' sense of a normal month's output (before the season), for planning.
-    expected_capacity: np.ndarray
     names: tuple[str, ...]  # village names
     active_events: list[ActiveEvent] = field(default_factory=list)
 
@@ -54,13 +52,11 @@ def create_world(config: Config, streams: RandomStreams) -> World:
     n = len(config.villages)
     need = rules.by_location(rules.food_need(population, config), population, n)
     months_of_food = np.array([v.initial_food_months for v in config.villages])
-    land = np.array([v.land for v in config.villages], dtype=np.float64)
     return World(
         month=config.start_month - 1,
         population=population,
         granary=need * months_of_food,
-        land=land,
-        expected_capacity=rules.capacity(population, land, np.ones(n), config, rng=None),
+        land=np.array([v.land for v in config.villages], dtype=np.float64),
         names=tuple(v.name for v in config.villages),
     )
 
@@ -70,11 +66,15 @@ def _initial_people(n: int, location: int, config: Config, rng: np.random.Genera
     ages = np.arange(demo.max_initial_age + 1)
     weights = np.exp(-demo.initial_age_decay * ages)
     years = rng.choice(ages, size=n, p=weights / weights.sum())
+    # Alternate sexes down the age order, so every age group is balanced.
+    by_age = np.argsort(years + rng.random(n))
+    female = np.zeros(n, dtype=bool)
+    female[by_age[rng.integers(2) :: 2]] = True
     count = np.ones(n, dtype=np.int64)
     return Population(
         count=count,
         age_months=years * 12 + rng.integers(0, 12, size=n),
-        female=rng.random(n) < demo.female_share_at_birth,
+        female=female,
         health=rng.uniform(*config.health.initial, size=n),
         skill=rules.draw_skill(count, config.skill, rng),
         location=np.full(n, location),

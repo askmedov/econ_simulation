@@ -101,3 +101,21 @@ def test_csv_has_one_row_per_month(tmp_path):
     write_csv(sim.records, path)
     lines = path.read_text().splitlines()
     assert len(lines) == 25 and lines[0].startswith("month_number,year,month,population")
+
+
+def test_starting_village_is_balanced_between_women_and_men():
+    sim = Simulation(Config(seed=0))
+    pop = sim.world.population
+    assert pop.count[pop.female].sum() == 50
+    adults = pop.age_years >= 15
+    women = pop.count[adults & pop.female].sum()
+    assert abs(women - pop.count[adults].sum() / 2) <= 1
+
+
+def test_village_recovers_after_a_drought_ends():
+    # Regression: villagers used to judge harvests by recent bad years and
+    # kept themselves hungry long after the drought was over.
+    config = Config(seed=64, months=60)
+    sim = run(config)
+    last_year = sim.records[-12:]
+    assert min(r.ration for r in last_year) > 0.8

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import calendar
 
+import numpy as np
+
 from econ_sim import events, metrics, rules
 from econ_sim.config import Config
 from econ_sim.metrics import MonthRecord
@@ -60,11 +62,13 @@ class Simulation:
         capacity = rules.capacity(pop, world.land, mods.production_mult, config, streams["production"])
         produced = capacity * rules.season_factors(config)[world.month_of_year - 1]
         world.granary += produced
-        world.expected_capacity = rules.update_expectation(world.expected_capacity, capacity, config)
 
         # 3. Everyone eats; if food looks short for the year ahead, all get the same smaller ration.
         need = rules.by_location(rules.food_need(pop, config), pop, n)
-        ration = rules.plan_ration(world.granary, need, world.expected_capacity, world.month_of_year, config)
+        normal = rules.capacity(pop, world.land, np.ones(n), config, rng=None, at_full_health=True)
+        ahead = events.production_outlook(world, max(config.food.planning_months - 1, 0))
+        outlook = rules.harvest_outlook(normal, ahead, world.month_of_year, config)
+        ration = rules.plan_ration_realistically(world.granary, need, outlook, config)
         eaten, share = rules.consume(world.granary, need, ration)
         self._track_shortages(share)
 
@@ -76,7 +80,8 @@ class Simulation:
 
         # 6. Deaths, births, ageing.
         died = rules.deaths(pop, mods.mortality_mult, config, streams["deaths"], n)
-        born = rules.births(pop, mods.fertility_mult, config, streams["births"], n)
+        crowding = rules.birth_factor(rules.food_margin(normal, need), config)
+        born = rules.births(pop, mods.fertility_mult * crowding, config, streams["births"], n)
         rules.grow_older(pop)
 
         # 7. Record the month.
@@ -98,6 +103,7 @@ class Simulation:
             food_spoiled=float(spoiled.sum()),
             food_lost=float(lost.sum()),
             food_stock=float(world.granary.sum()),
+            food_margin=float(normal.sum() / need.sum()) if need.sum() > 0 else 0.0,
             avg_health=metrics.average_health(pop),
             poor_health=metrics.poor_health(pop, config),
             accidents=sum(hits.values()),

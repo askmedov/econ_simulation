@@ -77,26 +77,63 @@ def test_consume_respects_planned_ration():
     assert np.isclose(eaten[0], 32.0) and np.isclose(share[0], 0.8)
 
 
+NO_SPOILAGE = replace(CONFIG, food=replace(CONFIG.food, spoilage=0.0))
+
+
+def outlook(per_month: float, months: int = 11) -> np.ndarray:
+    return np.full((1, months), per_month)
+
+
 def test_plan_ration_is_full_when_food_will_last():
-    ration = rules.plan_ration(np.array([10_000.0]), np.array([100.0]), np.array([100.0]), 1, CONFIG)
+    ration = rules.plan_ration(np.array([10_000.0]), np.array([100.0]), outlook(100.0), CONFIG)
     assert ration.tolist() == [1.0]
 
 
 def test_plan_ration_stretches_a_short_stock():
     # No harvest expected: 600 rations must last 12 months of 100-ration need.
-    ration = rules.plan_ration(np.array([600.0]), np.array([100.0]), np.array([0.0]), 1, CONFIG)
+    ration = rules.plan_ration(np.array([600.0]), np.array([100.0]), outlook(0.0), NO_SPOILAGE)
     assert np.isclose(ration[0], 0.5)
+
+
+def test_plan_ration_allows_for_spoilage():
+    # Exactly enough food without spoilage is not enough once stores rot.
+    stock, need = np.array([1200.0]), np.array([100.0])
+    assert np.isclose(rules.plan_ration(stock, need, outlook(0.0), NO_SPOILAGE)[0], 1.0)
+    assert rules.plan_ration(stock, need, outlook(0.0), CONFIG)[0] < 1.0
+
+
+def test_plan_ration_counts_on_the_coming_harvest():
+    # Little in store, but a big harvest next month.
+    harvest = np.zeros((1, 11))
+    harvest[0, 0] = 2000.0
+    ration = rules.plan_ration(np.array([100.0]), np.array([100.0]), harvest, NO_SPOILAGE)
+    assert np.isclose(ration[0], 1.0)
 
 
 def test_plan_ration_can_be_switched_off():
     config = replace(CONFIG, food=FoodConfig(planning_months=0))
-    ration = rules.plan_ration(np.array([0.0]), np.array([100.0]), np.array([0.0]), 1, config)
+    ration = rules.plan_ration(np.array([0.0]), np.array([100.0]), outlook(0.0), config)
     assert ration.tolist() == [1.0]
 
 
-def test_expectation_moves_partway_toward_actual_output():
-    expected = rules.update_expectation(np.array([100.0]), np.array([50.0]), CONFIG)
-    assert 50.0 < expected[0] < 100.0
+def test_harvest_outlook_follows_seasons_and_events():
+    events = np.ones((1, 11))
+    events[0, :3] = 0.5  # a drought lasting three more months
+    ahead = rules.harvest_outlook(np.array([100.0]), events, 3, CONFIG)  # now March
+    season = rules.season_factors(CONFIG)
+    assert np.isclose(ahead[0, 0], 100.0 * season[3] * 0.5)  # April, drought
+    assert np.isclose(ahead[0, 3], 100.0 * season[6])  # July, drought over
+
+
+def test_capacity_at_full_health_ignores_current_weakness():
+    land, mult = np.array([50.0]), np.ones(1)
+    weak = people([30], count=50, health=10.0)
+    strong = people([30], count=50, health=100.0)
+    assert rules.capacity(weak, land, mult, CONFIG, rng=None) < rules.capacity(strong, land, mult, CONFIG, rng=None)
+    assert np.isclose(
+        rules.capacity(weak, land, mult, CONFIG, rng=None, at_full_health=True),
+        rules.capacity(strong, land, mult, CONFIG, rng=None),
+    )
 
 
 def test_spoilage_takes_a_share_of_the_stock():
@@ -115,8 +152,9 @@ def test_health_falls_toward_level_set_by_ration():
     pop = people([30], health=100.0)
     for _ in range(50):
         rules.update_health(pop, np.array([0.8]), np.zeros(1), CONFIG)
-    # 80% rations: halfway between starvation (50%) and full rations.
-    assert np.isclose(pop.health[0], 60.0)
+    # Health settles in proportion to how far 80% is from starvation rations.
+    starving = CONFIG.health.starvation_ration
+    assert np.isclose(pop.health[0], 100 * (0.8 - starving) / (1 - starving))
 
 
 def test_health_stays_within_bounds():
@@ -185,3 +223,29 @@ def test_people_grow_older():
     pop = people([30])
     rules.grow_older(pop)
     assert pop.age_months[0] == 30 * 12 + 1
+
+
+def test_food_margin_compares_normal_harvest_to_need():
+    margin = rules.food_margin(np.array([110.0, 50.0, 0.0]), np.array([100.0, 100.0, 0.0]))
+    assert np.allclose(margin[:2], [1.1, 0.5]) and np.isinf(margin[2])
+
+
+def test_births_slow_when_land_is_crowded():
+    low, high = CONFIG.demography.food_margin_for_births
+    factor = rules.birth_factor(np.array([low - 0.1, (low + high) / 2, high + 0.1]), CONFIG)
+    floor = CONFIG.demography.crowded_birth_factor
+    assert np.allclose(factor, [floor, (1 + floor) / 2, 1.0])
+
+
+def test_realistic_plan_allows_for_weaker_workers():
+    # Half the year's food has to come from future harvests; on short rations
+    # workers grow less, so the realistic plan rations harder.
+    stock, need, ahead = np.array([600.0]), np.array([100.0]), outlook(40.0)
+    naive = rules.plan_ration(stock, need, ahead, NO_SPOILAGE)[0]
+    realistic = rules.plan_ration_realistically(stock, need, ahead, NO_SPOILAGE)[0]
+    assert realistic < naive < 1.0
+
+
+def test_realistic_plan_keeps_full_rations_when_food_is_plentiful():
+    ration = rules.plan_ration_realistically(np.array([5000.0]), np.array([100.0]), outlook(100.0), CONFIG)
+    assert ration.tolist() == [1.0]

@@ -169,6 +169,16 @@ def apply_person_events(
     return hits
 
 
+def production_outlook(world: World, months: int) -> np.ndarray:
+    """Production multiplier in each of the next `months` months from events under way."""
+    outlook = np.ones((world.n_locations, months))
+    for event in world.active_events:
+        mult = event.effects.get("production_mult")
+        if mult is not None:
+            outlook[event.location, : event.months_left - 1] *= mult
+    return outlook
+
+
 def modifiers(world: World) -> Modifiers:
     mods = Modifiers.neutral(world.n_locations)
     for event in world.active_events:

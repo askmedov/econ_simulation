@@ -81,4 +81,8 @@ All parameters are in [`econ_sim/config.py`](econ_sim/config.py).
 
 ```bash
 .venv/bin/python -m pytest
+.venv/bin/python scripts/sanity_check.py          # hundreds of seeds and settings
+.venv/bin/python scripts/sanity_check.py --full   # thousands
 ```
+
+The sanity check flags outcomes no real village would show; see PLAN.md.

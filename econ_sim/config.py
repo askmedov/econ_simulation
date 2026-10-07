@@ -29,6 +29,12 @@ class DemographyConfig:
     retirement_age: int = 60  # people this age and older don't work
     fertile_ages: tuple[int, int] = (16, 45)  # inclusive, women only
     annual_birth_chance: float = 0.17  # per fertile woman in full health
+    # People marry later and have fewer children when the land can barely
+    # feed everyone. "Food margin" is what the village grows in a normal year
+    # over what it needs: births are at their lowest (first value) at the
+    # first margin, and at full rate from the second margin up.
+    crowded_birth_factor: float = 0.2
+    food_margin_for_births: tuple[float, float] = (1.0, 1.25)
     female_share_at_birth: float = 0.5
     # (from age in years, yearly chance of dying) before any hunger or events.
     annual_mortality: tuple[tuple[int, float], ...] = (
@@ -64,9 +70,6 @@ class FoodConfig:
     # The village rations its food so it lasts this many months ahead.
     # 0 means no planning: eat full rations until the granary is empty.
     planning_months: int = 12
-    # How fast villagers update their sense of a normal harvest: the weight
-    # given to this month's output (0.1 is roughly a 10-month memory).
-    expectation_weight: float = 0.1
     # Random good/bad days: spread of each worker's monthly output.
     output_noise: float = 0.1
 
@@ -77,7 +80,7 @@ class HealthConfig:
     maximum: float = 100.0
     # Health drifts toward a level set by the ration: full health on full
     # rations, 0 on `starvation_ration` or less, in between linearly.
-    starvation_ration: float = 0.5
+    starvation_ration: float = 0.4
     recovery: float = 10.0  # most health regained in a month
     # Most health lost in a month with no food; scaled by the share missing.
     hunger_damage: float = 40.0
@@ -86,8 +89,9 @@ class HealthConfig:
     max_extra_mortality: float = 0.08
     # Work output at health 0, as a share of output at full health.
     work_at_zero_health: float = 0.5
-    # Fertility is zero at or below the first value, full at the second.
-    fertility_health: tuple[float, float] = (40.0, 90.0)
+    # Fertility is zero at or below the first value, full at the second:
+    # in lean times people put off having children.
+    fertility_health: tuple[float, float] = (60.0, 95.0)
 
 
 @dataclass(frozen=True)

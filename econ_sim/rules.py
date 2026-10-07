@@ -53,17 +53,19 @@ def capacity(
     production_mult: np.ndarray,
     config: Config,
     rng: np.random.Generator | None,
+    at_full_health: bool = False,
 ) -> np.ndarray:
     """Food each village can grow in an average-season month with today's workers.
 
     Capacity = base x events x labour^a x land^(1-a). With a < 1, more workers
     on the same land each produce less, which caps how many people a village
     can feed. This month's output is capacity x the season's factor. Without
-    an `rng` there are no good or bad days (used for estimates).
+    an `rng` there are no good or bad days; `at_full_health` ignores how weak
+    the workers are right now (both used for estimates).
     """
     food, health = config.food, config.health
     floor = health.work_at_zero_health
-    work_factor = floor + (1.0 - floor) * population.health / health.maximum
+    work_factor = 1.0 if at_full_health else floor + (1.0 - floor) * population.health / health.maximum
     noise = 1.0
     if rng is not None:
         noise_sd = food.output_noise / np.sqrt(np.maximum(population.count, 1))
@@ -78,34 +80,71 @@ def capacity(
     return food.base_output * production_mult * labor_by_location**a * land ** (1.0 - a)
 
 
-def update_expectation(expected: np.ndarray, capacity: np.ndarray, config: Config) -> np.ndarray:
-    """Villagers' sense of a normal month's output: a slowly moving average.
-
-    One bad month shifts it a little; a long run of bad months shifts it a lot.
-    """
-    return expected + config.food.expectation_weight * (capacity - expected)
-
-
-def plan_ration(
-    stock: np.ndarray, need: np.ndarray, expected_capacity: np.ndarray, month_of_year: int, config: Config
+def harvest_outlook(
+    normal_capacity: np.ndarray, event_outlook: np.ndarray, month_of_year: int, config: Config
 ) -> np.ndarray:
+    """Food each village expects to grow in each of the coming months.
+
+    What today's workers grow in normal health, by season, times the effect
+    of events already under way for as long as they last. Villagers can see a
+    drought ruining this year's crop, but don't expect one next year.
+    """
+    upcoming = (month_of_year + np.arange(event_outlook.shape[1])) % 12  # next months, 0 = January
+    return normal_capacity[:, None] * season_factors(config)[upcoming][None, :] * event_outlook
+
+
+def plan_ration(stock: np.ndarray, need: np.ndarray, outlook: np.ndarray, config: Config) -> np.ndarray:
     """Share of the full ration each village allows itself this month.
 
     The village eats the largest steady ration that keeps it from running out
-    over the next `planning_months`, counting the stock plus the harvests it
-    expects. When a poor harvest leaves the granary short, it tightens belts
-    early and spreads the shortage instead of eating well until it is empty.
+    over the coming months, counting the stock (which keeps spoiling) and the
+    harvests in `outlook` (one column per coming month). When a poor harvest
+    leaves the granary short, it tightens belts early and spreads the
+    shortage instead of eating well until it is empty.
     """
-    months = config.food.planning_months
-    if months <= 0:
+    if config.food.planning_months <= 0:
         return np.ones_like(need)
-    upcoming = (month_of_year + np.arange(months - 1)) % 12  # next months, 0 = January
-    expected = expected_capacity[:, None] * season_factors(config)[upcoming][None, :]
-    harvested_before = np.concatenate([np.zeros((len(stock), 1)), np.cumsum(expected, axis=1)], axis=1)
-    available = stock[:, None] + harvested_before  # food on hand by month k (1..months)
-    required = need[:, None] * np.arange(1, months + 1)[None, :]  # food eaten through month k
+    keep = 1.0 - config.food.spoilage
+    # Food on hand at the start of each month, and food eaten up to and
+    # including it, both shrinking by spoilage as they are carried forward.
+    available, required = stock.astype(np.float64), need.astype(np.float64)
     affordable = np.divide(available, required, out=np.ones_like(available), where=required > 0)
-    return np.clip(affordable.min(axis=1), 0.0, 1.0)
+    for month in range(outlook.shape[1]):
+        available = available * keep + outlook[:, month]
+        required = required * keep + need
+        ratio = np.divide(available, required, out=np.ones_like(available), where=required > 0)
+        affordable = np.minimum(affordable, ratio)
+    return np.clip(affordable, 0.0, 1.0)
+
+
+def plan_ration_realistically(
+    stock: np.ndarray, need: np.ndarray, normal_outlook: np.ndarray, config: Config, rounds: int = 3
+) -> np.ndarray:
+    """Plan rations knowing that hungry workers grow less.
+
+    `normal_outlook` assumes workers in full health. A smaller ration weakens
+    them and shrinks future harvests, so re-plan with the work they could do
+    on the planned ration, a few times until the plan and the harvest agree.
+    """
+    ration = plan_ration(stock, need, normal_outlook, config)
+    for _ in range(rounds):
+        effort = expected_work_factor(ration, config) ** config.food.labor_share
+        ration = plan_ration(stock, need, normal_outlook * effort[:, None], config)
+    return ration
+
+
+def target_health(food_share: np.ndarray, config: Config) -> np.ndarray:
+    """The health people settle at on a given share of their food need."""
+    cfg = config.health
+    starving = cfg.starvation_ration
+    return cfg.maximum * np.clip((food_share - starving) / (1.0 - starving), 0.0, 1.0)
+
+
+def expected_work_factor(food_share: np.ndarray, config: Config) -> np.ndarray:
+    """Work output, as a share of full, of people settled on a given ration."""
+    cfg = config.health
+    floor = cfg.work_at_zero_health
+    return floor + (1.0 - floor) * target_health(food_share, config) / cfg.maximum
 
 
 def consume(granary: np.ndarray, need: np.ndarray, ration: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
@@ -140,9 +179,7 @@ def update_health(
     """
     cfg = config.health
     share = food_share[population.location]
-    starving = cfg.starvation_ration
-    target = cfg.maximum * np.clip((share - starving) / (1.0 - starving), 0.0, 1.0)
-    gap = target - population.health
+    gap = target_health(share, config) - population.health
     change = np.where(
         gap > 0,
         np.minimum(gap, cfg.recovery),
@@ -181,6 +218,19 @@ def deaths(
     return by_village
 
 
+def food_margin(normal_capacity: np.ndarray, need: np.ndarray) -> np.ndarray:
+    """What each village grows in a normal year over what it needs (1.0 = just enough)."""
+    return np.divide(normal_capacity, need, out=np.full_like(need, np.inf), where=need > 0)
+
+
+def birth_factor(margin: np.ndarray, config: Config) -> np.ndarray:
+    """How much the land's ability to feed another family encourages births."""
+    demo = config.demography
+    low, high = demo.food_margin_for_births
+    room = np.clip((margin - low) / (high - low), 0.0, 1.0)
+    return demo.crowded_birth_factor + (1.0 - demo.crowded_birth_factor) * room
+
+
 def births(
     population: Population,
     fertility_mult: np.ndarray,
@@ -190,6 +240,7 @@ def births(
 ) -> np.ndarray:
     """Add this month's newborns; returns births per village.
 
+    `fertility_mult` per village combines events and how crowded the land is.
     Newborns start with their mother's health and a fresh skill draw.
     """
     demo, health = config.demography, config.health
