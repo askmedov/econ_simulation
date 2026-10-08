@@ -9,7 +9,7 @@ import numpy as np
 from econ_sim import council, economy, rules
 from econ_sim.council import Councils
 from econ_sim.config import Config, EventSpec
-from econ_sim.households import Households, form_households
+from econ_sim.households import Households, assign_land, form_households
 from econ_sim.population import Population
 from econ_sim.rng import RandomStreams
 
@@ -42,19 +42,24 @@ class World:
     names: tuple[str, ...]  # village names
     active_events: list[ActiveEvent] = field(default_factory=list)
     council_costs: np.ndarray | None = None  # last month's council running costs, per village
+    coin_earnings: np.ndarray | None = None  # running average of families' monthly coin income, per village
 
     def __post_init__(self) -> None:
         if self.council_costs is None:
             self.council_costs = np.zeros(len(self.names))
 
     @property
-    def granary(self) -> np.ndarray:
-        """Food in store, per village (held by the farms)."""
+    def farm_grain(self) -> np.ndarray:
+        """Grain held by the farms (this month's harvest before it is shared
+        out, and what they keep to sell for tools), per village. A view:
+        changing it changes the farms' stock."""
         return self.stock[:, self.food]
 
-    @granary.setter
-    def granary(self, value: np.ndarray) -> None:
-        self.stock[:, self.food] = value
+    @property
+    def granary(self) -> np.ndarray:
+        """All food in store per village: families' own stores plus the farms'."""
+        families = np.bincount(self.households.location, weights=self.households.grain, minlength=self.n_locations)
+        return families + self.farm_grain
 
     @property
     def food_price(self) -> np.ndarray:
@@ -126,7 +131,17 @@ def create_world(config: Config, streams: RandomStreams) -> World:
     orders[:, economy.product_of(config)] = made
     orders[:, food] = food_need
     stock = config.trade.stock_target_months * orders
-    stock[:, food] = food_need * np.array([v.initial_food_months for v in config.villages])
+    stock[:, food] = 0.0
+
+    # Families hold the land and the food in store: half of each village's
+    # stores spread by families' needs, half by the land they hold.
+    assign_land(households, population, land, config, streams["land"])
+    in_store = food_need * np.array([v.initial_food_months for v in config.villages])
+    loc = households.location
+    held = np.bincount(loc, weights=households.land, minlength=n)
+    by_need = np.divide(family_need, food_need[loc], out=np.zeros(len(households)), where=food_need[loc] > 0)
+    by_land = np.divide(households.land, held[loc], out=by_need.copy(), where=held[loc] > 0)
+    households.grain = in_store[loc] * (0.5 * by_need + 0.5 * by_land)
     supplies = economy.input_needs(config)[None, :, :] * made[:, :, None]  # a month's worth
 
     # Big villages start with an established council.

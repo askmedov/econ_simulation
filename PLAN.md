@@ -291,7 +291,7 @@ poorest fifth's worst month, relief given and people treated.
 
 - Each business type is one business per village (individual firms later).
 - Widows and widowers don't remarry.
-- No lending, land ownership or rents.
+- No lending or rents (land holding came in Phase 2b).
 - The council's rules are fixed policies, not decisions.
 
 ## Stress test: does anything drift over decades? (built)
@@ -468,7 +468,7 @@ still (life expectancy 20–30), which the life table can be set to.
 
 ### What to build next
 
-Two of these change near-term what-ifs the most and fit together:
+Being built as Phase 2b, below. Two of these change near-term what-ifs the most and fit together:
 **peasant households that farm their own plots** (with land held by
 households, seed kept back, and the landless working for wages) and
 **debt and distress sales** (grain loans, then selling animals and land).
@@ -479,14 +479,62 @@ England has the best data (prices and wages, manorial accounts, parish
 registers), Roman Egypt has census returns and contracts, Old Babylonian
 Mesopotamia has loan and land contracts.
 
+## Phase 2b: a peasant village (in progress)
+
+The gaps above, built into the Phase 2 village one branch at a time, each
+tested, sanity-checked and stress-tested:
+
+| Step | Branch | Adds |
+|---|---|---|
+| 1 | `claude/peasant-farms` | families hold land and grain; the harvest is shared out in kind; a grain market among families (built) |
+| 2 | `claude/seed-and-livestock` | seed kept back from each harvest; plough animals, herds and their losses |
+| 3 | `claude/debt-and-distress` | grain and coin loans, then sales of animals and land, in bad years |
+| 4 | `claude/lord-and-state` | a lord's land and rent in kind, taxes in coin, the lord's granary |
+| 5 | `claude/regional-market` | a town grain price with a transport cost; people leave and arrive |
+| 6 | `claude/household-work` | everyone at harvest, women's spinning and weaving at home, kin who help, remarriage |
+| 7 | `claude/environment` | woods that shrink when cut, soil that tires, droughts that come in runs |
+
+### 1. Families hold land and grain (built)
+
+- **Land:** at the start 30% of families hold none; the others' holdings
+  are spread log-normally (a few big farms, many small ones), larger for
+  families with more adults. The heir keeps the holding
+  (`LandConfig.partible` splits it among children instead). A holding left
+  vacant goes to a landless family, usually a young couple.
+- **The harvest is shared out in kind.** The fields are still farmed as
+  one, but each month's harvest goes into families' own grain stores: the
+  labour share (70%) to the families of those who worked the fields, by
+  how much they worked, and the land share (30%) to the families holding
+  the land, by their plots. The council's levy comes off the top, and the
+  farms keep back enough to sell for new tools.
+- **Families live off their store.** Each family plans its own ration
+  from its store and its expected share of the coming harvests (the same
+  planning the village did, family by family), eats from it, and keeps
+  enough to eat fully until its harvests come in plus a month's margin
+  (less when grain is dear). It sells the rest on the village market;
+  families short of grain buy there with coins. A smith's or a weaver's
+  family buys all its food.
+- **Coins:** families keep about a year of their coin earnings, since
+  most of their income is grain; the customary wage follows that. Taxes
+  fall on wages and grain sales.
+- **New measures:** food eaten from families' own stores, grain sold,
+  people in landless families and how well they ate; the stress test adds
+  land and wealth inequality.
+
+**What it changes.** Families eat about 80% of their food from their own
+stores. The landless share grows from 30% to about 40% over 40 years as
+the village grows and only heirs inherit land. In a drought, who goes
+hungry now depends on who holds grain: without a council, the village's
+worst month is 71% of need and landless families' 54%, with about 37 extra
+deaths in three years. Families with grain keep it for themselves as the
+outlook darkens, and grain dries up on the market. With the council's
+reserve and relief the worst month is 91% (landless 88%), with about 13
+extra deaths.
+
 ## Roadmap after Phase 2
 
-3. **A peasant village** (from the section above). Households hold plots
-   and farm them with family labour, eat their own grain, keep seed and
-   animals; the landless work for wages. Grain loans, then sales of
-   animals and land, in bad years. A lord or state takes rent and tax out
-   of the village. A regional grain market with a transport cost.
-   Individual firms instead of one business per trade.
+3. **Phase 2b** above, then individual firms instead of one business per
+   trade.
 4. **Many villages → a country.** Regions, trade between them, migration;
    people batched into groups (`count` > 1) with split and merge; national
    money and inflation.

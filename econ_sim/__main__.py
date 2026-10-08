@@ -222,6 +222,10 @@ def _print_effect(result: Effect, forced: tuple[ScheduledEvent, ...], runs: int,
         f"  {'Poorest fifth, worst month':<28}{result.poorest_lowest_ration[0]:.0%} without, "
         f"{result.poorest_lowest_ration[1]:.0%} with"
     )
+    print(
+        f"  {'Landless, worst month':<28}{result.landless_lowest_ration[0]:.0%} without, "
+        f"{result.landless_lowest_ration[1]:.0%} with"
+    )
     months_fmt = ".1f" if runs > 1 else ".0f"
     print(
         f"  {'Months on short rations':<28}{result.hungry_months[0]:{months_fmt}} without, "

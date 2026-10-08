@@ -28,11 +28,13 @@ class MonthRecord:
     deaths: int
     food_produced: float
     food_needed: float
-    food_eaten: float  # bought, plus relief from the council's reserve
+    food_eaten: float  # from families' own stores, bought, and relief from the council's reserve
+    own_food: float  # rations families ate from their own grain stores
+    grain_sold: float  # rations sold on the village market
     ration: float  # share of food need met, 1.0 = everyone fully fed
     food_spoiled: float
     food_lost: float  # destroyed by events
-    food_levied: float  # taken by the council into its reserve
+    food_levied: float  # taken by the council into its reserve (levy, and stores of families who died out)
     food_stock: float  # at the end of the month
     food_margin: float  # normal harvest over need; below ~1.05 the land is crowded
     food_cover: float  # stores plus expected harvests, as a share of the coming year's need
@@ -40,6 +42,7 @@ class MonthRecord:
     food_price: float  # coins per ration (averaged over villages)
     wage: float  # average monthly wage of a worker, in coins
     savings: float  # coins held by families
+    money_months: float  # families' coins over a month of their coin earnings
     business_cash: float  # coins held by businesses
     treasury: float  # coins held by village councils
     councils: int  # villages with a council
@@ -52,6 +55,8 @@ class MonthRecord:
     treated: int  # people healers saw this month
     shared: float  # coins given by better-off families to families short of food money
     underfed: int  # people whose family got less than 90% of its food need
+    landless: int  # people in families holding no land
+    landless_ration: float  # share of food need met for people in landless families
     poorest_fifth_ration: float  # share of food need met for the poorest fifth of people
     warmth: float  # share of the firewood families needed that they got
     clothing: float  # garments bought per person this month
@@ -101,7 +106,8 @@ def poor_health(population: Population, config: Config) -> int:
 
 
 def poorest_fifth_ration(money: np.ndarray, size: np.ndarray, bought: np.ndarray, need: np.ndarray) -> float:
-    """Share of food need met for the fifth of people in the poorest families (savings per person)."""
+    """Share of food need met for the fifth of people in the poorest families
+    (by `money` per person: savings, or savings plus grain in store)."""
     lived = size > 0
     if not lived.any():
         return 1.0

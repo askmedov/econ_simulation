@@ -87,6 +87,24 @@ def plan_ration(
     return np.clip(affordable, 0.0, most)
 
 
+def stock_to_keep(need: np.ndarray, outlook: np.ndarray, config: Config) -> np.ndarray:
+    """The smallest store that lets each family (or village) eat its full
+    need this month and every month of `outlook` (its expected harvest
+    income, one column per coming month), allowing for spoilage: anything
+    beyond it is spare. The inverse of `plan_ration` at a full ration."""
+    keep = 1.0 - config.food.spoilage
+    smallest = need.astype(np.float64).copy()
+    if config.food.planning_months <= 0:
+        return smallest
+    income = np.zeros_like(smallest)
+    required = need.astype(np.float64).copy()
+    for month in range(outlook.shape[1]):
+        income = income * keep + outlook[:, month]
+        required = required * keep + need
+        smallest = np.maximum(smallest, (required - income) / keep ** (month + 1))
+    return np.maximum(smallest, 0.0)
+
+
 def plan_ration_realistically(
     stock: np.ndarray, need: np.ndarray, normal_outlook: np.ndarray, config: Config, rounds: int = 3, most: float = 1.0
 ) -> np.ndarray:

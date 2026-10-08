@@ -226,11 +226,12 @@ class TradeConfig:
     pay_memory: float = 0.2
     # The customary wage (that fair prices are reckoned in) moves with the
     # money there is: each month by up to `wage_adjustment` of itself, up
-    # while families hold more than `money_months` of the village's monthly
-    # earnings and down while they hold less (the quantity of money sets the
-    # price level; a village starts at about 3.3).
+    # while families hold more than `money_months` of their monthly coin
+    # earnings (averaged over a year) and down while they hold less: the
+    # quantity of money sets the price level. Much of a peasant family's
+    # income is grain, so its coins last long: a village starts near a year.
     wage_adjustment: float = 0.01
-    money_months: float = 3.0
+    money_months: float = 12.0
 
 
 @dataclass(frozen=True)
@@ -249,6 +250,31 @@ class MoneyConfig:
     # `sharing_rate` of the excess each month to families who can't afford food.
     sharing_threshold_months: float = 2.0
     sharing_rate: float = 0.25
+
+
+@dataclass(frozen=True)
+class LandConfig:
+    """Who holds the farmland, and how families live off it.
+
+    The village's fields are farmed as one, but each month's harvest is
+    shared out in kind: workers get the labour share (FoodConfig.labor_share)
+    by how much they worked, landholders the rest by the plots they hold.
+    It goes into each family's own grain store.
+    """
+
+    # Share of households holding no land at the start: they live by their
+    # labour (in the fields or a trade) and buy what they don't earn in grain.
+    landless_share: float = 0.3
+    # The others' holdings are spread log-normally with this sigma (a few big
+    # farms, many small ones), larger for families with more adults.
+    holding_spread: float = 0.8
+    # Families keep enough grain to eat fully until expected harvests cover
+    # them, plus this many months of their need; they sell the rest.
+    keep_months: float = 1.0
+    # A younger son or daughter setting up a household of their own takes a
+    # share of the family's land (partible inheritance) or none (the heir
+    # keeps it all).
+    partible: bool = False
 
 
 @dataclass(frozen=True)
@@ -410,6 +436,7 @@ class Config:
     money: MoneyConfig = field(default_factory=MoneyConfig)
     needs: NeedsConfig = field(default_factory=NeedsConfig)
     trade: TradeConfig = field(default_factory=TradeConfig)
+    land: LandConfig = field(default_factory=LandConfig)
     council: CouncilConfig = field(default_factory=CouncilConfig)
     healthcare: HealthcareConfig = field(default_factory=HealthcareConfig)
     products: tuple[ProductSpec, ...] = DEFAULT_PRODUCTS

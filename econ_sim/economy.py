@@ -59,6 +59,13 @@ def _by_business(values: np.ndarray, population: Population, n_locations: int, c
     return sums.astype(np.float64).reshape(n_locations, n_business)
 
 
+def household_effort(population: Population, business: int, n_households: int, config: Config) -> np.ndarray:
+    """Work each household puts into one business: headcount x skill x health."""
+    effort = population.count * population.skill * work_factor(population, config)
+    mine = in_business(population, config) & (population.job == business)
+    return np.bincount(population.household[mine], weights=effort[mine], minlength=n_households).astype(np.float64)
+
+
 def tool_factor(tools: np.ndarray, workers: np.ndarray, config: Config) -> np.ndarray:
     """Output multiplier from tools: 1 + boost x share of workers with a tool."""
     boost = np.array([b.tool_boost for b in config.businesses])

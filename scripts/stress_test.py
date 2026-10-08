@@ -192,6 +192,11 @@ def run_one(job: tuple[Scenario, int, int]) -> dict[str, np.ndarray]:
         add("business_cash_share", w.cash.sum() / total_money)
         size = households.sizes(w.population, len(w.households))
         gini, top, bottom = gini_and_top(w.households.money, size)
+        add("land_gini", gini_and_top(w.households.land, size)[0])
+        wealth = w.households.money + w.households.grain * w.food_price[w.households.location]
+        add("wealth_gini", gini_and_top(wealth, size)[0])
+        add("landless_share", np.mean([r.landless / max(r.population, 1) for r in year]))
+        add("own_food_share", np.mean([r.own_food / max(r.food_eaten, 1e-9) for r in year]))
         add("money_gini", gini)
         add("money_top10_share", top)
         add("money_bottom_half_share", bottom)
@@ -214,16 +219,21 @@ RANGES = {
     "share_smithing": (0.005, 0.15),
     "treasury_share": (0.0, 0.25),
     "business_cash_share": (0.0, 0.3),
-    "money_top10_share": (0.0, 0.6),
-    "money_gini": (0.0, 0.7),
+    # Coins pool with families who sell grain; labourers hold few.
+    "money_top10_share": (0.0, 0.75),
+    "money_gini": (0.0, 0.85),
+    "wealth_gini": (0.0, 0.8),
+    "land_gini": (0.0, 0.85),
+    "landless_share": (0.0, 0.6),
     "food_store_months": (0.5, 12.0),
     "household_size": (3.0, 9.0),
     "household_size_max": (0.0, 30.0),
-    # A pre-industrial village: births and deaths well above modern levels.
-    "births_per_1000": (25.0, 50.0),
+    # A pre-industrial village: births and deaths well above modern levels
+    # (at the land's limit, late marriage holds births to the low 20s).
+    "births_per_1000": (22.0, 50.0),
     "deaths_per_1000": (18.0, 50.0),
     "weddings_per_1000": (3.0, 15.0),
-    "wage_cover": (0.8, 2.0),
+    "wage_cover": (0.8, 2.5),
 }
 # Measures that should stay within these multiples of their first-year value.
 RELATIVE = {
@@ -236,7 +246,10 @@ RELATIVE = {
 # Measures whose trend over the second half shouldn't exceed this share per
 # decade. Nominal prices and wages may trend (with money and population);
 # prices in days of work shouldn't keep running away.
-TRENDS = {"population": 0.15, "real_food_price": 0.3, "wage_cover": 0.3, "household_size": 0.15}
+TRENDS = {
+    "population": 0.15, "real_food_price": 0.3, "wage_cover": 0.3, "household_size": 0.15,
+    "land_gini": 0.15, "landless_share": 0.3,
+}
 
 
 def drift_flags(mean: dict[str, np.ndarray], reference: dict[str, np.ndarray] | None = None) -> list[tuple[str, str]]:

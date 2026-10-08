@@ -25,15 +25,25 @@ MOTHER_AGE_GAP = (18, 45)  # a child joins a woman this much older
 class Households:
     location: np.ndarray  # village of each household
     money: np.ndarray | None = None  # savings, in coins
+    land: np.ndarray | None = None  # farmland held, in plots
+    grain: np.ndarray | None = None  # food in the family's own store, in rations
 
     def __post_init__(self) -> None:
         self.location = np.asarray(self.location, dtype=np.int32)
-        if self.money is None:
-            self.money = np.zeros(len(self.location))
-        self.money = np.asarray(self.money, dtype=np.float64)
+        for name in ("money", "land", "grain"):
+            value = getattr(self, name)
+            setattr(self, name, np.zeros(len(self.location)) if value is None else np.asarray(value, dtype=np.float64))
 
     def __len__(self) -> int:
         return len(self.location)
+
+    def add(self, location: np.ndarray) -> np.ndarray:
+        """Append empty households in these villages; returns their ids."""
+        first = len(self)
+        self.location = np.concatenate([self.location, np.asarray(location, dtype=np.int32)])
+        for name in ("money", "land", "grain"):
+            setattr(self, name, np.concatenate([getattr(self, name), np.zeros(len(location))]))
+        return first + np.arange(len(location))
 
 
 def form_households(
@@ -108,6 +118,71 @@ def _form_village(
     return len(heads)
 
 
+def assign_land(
+    households: Households, population: Population, village_land: np.ndarray, config: Config, rng: np.random.Generator
+) -> None:
+    """Share each village's farmland among its households at the start.
+
+    `landless_share` of households hold none (they live by wages and
+    crafts); the others' holdings are spread log-normally (a few big
+    farms, many small ones), larger for families with more workers.
+    """
+    cfg = config.land
+    n = len(households)
+    size = sizes(population, n)
+    adults = np.bincount(population.household, weights=population.count * (population.age_years >= 15), minlength=n)
+    weight = np.maximum(adults, 1.0) * rng.lognormal(0.0, cfg.holding_spread, size=n)
+    weight[rng.random(n) < cfg.landless_share] = 0.0
+    weight[size == 0] = 0.0
+    total = np.bincount(households.location, weights=weight, minlength=len(village_land))
+    households.land = np.divide(
+        weight * village_land[households.location], total[households.location],
+        out=np.zeros(n), where=total[households.location] > 0,
+    )
+
+
+def pass_on_land_and_grain(
+    households: Households, size: np.ndarray, reserve: np.ndarray, council: np.ndarray
+) -> np.ndarray:
+    """Land and grain of families with nobody left.
+
+    A vacant holding goes whole to a landless family of the village (the
+    newest, usually a young couple), or if there is none is shared among
+    the other families by size. Grain goes to the council's reserve where
+    there is a council, otherwise to the other families by size. Returns
+    grain added to the reserve, per village.
+    """
+    gone = size == 0
+    n = len(reserve)
+    vacant = np.flatnonzero(gone & (households.land > 0))
+    for household in vacant:
+        village = households.location[household]
+        here = (households.location == village) & ~gone
+        landless = np.flatnonzero(here & (households.land <= 0))
+        if len(landless):
+            households.land[landless[-1]] += households.land[household]
+        elif here.any():
+            households.land[here] += households.land[household] * size[here] / size[here].sum()
+        else:
+            continue  # nobody left in the village: the land waits
+        households.land[household] = 0.0
+
+    left = gone & (households.grain > 0)
+    if not left.any():
+        return np.zeros(n)
+    to_council = left & council[households.location]
+    to_reserve = np.bincount(households.location[to_council], weights=households.grain[to_council], minlength=n)
+    reserve += to_reserve
+    households.grain[to_council] = 0.0
+    left &= ~to_council
+    grain = np.bincount(households.location[left], weights=households.grain[left], minlength=n)
+    people = np.bincount(households.location, weights=np.where(gone, 0, size), minlength=n)
+    share = np.divide(grain, people, out=np.zeros(n), where=people > 0)
+    households.grain = np.where(left & (people[households.location] > 0), 0.0, households.grain)
+    households.grain += np.where(gone, 0.0, size * share[households.location])
+    return to_reserve
+
+
 def sizes(population: Population, n_households: int) -> np.ndarray:
     """People in each household."""
     return np.bincount(population.household, weights=population.count, minlength=n_households).astype(np.int64)
@@ -154,7 +229,8 @@ def marry(
     her village while any are left. The couple live with the groom's family
     if it has no heir yet, else with the bride's if that has none, else in a
     new household. Whoever moves takes their share of their family's savings
-    (savings / family size).
+    and grain (savings / family size), and of its land if land is split
+    among children (`LandConfig.partible`); otherwise the heir keeps it all.
     """
     demo = config.demography
     n = len(households)
@@ -200,15 +276,18 @@ def marry(
     home = np.where(at_groom, family_g, family_b)
     home[new] = n + np.arange(new.sum())
 
-    # Whoever leaves takes their share of their family's savings.
+    # Whoever leaves takes their share of their family's savings and grain
+    # (and land, where it is split among children).
     size = sizes(population, n).astype(np.float64)
     leaving = np.concatenate([bride[~at_bride], groom[~at_groom]])
     left = population.household[leaving]
-    portion = households.money[left] / size[left]
-    np.subtract.at(households.money, left, portion)
-    households.location = np.concatenate([households.location, where[new].astype(np.int32)])
-    households.money = np.concatenate([households.money, np.zeros(new.sum())])
-    np.add.at(households.money, np.concatenate([home[~at_bride], home[~at_groom]]), portion)
+    households.add(where[new])
+    going_to = np.concatenate([home[~at_bride], home[~at_groom]])
+    for name in ("money", "grain", "land") if config.land.partible else ("money", "grain"):
+        held = getattr(households, name)
+        portion = held[left] / size[left]
+        np.subtract.at(held, left, portion)
+        np.add.at(held, going_to, portion)
 
     population.household[bride] = home
     population.household[groom] = home

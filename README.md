@@ -2,8 +2,9 @@
 
 A month-by-month economic simulation for asking **"what happens over the next
 few years if this event hits?"** It simulates a village of 1,000 people in
-about 200 families who farm, cut wood, weave and make tools, buy and sell
-with coins, marry, get sick, are born and die, with random events like droughts,
+about 200 families who hold land (or don't), live off their own grain
+stores, cut wood, weave and make tools, buy and sell with coins, marry,
+get sick, are born and die, with random events like droughts,
 forest fires and disease. A village council taxes, keeps a grain reserve,
 gives famine relief and pays healers. See [PLAN.md](PLAN.md) for the design and
 roadmap.
@@ -59,7 +60,7 @@ by chance. Use `--runs 100` or more to see the real effect and its range.
 
 | File | Contents |
 |---|---|
-| `run1.csv` | Every month of the first run: population, births, deaths, food produced, eaten, spoiled and in store, prices of every product, workers in every trade, wages, savings, how well the village and its poorest fifth ate, how warm families kept, the council's treasury, taxes, grain reserve and relief, healers and people treated, health, active events |
+| `run1.csv` | Every month of the first run: population, births, deaths, weddings, food produced, eaten (and how much from families' own stores), sold, spoiled and in store, people in landless families and how they ate, prices of every product, workers in every trade, wages, savings, how well the village and its poorest fifth ate, how warm families kept, the council's treasury, taxes, grain reserve and relief, healers and people treated, health, active events |
 | `run1_with_event.csv` | The same run with the forced events |
 | `summary.csv` | Key measures' average and 10–90% range across runs (population, births, deaths, food stock and price, wage, how well the village and its poorest fifth ate, health, relief, people treated, treasury, grain reserve), for the baseline, with the events (`_event`), and the difference (`_diff`) |
 | `log.txt` | Notable happenings in the first run (events, food shortages, a council forming) |
@@ -85,7 +86,8 @@ All parameters are in [`econ_sim/config.py`](econ_sim/config.py).
 | `econ_sim/population.py` | The population table (one row = `count` identical people) |
 | `econ_sim/rng.py` | Named random streams |
 | `econ_sim/world.py` | World state and the starting village |
-| `econ_sim/households.py` | Families: who lives with whom, marriage and heirs, and their savings |
+| `econ_sim/households.py` | Families: who lives with whom, marriage and heirs, their savings, land and grain |
+| `econ_sim/farms.py` | Peasant farms: the harvest shared out in kind, families' own food plans, grain sales |
 | `econ_sim/economy.py` | Businesses: production, tools, supplies, fair prices, who works where |
 | `econ_sim/market.py` | Buying and selling, mark-ups, wages, help between neighbours |
 | `econ_sim/council.py` | The village council: forming, taxes, officials, grain reserve, relief |
