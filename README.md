@@ -59,7 +59,7 @@ Python 3.11+. matplotlib is only needed for charts.
 ```
 
 Other options: `--months`, `--seed`, `--population`, `--land`,
-`--food-months`, `--out`, and the policy levers `--no-council`,
+`--food-months`, `--out`, `--workers` (cores to run on; all by default), and the policy levers `--no-council`,
 `--no-relief`, `--no-healthcare`, `--council-forms-later`, `--lord-charity`
 (the lord opens his barn in a famine), `--remit-tax` (the state remits its
 tax in a famine year), `--no-lord`, `--no-state-tax`, `--no-town` (no
@@ -123,7 +123,7 @@ All parameters are in [`econ_sim/config.py`](econ_sim/config.py).
 | `econ_sim/events.py` | Rolling, forcing and combining events |
 | `econ_sim/simulation.py` | The monthly loop |
 | `econ_sim/metrics.py` | Monthly statistics and CSV |
-| `econ_sim/scenarios.py` | Paired what-if runs and their effects |
+| `econ_sim/scenarios.py` | Paired what-if runs (on all cores) and their effects |
 | `econ_sim/charts.py` | The overview chart |
 | `econ_sim/__main__.py` | The command line |
 
@@ -135,7 +135,11 @@ All parameters are in [`econ_sim/config.py`](econ_sim/config.py).
 .venv/bin/python scripts/sanity_check.py --full   # thousands
 .venv/bin/python scripts/stress_test.py           # 40 years of many scenarios: does anything drift?
 .venv/bin/python scripts/stress_test.py --full    # 100 years, more seeds
+.venv/bin/python scripts/benchmark.py             # speed at 1,000 to 1,000,000 people, against Phase 3's targets
 ```
+
+Runs go on all cores: `--workers N` on the command line (and the sanity
+check), or the `ECON_SIM_WORKERS` environment variable, sets how many.
 
 The sanity check flags outcomes no real village would show over the
 near-term horizon; the stress test runs far past it to find slow drifts

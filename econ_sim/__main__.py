@@ -11,7 +11,7 @@ import numpy as np
 
 from econ_sim.config import Config, ScheduledEvent, VillageConfig
 from econ_sim.metrics import write_csv
-from econ_sim.scenarios import Comparison, Effect, effect, run_batch, series, spread, write_summary_csv
+from econ_sim.scenarios import Comparison, Effect, Run, compare, effect, run_batch, series, spread, write_summary_csv
 from econ_sim.simulation import Simulation
 
 
@@ -49,8 +49,11 @@ def main(argv: list[str] | None = None) -> None:
     Simulation(replace(config, months=0, scheduled_events=forced))
 
     _print_header(config, forced, args.runs)
-    baseline = run_batch(config, args.runs)
-    scenario = run_batch(replace(config, scheduled_events=forced), args.runs) if forced else None
+    if forced:
+        pairs = compare(config, forced, args.runs, args.workers)
+        baseline, scenario = pairs.baseline, pairs.scenario
+    else:
+        baseline, scenario = run_batch(config, args.runs, args.workers), None
 
     if scenario is None:
         _print_months(baseline)
@@ -119,6 +122,10 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--population", type=int, default=village.population, help="villagers at the start (default %(default)s)")
     parser.add_argument("--land", type=float, default=village.land, help="farmland in plots (default %(default)s)")
     parser.add_argument("--food-months", type=float, default=village.initial_food_months, help="months of food in store at the start (default %(default)s)")
+    parser.add_argument(
+        "--workers", type=int, default=None,
+        help="cores to run the runs on (default: all of them, or ECON_SIM_WORKERS)",
+    )
     parser.add_argument("--out", default="output", help="folder for the CSV files and chart (default %(default)s)")
     parser.add_argument("--plot", action="store_true", help="also draw overview.png (needs matplotlib)")
     parser.add_argument("--list-events", action="store_true", help="show the events that can happen, then exit")
@@ -158,7 +165,7 @@ def _print_header(config: Config, forced: tuple[ScheduledEvent, ...], runs: int)
     print()
 
 
-def _print_months(sims: list[Simulation]) -> None:
+def _print_months(sims: list[Run]) -> None:
     if len(sims) == 1:
         print(
             f"{'Month':<12} {'Pop':>5} {'Born':>5} {'Died':>5} {'Stock':>7} {'Price':>6} {'Wage':>6} "
@@ -189,7 +196,7 @@ def _range(s, i: int, fmt: str) -> str:
     return f"{fmt.format(s.mean[i])} ({fmt.format(s.low[i])}-{fmt.format(s.high[i])})"
 
 
-def _print_comparison(baseline: list[Simulation], scenario: list[Simulation]) -> None:
+def _print_comparison(baseline: list[Run], scenario: list[Run]) -> None:
     averaged = len(baseline) > 1
     if averaged:
         print(f"Averages of {len(baseline)} paired runs")
@@ -257,7 +264,7 @@ def _print_effect(result: Effect, forced: tuple[ScheduledEvent, ...], runs: int,
         print(f"  {'People treated by healers':<28}{result.treated[0]:.0f} without, {result.treated[1]:.0f} with")
 
 
-def _print_outlook(sims: list[Simulation]) -> None:
+def _print_outlook(sims: list[Run]) -> None:
     pop = series(sims, "population")
     deaths, births = series(sims, "deaths").sum(axis=1), series(sims, "births").sum(axis=1)
     hungry = (series(sims, "ration") < 0.97).sum(axis=1)

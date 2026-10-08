@@ -79,14 +79,46 @@ class Population:
         return Population(**{name: col[rows] for name, col in self._columns().items()})
 
     def append(self, other: Population) -> None:
+        """Add `other`'s rows at the end. Columns keep spare room at their
+        end, so a month's newcomers don't copy the whole table each time."""
+        n, k = len(self), len(other)
+        if k == 0:
+            return
         for name, col in self._columns().items():
-            setattr(self, name, np.concatenate([col, getattr(other, name)]))
+            buffer = self._room(name, col, n + k)
+            buffer[n:n + k] = getattr(other, name)
+            setattr(self, name, buffer[:n + k])
+
+    def _room(self, name: str, col: np.ndarray, size: int) -> np.ndarray:
+        """The buffer behind column `name`, with room for `size` rows (a new,
+        larger one holding the column if it has none or it is too small)."""
+        buffers = self.__dict__.setdefault("_buffers", {})
+        buffer = buffers.get(name)
+        starts_it = buffer is not None and col.base is buffer and col.ctypes.data == buffer.ctypes.data
+        if not starts_it or len(buffer) < size:
+            buffer = np.empty(size + max(size // 4, 1024), dtype=col.dtype)
+            buffer[:len(col)] = col
+            buffers[name] = buffer
+        return buffer
+
+    @classmethod
+    def concatenate(cls, parts: list[Population]) -> Population:
+        """One table of all the parts' rows, in order (copying each once)."""
+        if not parts:
+            return cls.empty()
+        return cls(**{f.name: np.concatenate([getattr(p, f.name) for p in parts]) for f in fields(cls)})
 
     def remove_empty(self) -> None:
-        if (self.count == 0).any():
-            kept = self.select(self.count > 0)
-            for name, col in kept._columns().items():
-                setattr(self, name, col)
+        """Drop rows with nobody left, keeping the others in order (in place,
+        in the columns' own buffers)."""
+        kept = self.count > 0
+        if kept.all():
+            return
+        m = int(kept.sum())
+        for name, col in self._columns().items():
+            buffer = self._room(name, col, len(col))
+            buffer[:m] = col[kept]
+            setattr(self, name, buffer[:m])
 
     def split(self, take: np.ndarray) -> np.ndarray:
         """Separate `take[i]` people out of each row i, e.g. those hit by an event.

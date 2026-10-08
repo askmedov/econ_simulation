@@ -121,9 +121,9 @@ class World:
 
 def create_world(config: Config, streams: RandomStreams) -> World:
     rng = streams["setup"]
-    population = Population.empty()
-    for location, village in enumerate(config.villages):
-        population.append(_initial_people(village.population, location, config, rng))
+    population = Population.concatenate(
+        [_initial_people(village.population, location, config, rng) for location, village in enumerate(config.villages)]
+    )
 
     n, n_business, n_products = len(config.villages), len(config.businesses), len(config.products)
     yearly_marriage = 1.0 - (1.0 - config.demography.marriage_chance) ** 12

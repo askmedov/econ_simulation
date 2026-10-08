@@ -7,8 +7,7 @@ from pathlib import Path
 import numpy as np
 
 from econ_sim.config import ScheduledEvent
-from econ_sim.scenarios import series, spread
-from econ_sim.simulation import Simulation
+from econ_sim.scenarios import Run, series, spread
 
 SURFACE = "#fcfcfb"
 TEXT = "#0b0b0b"
@@ -35,8 +34,8 @@ def event_label(forced: tuple[ScheduledEvent, ...]) -> str:
 
 def plot(
     path: Path,
-    baseline: list[Simulation],
-    scenario: list[Simulation] | None = None,
+    baseline: list[Run],
+    scenario: list[Run] | None = None,
     forced: tuple[ScheduledEvent, ...] = (),
 ) -> None:
     import matplotlib

@@ -66,7 +66,8 @@ def form_households(
     wife, live with a woman old enough to be their mother.
     """
     household = np.full(len(population), -1, dtype=np.int64)
-    population.married = population.age_years >= ADULT_AGE
+    ages = population.age_years
+    population.married = ages >= ADULT_AGE
     population.couple = np.full(len(population), -1, dtype=np.int64)
     locations: list[int] = []
     for location in range(n_locations):
@@ -74,7 +75,7 @@ def form_households(
         if len(rows) == 0:
             continue
         first = len(locations)
-        count = _form_village(population, rows, first, household, yearly_marriage, rng)
+        count = _form_village(population, ages, rows, first, household, yearly_marriage, rng)
         locations.extend([location] * count)
     population.household = household
     return Households(location=np.array(locations))
@@ -82,14 +83,16 @@ def form_households(
 
 def _form_village(
     population: Population,
+    ages: np.ndarray,
     rows: np.ndarray,
     first: int,
     household: np.ndarray,
     yearly_marriage: float,
     rng: np.random.Generator,
 ) -> int:
-    """Form one village's households, numbered from `first`; returns how many."""
-    age = population.age_years[rows]
+    """Form one village's households, numbered from `first`; returns how many.
+    `ages` are everyone's ages in years."""
+    age = ages[rows]
     female = population.female[rows]
 
     women = female & (age >= HEAD_AGES[0]) & (age <= HEAD_AGES[1])
@@ -100,14 +103,14 @@ def _form_village(
     if len(heads) == 0:  # no women of family age: everyone lives together
         household[rows] = first
         return 1
-    heads = heads[np.argsort(population.age_years[heads], kind="stable")]
+    heads = heads[np.argsort(ages[heads], kind="stable")]
     ids = first + np.arange(len(heads))
     household[heads] = ids
 
     # Men pair with women in age order, so partners are of similar age. If
     # there are more men than wives, the youngest stay single.
     men = rows[~female & (age >= ADULT_AGE) & (age <= PARTNER_MAX_AGE)]
-    men = men[np.argsort(population.age_years[men], kind="stable")]
+    men = men[np.argsort(ages[men], kind="stable")]
     pairs = min(len(men), len(heads))
     household[men[len(men) - pairs :]] = ids[:pairs]
     population.couple[heads[:pairs]] = ids[:pairs]
@@ -115,14 +118,16 @@ def _form_village(
     single = np.concatenate([rows[women & (household[rows] < 0)], men[: len(men) - pairs]])
     population.married[single] = False
 
-    # Children and the single young join a woman old enough to be their mother.
-    ages = population.age_years
+    # Children and the single young join a woman old enough to be their
+    # mother (heads are in order of age, so those are a run of them), or
+    # any family if there is none.
     head_ages = ages[heads]
-    young = rows[(age < ADULT_AGE)]
-    for child in np.concatenate([young, single]):
-        gap = head_ages - ages[child]
-        mothers = ids[(gap >= MOTHER_AGE_GAP[0]) & (gap <= MOTHER_AGE_GAP[1])]
-        household[child] = rng.choice(mothers if len(mothers) else ids)
+    children = np.concatenate([rows[(age < ADULT_AGE)], single])
+    low = np.searchsorted(head_ages, ages[children] + MOTHER_AGE_GAP[0], side="left")
+    high = np.searchsorted(head_ages, ages[children] + MOTHER_AGE_GAP[1], side="right")
+    none = high <= low
+    low, high = np.where(none, 0, low), np.where(none, len(ids), high)
+    household[children] = ids[low + np.floor(rng.random(len(children)) * (high - low)).astype(np.int64)]
 
     # Everyone else (older people) lives with a family.
     rest = rows[household[rows] < 0]
@@ -292,9 +297,24 @@ def marry(
     if len(brides) == 0 or len(grooms) == 0:
         return 0
     couples = []
-    for location in np.unique(population.location[brides]):
-        here_b = rng.permutation(brides[population.location[brides] == location])
-        free = list(rng.permutation(grooms[population.location[grooms] == location]))
+    # Brides and grooms grouped by village, each group in its original order.
+    bride_places, groom_places = population.location[brides], population.location[grooms]
+    brides = brides[np.argsort(bride_places, kind="stable")]
+    grooms = grooms[np.argsort(groom_places, kind="stable")]
+    bride_places, groom_places = np.sort(bride_places, kind="stable"), np.sort(groom_places, kind="stable")
+    villages = np.unique(bride_places)
+    bride_from, bride_to = np.searchsorted(bride_places, villages), np.searchsorted(bride_places, villages, side="right")
+    groom_from, groom_to = np.searchsorted(groom_places, villages), np.searchsorted(groom_places, villages, side="right")
+    for location, b0, b1, g0, g1 in zip(villages, bride_from, bride_to, groom_from, groom_to):
+        here_b = rng.permutation(brides[b0:b1])
+        here_g = rng.permutation(grooms[g0:g1])
+        # Each bride in turn takes the first free groom not of her own family:
+        # unless some pair would be of one family, that is simply in order.
+        k = min(len(here_b), len(here_g))
+        if not (population.household[here_b[:k]] == population.household[here_g[:k]]).any():
+            couples.extend(zip(here_b[:k], here_g[:k], [location] * k))
+            continue
+        free = list(here_g)
         for bride in here_b:
             home = population.household[bride]
             match = next((i for i, groom in enumerate(free) if population.household[groom] != home), None)

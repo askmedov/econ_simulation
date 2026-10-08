@@ -28,7 +28,7 @@ def by_village(values: np.ndarray, location: np.ndarray, n_locations: int) -> np
 def income_shares(
     population: Population, households: Households, village_land: np.ndarray, config: Config,
     animals_part: np.ndarray | None = None, lord_land: np.ndarray | None = None,
-    extra_effort: np.ndarray | None = None,
+    extra_effort: np.ndarray | None = None, force: economy.Workforce | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Each household's share of its village's harvest (after deductions),
     and the lord's share per village.
@@ -44,7 +44,7 @@ def income_shares(
     loc = households.location
     a = config.food.labor_share
     lord = np.zeros(n) if lord_land is None else lord_land
-    effort = economy.household_effort(population, config.farming, n_households, config)
+    effort = economy.household_effort(population, config.farming, n_households, config, force)
     if extra_effort is not None:
         effort = effort + extra_effort
     total_effort = by_village(effort, loc, n)
@@ -112,7 +112,8 @@ def plan_family_food(
     share of the harvest left after the council's levy.
     """
     loc = households.location
-    outlook = village_outlook[loc] * (shares * after_deductions[loc])[:, None]
+    # Families x months, laid out month by month: the plans read it a month at a time.
+    outlook = (village_outlook.T[:, loc] * (shares * after_deductions[loc])).T
     ration = rules.plan_ration(households.grain, need, outlook, config, most=1.0)
     own = np.minimum(ration * need, households.grain)
     dear = np.ones(len(loc)) if markup is None else np.maximum(markup[loc], 1.0)

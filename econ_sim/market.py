@@ -11,7 +11,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from econ_sim.config import Config
-from econ_sim.economy import in_business, work_factor
+from econ_sim.economy import Workforce, workforce
 from econ_sim.population import Population
 
 
@@ -112,7 +112,8 @@ def grain_markup(markup: np.ndarray, cover: np.ndarray, config: Config) -> np.nd
 
 
 def pay_wages(
-    cash: np.ndarray, population: Population, n_households: int, config: Config, keep: np.ndarray | None = None
+    cash: np.ndarray, population: Population, n_households: int, config: Config, keep: np.ndarray | None = None,
+    force: Workforce | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Each business pays out part of its cash to its workers, by skill and health.
 
@@ -121,14 +122,11 @@ def pay_wages(
     wages paid per village and business).
     """
     n_locations, n_business = cash.shape
-    effort = population.count * population.skill * work_factor(population, config)
-    working = in_business(population, config)
-    index = population.location.astype(np.int64) * n_business + np.where(working, population.job, 0)
-    total = np.bincount(index[working], weights=effort[working], minlength=n_locations * n_business)
-    total = total.reshape(n_locations, n_business)
+    force = force or workforce(population, n_locations, config)
+    total = force.by_business(force.effort)
     spare = cash if keep is None else np.maximum(cash - keep, 0.0)
     payout = np.where(total > 0, config.money.wage_payout * spare, 0.0)
     rate = np.divide(payout, total, out=np.zeros_like(payout), where=total > 0)
-    earned = np.where(working, effort * rate.reshape(-1)[index], 0.0)
+    earned = force.effort * np.append(rate.reshape(-1), 0.0)[force.bucket]  # nothing for those outside a business
     cash -= payout
     return by_household(earned, population, n_households), payout

@@ -7,6 +7,8 @@ of everyone working in it. Arrays are (villages x businesses) or
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import numpy as np
 
 from econ_sim.config import Config
@@ -25,9 +27,41 @@ def in_business(population: Population, config: Config) -> np.ndarray:
     return (population.job >= 0) & (population.job < len(config.businesses))
 
 
-def headcount(population: Population, n_locations: int, config: Config) -> np.ndarray:
+@dataclass
+class Workforce:
+    """Who works in which business and how much, worked out once for a
+    stretch of the month in which nobody joins, leaves or changes trade."""
+
+    bucket: np.ndarray  # per row: location x businesses + job; rows outside a business: the last bucket
+    skill_effort: np.ndarray  # per row: count x skill (at full health)
+    effort: np.ndarray  # per row: count x skill x how much their health lets them work
+    n_locations: int
+    n_business: int
+
+    @property
+    def working(self) -> np.ndarray:
+        return self.bucket < self.n_locations * self.n_business
+
+    def by_business(self, values: np.ndarray) -> np.ndarray:
+        """Sum a per-row value for each business (villages x businesses)."""
+        size = self.n_locations * self.n_business
+        sums = np.bincount(self.bucket, weights=values, minlength=size + 1)[:size]
+        return sums.astype(np.float64).reshape(self.n_locations, self.n_business)  # (an empty bincount is int)
+
+
+def workforce(population: Population, n_locations: int, config: Config) -> Workforce:
+    n_business = len(config.businesses)
+    bucket = np.where(
+        in_business(population, config), population.location.astype(np.int64) * n_business + population.job,
+        n_locations * n_business,
+    )
+    skill_effort = population.count * population.skill
+    return Workforce(bucket, skill_effort, skill_effort * work_factor(population, config), n_locations, n_business)
+
+
+def headcount(population: Population, n_locations: int, config: Config, force: Workforce | None = None) -> np.ndarray:
     """Workers in each business (villages x businesses)."""
-    return _by_business(population.count.astype(np.float64), population, n_locations, config)
+    return _by_business(population.count.astype(np.float64), population, n_locations, config, force)
 
 
 def labor(
@@ -36,34 +70,43 @@ def labor(
     config: Config,
     rng: np.random.Generator | None = None,
     at_full_health: bool = False,
+    force: Workforce | None = None,
 ) -> np.ndarray:
     """Effective workers in each business: headcount x skill x health (x luck).
 
     Without an `rng` there are no good or bad days; `at_full_health` ignores
-    how weak workers are right now (both used for estimates).
+    how weak workers are right now (both used for estimates). `force`, if
+    given, is this month's workforce, already worked out.
     """
-    effort = population.count * population.skill
-    if not at_full_health:
-        effort = effort * work_factor(population, config)
+    force = force or workforce(population, n_locations, config)
+    effort = force.skill_effort if at_full_health else force.effort
     if rng is not None:
         noise_sd = config.food.output_noise / np.sqrt(np.maximum(population.count, 1))
         effort = effort * np.maximum(0.0, 1.0 + rng.normal(0.0, noise_sd))
-    return _by_business(effort, population, n_locations, config)
+    return force.by_business(effort)
 
 
-def _by_business(values: np.ndarray, population: Population, n_locations: int, config: Config) -> np.ndarray:
+def _by_business(
+    values: np.ndarray, population: Population, n_locations: int, config: Config, force: Workforce | None = None
+) -> np.ndarray:
+    if force is not None:
+        return force.by_business(values)
     n_business = len(config.businesses)
-    working = in_business(population, config)
-    index = population.location[working].astype(np.int64) * n_business + population.job[working]
-    sums = np.bincount(index, weights=values[working], minlength=n_locations * n_business)
-    return sums.astype(np.float64).reshape(n_locations, n_business)
+    bucket = np.where(
+        in_business(population, config), population.location.astype(np.int64) * n_business + population.job,
+        n_locations * n_business,
+    )
+    size = n_locations * n_business
+    return np.bincount(bucket, weights=values, minlength=size + 1)[:size].astype(np.float64).reshape(n_locations, n_business)
 
 
-def household_effort(population: Population, business: int, n_households: int, config: Config) -> np.ndarray:
+def household_effort(
+    population: Population, business: int, n_households: int, config: Config, force: Workforce | None = None
+) -> np.ndarray:
     """Work each household puts into one business: headcount x skill x health."""
-    effort = population.count * population.skill * work_factor(population, config)
-    mine = in_business(population, config) & (population.job == business)
-    return np.bincount(population.household[mine], weights=effort[mine], minlength=n_households).astype(np.float64)
+    force = force or workforce(population, int(population.location.max()) + 1 if len(population) else 0, config)
+    mine = force.working & (population.job == business)
+    return np.bincount(population.household[mine], weights=force.effort[mine], minlength=n_households).astype(np.float64)
 
 
 def tool_factor(tools: np.ndarray, workers: np.ndarray, config: Config) -> np.ndarray:
@@ -153,13 +196,13 @@ def seller_of(config: Config) -> np.ndarray:
 
 def productivity(
     population: Population, tools: np.ndarray, workers: np.ndarray, land: np.ndarray, config: Config,
-    farm_mult: np.ndarray | None = None, sown: np.ndarray | None = None,
+    farm_mult: np.ndarray | None = None, sown: np.ndarray | None = None, force: Workforce | None = None,
 ) -> np.ndarray:
     """Normal output per worker in each business: full health, no events, an
     average month; for farming, net of the seed its plots need. For a trade
     nobody works in, what a first worker would make."""
     n = len(land)
-    full = labor(population, n, config, at_full_health=True)
+    full = labor(population, n, config, at_full_health=True, force=force)
     normal = np.ones_like(full)
     farm = config.farming
     made = capacity(full, tools, workers, land, normal, config, farm_mult, sown)
@@ -232,12 +275,14 @@ def move_workers(population: Population, wanted: np.ndarray, config: Config, rng
     if not leaving.any():
         return 0
     rows = population.split(leaving)
-    for location in np.unique(population.location[rows]):
-        here = rows[population.location[rows] == location]
-        short = shortfall[location]
-        if short.sum() <= 0:
-            continue
-        population.job[here] = rng.choice(n_business, size=len(here), p=short / short.sum())
+    # Each joins a trade of its village at random, in proportion to how short
+    # it is (those whose village has no trade short stay where they are).
+    short = shortfall[population.location[rows]]
+    total = short.sum(axis=1)
+    cumulative = np.cumsum(short, axis=1) / np.where(total > 0, total, 1.0)[:, None]
+    pick = (rng.random(len(rows))[:, None] >= cumulative).sum(axis=1)
+    moving = total > 0
+    population.job[rows[moving]] = np.minimum(pick[moving], n_business - 1)
     return int(leaving.sum())
 
 

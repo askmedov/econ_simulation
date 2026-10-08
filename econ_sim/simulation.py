@@ -99,11 +99,12 @@ class Simulation:
         # Other than farms, they work less when unsold goods pile up. Farms
         # grow more with plough animals, and only as much as was sown.
         product_of = economy.product_of(config)
-        workers = economy.headcount(pop, n, config)
-        effort = economy.labor(pop, n, config, rng=streams["production"])
+        force = economy.workforce(pop, n, config)  # nobody joins, leaves or changes trade until wages are paid
+        workers = economy.headcount(pop, n, config, force)
+        effort = economy.labor(pop, n, config, rng=streams["production"], force=force)
         # At harvest everyone helps in the fields: the trades lose part of
         # their days, and children and the old glean, bind and carry.
-        helping = work.harvest_help(pop, n, len(hh), world.month_of_year, config)
+        helping = work.harvest_help(pop, n, len(hh), world.month_of_year, config, force)
         effort = effort * helping.kept
         effort[:, farm] += helping.farm
         herd = market.by_village(hh.animals, hh.location, n)
@@ -133,21 +134,21 @@ class Simulation:
 
         # Prices: what each product fairly costs to make in a normal year
         # (a poor sowing or harvest shows in the grain mark-up), times its mark-up.
-        per_worker = economy.productivity(pop, world.tools, workers, world.land, config, farm_mult)
+        per_worker = economy.productivity(pop, world.tools, workers, world.land, config, farm_mult, force=force)
         world.prices = economy.fair_prices(world.wage_level, per_worker, world.prices, config) * world.markup
 
         # 3. How well the village's stores and coming harvests cover the year
         # (this sets the grain price and says whether it is a famine year).
         need_rows = rules.food_need(pop, config)
         need = rules.by_location(need_rows, pop, n)
-        full_strength = economy.labor(pop, n, config, at_full_health=True)
+        full_strength = economy.labor(pop, n, config, at_full_health=True, force=force)
         no_events = np.ones_like(mods.production_mult)
         normal_gross = economy.capacity(full_strength, world.tools, workers, world.land, no_events, config, farm_mult)[:, farm]
         months_ahead = max(config.food.planning_months - 1, 0)
         ahead = events.production_outlook(world, months_ahead, names[farm])
         ahead = ahead * farms.sown_outlook(world.sown, world.month_of_year, ahead.shape[1], config)
         if config.work.enabled:  # harvests gathered with everyone's help
-            at_harvest = work.harvest_help(pop, n, len(hh), config.work.harvest_months[0], config).farm
+            at_harvest = work.harvest_help(pop, n, len(hh), config.work.harvest_months[0], config, force).farm
             boost = work.harvest_boost(full_strength[:, farm], at_harvest, config)
             ahead = ahead * work.outlook_boost(boost, world.month_of_year, ahead.shape[1], config)
         # Food to come: the harvests expected, less the seed picked from them,
@@ -178,7 +179,8 @@ class Simulation:
         tools_value = config.trade.tool_wear * workers[:, farm] * world.prices[:, tool]
         keep_for_tools = np.divide(tools_value, world.food_price, out=np.zeros(n), where=world.food_price > 0)
         shares, to_lord = farms.income_shares(
-            pop, hh, world.land, config, livestock.owners_part(animal_factor), world.lord.land, helping.households
+            pop, hh, world.land, config, livestock.owners_part(animal_factor), world.lord.land, helping.households,
+            force,
         )
         harvest_share, rent = farms.share_harvest(hh, world.farm_grain, keep_for_tools, shares, to_lord)
         share_out = market.by_village(harvest_share, hh.location, n) + rent
@@ -382,7 +384,7 @@ class Simulation:
         tool = config.product_for("tool")
         boost = np.array([b.tool_boost for b in config.businesses])
         tools_cost = np.where(boost > 0, config.trade.tool_wear * workers * world.prices[:, tool, None], 0.0)
-        income, payout = market.pay_wages(world.cash, pop, n_hh, config, keep=supplies_cost + tools_cost)
+        income, payout = market.pay_wages(world.cash, pop, n_hh, config, keep=supplies_cost + tools_cost, force=force)
         # Farm workers are paid mostly in grain: count its value too.
         earned = payout.copy()
         earned[:, farm] += labour_grain * world.food_price
@@ -513,6 +515,7 @@ class Simulation:
         credit.write_off(hh, size == 0)
         households.pass_on_savings(hh, size, world.council.treasury, world.council.formed)
         levied += households.pass_on_land_and_grain(hh, size, world.council.reserve, world.council.formed)
+        pop.remove_empty()  # rows emptied by deaths and departures, once a month
 
         # 10. Mark-ups move with the gap between demand and supply: for most
         # goods, what was asked for against what was made this month plus any

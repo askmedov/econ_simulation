@@ -145,7 +145,9 @@ def test_deaths_remove_people():
     pop = people([30] * 5, health=0.0)
     config = replace(CONFIG, health=HealthConfig(max_extra_mortality=1.0))
     died = rules.deaths(pop, np.ones(1), config, np.random.default_rng(0), 1)
-    assert died[0] == 5 and len(pop) == 0
+    assert died[0] == 5 and pop.size == 0
+    pop.remove_empty()  # emptied rows go at the end of the month
+    assert len(pop) == 0
 
 
 def with_husband(pop):

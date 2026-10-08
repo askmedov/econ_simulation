@@ -43,7 +43,10 @@ def leave(
     age = population.age_years
     young = (population.count == 1) & ~population.married & (age >= cfg.young_ages[0]) & (age <= cfg.young_ages[1])
     push = 1.0 + cfg.push * np.maximum(cfg.content_cover - cover, 0.0)
-    goes = young & (rng.random(len(population)) < rules.monthly_chance(cfg.leave_chance) * push[population.location])
+    roll = np.ones(len(population))
+    alive = population.count > 0  # rows emptied this month are dropped at its end
+    roll[alive] = rng.random(int(alive.sum()))
+    goes = young & (roll < rules.monthly_chance(cfg.leave_chance) * push[population.location])
     # Whole families flee a famine.
     starving = family_share < cfg.flee_below
     fleeing = starving & (rng.random(n_hh) < cfg.flee_chance)
@@ -58,8 +61,7 @@ def leave(
     households.money -= coins
     households.grain -= grain
     left = np.bincount(population.location[goes], weights=population.count[goes], minlength=n).astype(np.float64)
-    population.count[goes] = 0
-    population.remove_empty()
+    population.count[goes] = 0  # the emptied rows are dropped at the end of the month
     return Moves(left=left, arrived=np.zeros(n), coins=float(coins.sum()), grain=float(grain.sum()))
 
 
@@ -77,28 +79,25 @@ def arrive(
     people = rules.by_location(population.count.astype(np.float64), population, n)
     expected = cfg.arrive_rate * people / 1000.0 * np.clip(cover - cfg.welcome_cover, 0.0, cfg.max_pull)
     count = rng.poisson(expected)
-    rows = []
-    hosting = (households.land > 0) & (sizes(population, len(households)) > 0)
-    for village in np.flatnonzero(count):
-        hosts = np.flatnonzero((households.location == village) & hosting)
-        if not len(hosts):
-            continue
-        home = rng.choice(hosts, size=count[village])
-        k = count[village]
-        rows.append(Population(
-            count=np.ones(k, dtype=np.int64),
-            age_months=rng.integers(cfg.young_ages[0] * 12, cfg.young_ages[1] * 12, size=k),
-            female=rng.random(k) < 0.5,
-            health=np.full(k, 90.0),
-            skill=rules.draw_skill(np.ones(k, dtype=np.int64), config.skill, rng),
-            location=np.full(k, village),
-            household=home,
-            job=np.full(k, NO_JOB),
-        ))
-        arrived[village] = k
-    if rows:
-        newcomers = rows[0]
-        for new in rows[1:]:
-            newcomers.append(new)
-        population.append(newcomers)
-    return arrived
+    hosting = np.flatnonzero((households.land > 0) & (sizes(population, len(households)) > 0))
+    # Host families grouped by village; a village with none takes nobody.
+    hosting = hosting[np.argsort(households.location[hosting], kind="stable")]
+    places = households.location[hosting]
+    first, last = np.searchsorted(places, np.arange(n)), np.searchsorted(places, np.arange(n), side="right")
+    count = np.where(last > first, count, 0)
+    k = int(count.sum())
+    if k == 0:
+        return arrived
+    village = np.repeat(np.arange(n), count)
+    home = hosting[first[village] + np.floor(rng.random(k) * (last - first)[village]).astype(np.int64)]
+    population.append(Population(
+        count=np.ones(k, dtype=np.int64),
+        age_months=rng.integers(cfg.young_ages[0] * 12, cfg.young_ages[1] * 12, size=k),
+        female=rng.random(k) < 0.5,
+        health=np.full(k, 90.0),
+        skill=rules.draw_skill(np.ones(k, dtype=np.int64), config.skill, rng),
+        location=village,
+        household=home,
+        job=np.full(k, NO_JOB),
+    ))
+    return count.astype(np.float64)

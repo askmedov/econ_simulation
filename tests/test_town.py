@@ -62,7 +62,7 @@ def test_young_singles_leave_with_their_share_of_coins_and_grain():
     pop = people([40, 38, 20, 10], [0, 0, 0, 0], married=[True, True, False, False], female=[False, True, False, False])
     hh = Households(np.zeros(1), money=np.array([40.0]), grain=np.array([80.0]))
     moves = migration.leave(pop, hh, np.array([1.5]), np.ones(1), config, np.random.default_rng(0))
-    assert moves.left[0] == 1 and pop.size == 3 and (pop.age_years != 20).all()
+    assert moves.left[0] == 1 and pop.size == 3 and pop.count[pop.age_years == 20].sum() == 0  # dropped at month end
     assert np.isclose(moves.coins, 10.0) and np.isclose(moves.grain, 20.0)
     assert np.isclose(hh.money[0], 30.0) and np.isclose(hh.grain[0], 60.0)
 
@@ -72,7 +72,7 @@ def test_starving_families_flee_together():
     pop = people([40, 38, 12, 50], [0, 0, 0, 1], married=[True, True, False, True])
     hh = Households(np.zeros(2), grain=np.array([5.0, 50.0]), land=np.array([3.0, 3.0]))
     moves = migration.leave(pop, hh, np.array([1.0]), np.array([0.3, 0.9]), config, np.random.default_rng(0))
-    assert moves.left[0] == 3 and (pop.household == 1).all()
+    assert moves.left[0] == 3 and pop.count[pop.household == 0].sum() == 0 and pop.size == 1
     assert hh.grain[0] == 0 and hh.land[0] == 3.0  # the land stays behind
 
 

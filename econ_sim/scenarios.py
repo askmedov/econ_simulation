@@ -10,12 +10,17 @@ many seeds shows how large and how certain that effect is.
 from __future__ import annotations
 
 import csv
+import multiprocessing
+import os
+import sys
+from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass, replace
 from pathlib import Path
 
 import numpy as np
 
 from econ_sim.config import Config, ScheduledEvent
+from econ_sim.metrics import MonthRecord
 from econ_sim.simulation import Simulation
 
 # Monthly measures worth comparing, in the order they are reported.
@@ -39,17 +44,49 @@ METRICS = (
 )
 
 
-def run_batch(config: Config, runs: int) -> list[Simulation]:
+@dataclass
+class Run:
+    """What a finished run leaves: its settings, monthly records and log
+    (not its world, which can be large)."""
+
+    config: Config
+    records: list[MonthRecord]
+    log: list[str]
+
+
+def run_one(config: Config) -> Run:
+    sim = Simulation(config)
+    sim.run()
+    return Run(config=sim.config, records=sim.records, log=sim.log)
+
+
+def default_workers() -> int:
+    """Cores to run seeds on: `ECON_SIM_WORKERS` if set, else all of them."""
+    return int(os.environ.get("ECON_SIM_WORKERS", 0)) or os.cpu_count() or 1
+
+
+def process_pool(workers: int) -> ProcessPoolExecutor:
+    """A pool of `workers` processes: forked where the system allows (fast,
+    and it works from a notebook or a piped script), spawned elsewhere."""
+    fork = sys.platform.startswith("linux") and "fork" in multiprocessing.get_all_start_methods()
+    return ProcessPoolExecutor(max_workers=workers, mp_context=multiprocessing.get_context("fork" if fork else "spawn"))
+
+
+def run_many(configs: list[Config], workers: int | None = None) -> list[Run]:
+    """Run each config, several at a time on separate cores; results in order."""
+    workers = min(default_workers() if workers is None else workers, len(configs))
+    if workers <= 1:
+        return [run_one(config) for config in configs]
+    with process_pool(workers) as pool:
+        return list(pool.map(run_one, configs))
+
+
+def run_batch(config: Config, runs: int, workers: int | None = None) -> list[Run]:
     """Run `runs` simulations with seeds config.seed, config.seed + 1, ..."""
-    sims = []
-    for i in range(runs):
-        sim = Simulation(replace(config, seed=config.seed + i))
-        sim.run()
-        sims.append(sim)
-    return sims
+    return run_many([replace(config, seed=config.seed + i) for i in range(runs)], workers)
 
 
-def series(sims: list[Simulation], metric: str) -> np.ndarray:
+def series(sims: list[Run], metric: str) -> np.ndarray:
     """A metric as a (runs x months) array."""
     return np.array([[r.value(metric) for r in sim.records] for sim in sims], dtype=np.float64)
 
@@ -71,18 +108,23 @@ def spread(values: np.ndarray) -> Spread:
 
 @dataclass
 class Comparison:
-    baseline: list[Simulation]
-    scenario: list[Simulation]
+    baseline: list[Run]
+    scenario: list[Run]
 
     def difference(self, metric: str) -> np.ndarray:
         """Scenario minus baseline, run by run (runs x months)."""
         return series(self.scenario, metric) - series(self.baseline, metric)
 
 
-def compare(config: Config, forced: tuple[ScheduledEvent, ...], runs: int) -> Comparison:
-    """Paired runs of `config` without and with the `forced` events."""
+def compare(
+    config: Config, forced: tuple[ScheduledEvent, ...], runs: int, workers: int | None = None
+) -> Comparison:
+    """Paired runs of `config` without and with the `forced` events (all of
+    them at once, on `workers` cores)."""
     with_events = replace(config, scheduled_events=config.scheduled_events + forced)
-    return Comparison(baseline=run_batch(config, runs), scenario=run_batch(with_events, runs))
+    seeds = [config.seed + i for i in range(runs)]
+    results = run_many([replace(config, seed=s) for s in seeds] + [replace(with_events, seed=s) for s in seeds], workers)
+    return Comparison(baseline=results[:runs], scenario=results[runs:])
 
 
 @dataclass
@@ -127,7 +169,7 @@ def effect(comparison: Comparison) -> Effect:
 
 
 def write_summary_csv(
-    path: Path, baseline: list[Simulation], scenario: list[Simulation] | None = None
+    path: Path, baseline: list[Run], scenario: list[Run] | None = None
 ) -> None:
     """One row per month: each metric's average and 10-90% range across runs.
 

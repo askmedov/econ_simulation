@@ -19,8 +19,10 @@ def spouse_alive(population: Population) -> np.ndarray:
     paired = population.couple >= 0
     alive = (population.count > 1) & ~paired
     if paired.any():
-        living = np.bincount(population.couple[paired], weights=population.count[paired])
-        alive[paired] = living[population.couple[paired]] >= 2
+        # A couple's rows each hold one person, or none once they have died.
+        couples = population.couple[paired]
+        living = np.bincount(couples[population.count[paired] > 0])
+        alive[paired] = np.append(living, 0)[np.minimum(couples, len(living))] >= 2
     return alive & population.married
 
 
@@ -175,7 +177,7 @@ def update_health(
         np.maximum(gap, -cfg.hunger_damage * (1.0 - share)),
     )
     change = change + health_delta
-    population.health = np.clip(population.health + change, 0.0, cfg.maximum)
+    np.clip(population.health + change, 0.0, cfg.maximum, out=population.health)
 
 
 def death_chance(
@@ -206,11 +208,11 @@ def deaths(
     n_locations: int,
     care: np.ndarray | None = None,
 ) -> np.ndarray:
-    """Remove the people who die this month; returns deaths per village."""
+    """The people who die this month leave their rows (emptied rows are
+    removed at the end of the month); returns deaths per village."""
     died = rng.binomial(population.count, death_chance(population, mortality_mult, config, care))
     by_village = by_location(died, population, n_locations)
     population.count -= died
-    population.remove_empty()
     return by_village
 
 
@@ -246,15 +248,20 @@ def births(
     demo, health = config.demography, config.health
     age = population.age_years
     youngest, oldest = demo.fertile_ages
-    fertile = population.female & spouse_alive(population) & (age >= youngest) & (age <= oldest)
+    # Only women who can conceive (no one else has a chance, so no draw).
+    fertile = np.flatnonzero(population.female & (age >= youngest) & (age <= oldest) & (population.count > 0))
+    fertile = fertile[spouse_alive(population)[fertile]]
     from_ages = np.array([a for a, _ in demo.fertility_by_age])
-    by_age = np.array([f for _, f in demo.fertility_by_age])[np.maximum(np.searchsorted(from_ages, age, side="right") - 1, 0)]
+    by_age = np.array([f for _, f in demo.fertility_by_age])[
+        np.maximum(np.searchsorted(from_ages, age[fertile], side="right") - 1, 0)
+    ]
     low, high = health.fertility_health
-    health_factor = np.clip((population.health - low) / (high - low), 0.0, 1.0)
+    health_factor = np.clip((population.health[fertile] - low) / (high - low), 0.0, 1.0)
     chance = monthly_chance(demo.annual_birth_chance * by_age) * health_factor
-    chance = np.where(fertile, chance * fertility_mult[population.location], 0.0)
+    chance = chance * fertility_mult[population.location[fertile]]
 
-    babies = rng.binomial(population.count, chance)
+    babies = np.zeros(len(population), dtype=np.int64)
+    babies[fertile] = rng.binomial(population.count[fertile], chance)
     by_village = by_location(babies, population, n_locations)
 
     mothers = np.flatnonzero(babies)

@@ -58,14 +58,21 @@ def staff(
     n = len(councils.formed)
     people = np.bincount(population.location, weights=population.count, minlength=n)
     wanted = np.where(councils.formed, np.round(per_1000 * people / 1000.0), 0.0)
-    in_job = population.job == job
+    in_job = (population.job == job) & (population.count > 0)
     have = np.bincount(population.location, weights=population.count * in_job, minlength=n)
-    # Rows grouped by village (in their original order within it).
-    order = np.argsort(population.location, kind="stable")
-    bounds = np.searchsorted(population.location[order], np.arange(n + 1))
+    changing = np.flatnonzero(have != wanted)
+    if not len(changing):
+        return
+    # Rows of the villages that hire or let go, grouped by village (in their
+    # original order within it).
+    flagged = np.zeros(n, dtype=bool)
+    flagged[changing] = True
+    rows_there = np.flatnonzero(flagged[population.location])
+    rows_there = rows_there[np.argsort(population.location[rows_there], kind="stable")]
+    bounds = np.searchsorted(population.location[rows_there], np.arange(n + 1))
     can_hire = in_business(population, config) & (population.count == 1)
-    for location in np.flatnonzero(have != wanted):
-        rows = order[bounds[location]:bounds[location + 1]]
+    for location in changing:
+        rows = rows_there[bounds[location]:bounds[location + 1]]
         if have[location] > wanted[location]:
             current = rows[in_job[rows]]
             extra = rng.permutation(current)[: int(have[location] - wanted[location])]

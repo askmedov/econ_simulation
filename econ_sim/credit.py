@@ -39,9 +39,16 @@ def _biggest_first(capacity: np.ndarray, totals: np.ndarray, location: np.ndarra
     `capacity` first, each taking up to its capacity: the richest buyers and
     the biggest creditors get the land and animals that change hands."""
     got = np.zeros_like(capacity)
-    for village in np.flatnonzero(totals > 0):
-        here = np.flatnonzero((location == village) & (capacity > 0))
-        order = here[np.argsort(-capacity[here], kind="stable")]
+    villages = np.flatnonzero(totals > 0)
+    if not len(villages):
+        return got
+    # Households able to take some, by village, the largest first (ties in order).
+    able = np.flatnonzero((capacity > 0) & (totals[location] > 0))
+    able = able[np.lexsort((-capacity[able], location[able]))]
+    places = location[able]
+    starts, ends = np.searchsorted(places, villages), np.searchsorted(places, villages, side="right")
+    for village, start, end in zip(villages, starts, ends):
+        order = able[start:end]
         before = np.cumsum(capacity[order]) - capacity[order]
         got[order] = np.clip(totals[village] - before, 0.0, capacity[order])
     return got

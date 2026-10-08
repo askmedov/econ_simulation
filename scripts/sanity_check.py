@@ -9,7 +9,8 @@ Three kinds of finding:
               a year of hunger with no cause, implausible birth rates)
   disaster    real but rare outcomes (starvation rations, a year in which
               30% die), allowed in a small share of runs, more in harsh
-              settings
+              settings (a setting fails when its count would be under 1%
+              likely at that share)
 
 Exit code 1 if anything impossible or nonsensical is found, or disasters
 are more frequent than a setting allows.
@@ -31,6 +32,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from econ_sim.checks import broken_invariants  # noqa: E402
 from econ_sim.config import Config, CouncilConfig, HealthcareConfig, ScheduledEvent, VillageConfig  # noqa: E402
 from econ_sim.metrics import flat  # noqa: E402
+from econ_sim.scenarios import default_workers, process_pool  # noqa: E402
 from econ_sim.simulation import Simulation  # noqa: E402
 
 
@@ -199,21 +201,45 @@ def settings(full: bool) -> list[Setting]:
     return out
 
 
+def too_many(count: int, runs: int, allowed: float) -> bool:
+    """Whether `count` disasters in `runs` runs is implausible (under 1%
+    likely) if they happen in at most `allowed` of runs."""
+    if allowed <= 0:
+        return count > 0
+    tail = sum(math.comb(runs, k) * allowed**k * (1 - allowed) ** (runs - k) for k in range(count, runs + 1))
+    return tail < 0.01
+
+
+def check(job: tuple[Config, bool]) -> list[tuple[str, int]]:
+    """Run one setting with one seed and return its problems."""
+    config, extreme = job
+    sim = Simulation(config)
+    sim.run()
+    return problems(sim, extreme=extreme)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--full", action="store_true", help="many more seeds")
+    parser.add_argument("--workers", type=int, default=None, help="cores to use (default: all)")
     args = parser.parse_args()
 
     failures, runs = [], 0
-    for setting in settings(args.full):
+    chosen = settings(args.full)
+    jobs = [(replace(s.config, seed=seed), s.disasters_allowed is None) for s in chosen for seed in range(s.seeds)]
+    workers = args.workers or default_workers()
+    if workers > 1:
+        with process_pool(workers) as pool:
+            found = iter(list(pool.map(check, jobs, chunksize=4)))
+    else:
+        found = iter([check(job) for job in jobs])
+    for setting in chosen:
         counts: dict[str, int] = defaultdict(int)
         examples: dict[str, str] = {}
         for seed in range(setting.seeds):
-            sim = Simulation(replace(setting.config, seed=seed))
-            sim.run()
             runs += 1
             seen = set()
-            for name, month in problems(sim, extreme=setting.disasters_allowed is None):
+            for name, month in next(found):
                 if name in seen:
                     continue
                 seen.add(name)
@@ -222,10 +248,9 @@ def main() -> int:
         notes = []
         for name, n in sorted(counts.items(), key=lambda item: -item[1]):
             if name in DISASTERS:
-                # With few runs, one disaster is more than the share allows
-                # by luck alone: allow at least one.
-                allowed = setting.disasters_allowed or 0.0
-                bad = n > (max(allowed * setting.seeds, 1) if allowed > 0 else 0)
+                # Too many if that many would happen less than 1% of the time
+                # at the allowed rate (a few in a handful of runs is luck).
+                bad = too_many(n, setting.seeds, setting.disasters_allowed or 0.0)
                 kind = "disaster"
             else:
                 impossible = name in IMPOSSIBLE or name.startswith("broken invariant")

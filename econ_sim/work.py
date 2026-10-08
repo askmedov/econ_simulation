@@ -18,7 +18,7 @@ import numpy as np
 
 from econ_sim import rules
 from econ_sim.config import Config
-from econ_sim.economy import in_business, work_factor
+from econ_sim.economy import Workforce, work_factor, workforce
 from econ_sim.households import Households
 from econ_sim.population import NO_JOB, Population
 
@@ -36,7 +36,8 @@ class HarvestHelp:
 
 
 def harvest_help(
-    population: Population, n_locations: int, n_households: int, month_of_year: int, config: Config
+    population: Population, n_locations: int, n_households: int, month_of_year: int, config: Config,
+    force: Workforce | None = None,
 ) -> HarvestHelp:
     """Who helps in the fields this month, and how much the trades lose."""
     cfg = config.work
@@ -46,8 +47,9 @@ def harvest_help(
         return HarvestHelp(farm=np.zeros(n_locations), kept=kept, households=np.zeros(n_households))
     kept[:] = 1.0 - cfg.craft_help
     kept[config.farming] = 1.0
-    effort = population.count * population.skill * work_factor(population, config)
-    crafts = in_business(population, config) & (population.job != config.farming)
+    force = force or workforce(population, n_locations, config)
+    effort = force.effort
+    crafts = force.working & (population.job != config.farming)
     age = population.age_years
     young = (age >= cfg.helper_ages[0]) & (age <= cfg.helper_ages[1])
     old = (age >= config.demography.retirement_age) & (age <= cfg.old_helper_age)

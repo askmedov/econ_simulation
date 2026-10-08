@@ -96,3 +96,11 @@ def test_summary_csv_has_baseline_event_and_difference_columns(tmp_path):
     assert len(rows) == 6
     for column in ("deaths", "deaths_event", "deaths_diff_low", "ration_event_high"):
         assert column in header.split(",")
+
+
+def test_runs_on_several_cores_match_runs_on_one():
+    config = Config(seed=3, months=12)
+    one = run_batch(config, runs=3, workers=1)
+    many = run_batch(config, runs=3, workers=3)
+    assert [[asdict(r) for r in run.records] for run in one] == [[asdict(r) for r in run.records] for run in many]
+    assert [run.log for run in one] == [run.log for run in many]

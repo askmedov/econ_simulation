@@ -1065,7 +1065,7 @@ checks on region settings, and what-if numbers written up here:
 
 | Step | Branch | Adds |
 |---|---|---|
-| 1 | `claude/phase3-speed` | group-by instead of loops over villages, one compaction a month, parallel seeds, a benchmark script with the targets above |
+| 1 | `claude/phase3-speed` | group-by instead of loops over villages, one compaction a month, parallel seeds, a benchmark script with the targets above (built) |
 | 2 | `claude/region-map` | places, terrain, roads and rivers, costs of carriage, weather that falls on the map; regions generated from a few settings |
 | 3 | `claude/market-towns` | towns and a city as places; the town price set by supply and demand; an outside price at the border |
 | 4 | `claude/trade-network` | trade in grain, animals, cloth, tools and wood along the network; specialisation by terrain |
@@ -1082,6 +1082,57 @@ checks on region settings, and what-if numbers written up here:
 Steps 1-5 make a working region; 6-8 add the what-ifs people ask most
 (epidemics, wars, policy); 9-10 deepen the economy; 11-13 make it a
 calibrated, country-sized tool.
+
+### 1. Speed (built)
+
+`scripts/benchmark.py` times setup and a year of months at 1,000 to
+1,000,000 people (regions of 1,000-person villages) and checks the targets.
+
+| | Setup, 1,000,000 people | A month, 1,000,000 | A month, 100,000 |
+|---|---|---|---|
+| End of Phase 2b (checks branch) | 25 s | 2.3 s | 0.16 s |
+| Step 1 | 1.8 s | 1.5 s | 0.12 s |
+
+- **Setup** no longer grows with the square of the population: villages'
+  people are put together in one go, ages are worked out once, and
+  children join a mother by a sorted search instead of one at a time.
+- **The month** does each piece of work once: who works where and how hard
+  is worked out once while nobody joins, leaves or changes trade (it was
+  done eight times); rows emptied by deaths and departures are dropped
+  once at the end of the month, in place, and the table keeps spare room
+  so newborns and newcomers don't copy it; loops over villages became one
+  sort and a walk over slices (healers, council staff, newcomers, weddings,
+  land and animals going to the biggest buyers and creditors, people
+  changing trade); births are drawn only for women who can conceive.
+  Every change but two gives identical results; the two (newcomers placed
+  and people moving trade, both drawn all at once) give the same
+  distributions with different draws.
+- **Runs go on all cores.** A batch of runs, and both arms of a paired
+  what-if, run in parallel processes and return only their records and
+  log (`--workers`, or `ECON_SIM_WORKERS`); results are identical however
+  many cores. The sanity check runs in parallel too: its 733 runs take under
+  two minutes instead of about fifteen.
+- **The sanity check's disaster allowance is now a proper test.** A setting
+  fails when its number of disasters would happen less than 1% of the time
+  at the allowed share; before, two disasters in a 10-run setting (or six
+  in 100) failed by luck alone.
+
+Measured on 4 cores:
+
+| Target | Measured |
+|---|---|
+| Region: 100 paired three-year runs of 100,000 people, under 10 minutes | about 4 minutes (8 pairs in 20 s) |
+| Province: one paired run of 1,000,000 people, under a minute | 58 seconds |
+| Province: 20 paired runs of 1,000,000, under 20 minutes | 9.6 minutes |
+
+(The 20 province runs also show what a region buys: a drought over all
+1,000 villages costs about 18,300 extra deaths in three years, and 80% of
+runs fall between 15,800 and 21,000, a far tighter range than one
+village's.)
+
+A month at a million people is now a long tail of whole-table passes, none
+above a twentieth of the time; the next large step (10 million, step 12)
+needs the weighted sample, not more of this.
 
 ### What-ifs Phase 3 should answer
 
@@ -1108,8 +1159,11 @@ calibrated, country-sized tool.
 
 ### Decisions to make early
 
-- **Reference time and place.** England c. 1300 has the best data; Song
-  China, Roman Egypt or Old Babylonian Mesopotamia are alternatives.
+- **Reference time and place: England c. 1300 (decided).** It has the best
+  data (manorial accounts, prices and wages, the Hundred Rolls, the poll
+  taxes) and two natural tests, the Great Famine of 1315-17 and the Black
+  Death of 1348-49. Song China, Roman Egypt or Old Babylonian Mesopotamia
+  remain alternatives for later.
 - **10 million: sample or cohorts.** The plan tries a weighted sample
   first.
 - **How open the region is.** A border or port with an outside price, or
