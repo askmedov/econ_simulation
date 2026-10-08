@@ -63,7 +63,12 @@ Other options: `--months`, `--seed`, `--population`, `--land`,
 `--no-relief`, `--no-healthcare`, `--council-forms-later`, `--lord-charity`
 (the lord opens his barn in a famine), `--remit-tax` (the state remits its
 tax in a famine year), `--no-lord`, `--no-state-tax`, `--no-town` (no
-merchants) and `--no-migration`. See `--help`. Everything else (products,
+merchants), `--no-migration`, `--no-kin-help` and `--no-drought-runs`. See `--help`.
+
+Droughts come in runs: a forced drought makes another the next April
+three times likelier (30% instead of about 8%), so its three-year effect
+includes the second drought it brings in some runs. `--no-drought-runs`
+isolates the single drought. Everything else (products,
 businesses, prices, tax rate, reserve size, healers...) is in
 `econ_sim/config.py`.
 
@@ -109,6 +114,7 @@ All parameters are in [`econ_sim/config.py`](econ_sim/config.py).
 | `econ_sim/migration.py` | Young people and starving families leaving; servants arriving when hands are short |
 | `econ_sim/work.py` | Everyone at harvest, homespun cloth, kin who give each other grain |
 | `econ_sim/environment.py` | Woods that regrow and thin when overcut; soil that tires on crowded land |
+| `econ_sim/checks.py` | Invariants of the state (land, debts, households, couples, kin) for tests and the sanity check |
 | `econ_sim/economy.py` | Businesses: production, tools, supplies, fair prices, who works where |
 | `econ_sim/market.py` | Buying and selling, mark-ups, wages, help between neighbours |
 | `econ_sim/council.py` | The village council: forming, taxes, officials, grain reserve, relief |

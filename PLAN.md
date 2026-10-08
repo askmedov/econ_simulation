@@ -822,6 +822,93 @@ and rises again as the village grows. The sanity check's 733 runs pass;
 its 10-run settings now allow a single disaster, which is a 10% share by
 luck alone.
 
+## Checking Phase 2b (built)
+
+Before growing the model, a round of checks on the finished village:
+
+- **Invariants every month.** `econ_sim/checks.py` checks the state for
+  things that must always hold: land conserved (families' plus the
+  lord's), debts and the claims on them balanced in every village, nothing
+  held negative, everyone in a household of their own village, couples of
+  one man and one woman, kin links within a village. They hold every month
+  across eight settings (several villages, no council, one disaster after
+  another, heirs keeping the land, a hamlet, crowded land, many arrivals),
+  and are now part of the tests and of every sanity-check run; tests break
+  a world on purpose to show each check fires. Money and food were
+  already checked.
+- **Pairing.** For every village event, a run with the event forced in
+  month 7 matches its baseline exactly until then.
+- **A code review** found seven bugs, all fixed with regression tests:
+  in harvest months the year's food supply counted the seed about to be
+  picked as food, so a drought harvest was rarely seen as a famine (the
+  council kept levying grain, famine levers didn't trigger); a run
+  starting in November or December began with a year's seed made from
+  nothing; a family whose last member married out was treated as dead
+  (its debts written off, its loans cancelled, and under an heir-takes-all
+  rule its land handed to strangers); grain from kin was spread over the
+  year instead of eaten when needed; borrowers with coins to spare didn't
+  pay off their debts as documented; the state taxed households with
+  nobody left; and a village with no households misdirected the savings
+  of the dead. Long-run outcomes barely moved.
+- **Final runs:** the full sanity check's 2,930 runs all pass, and none of
+  the stress test's 65 scenarios drifts over 100 years and 16 seeds
+  beyond what each is meant to show.
+- **The headline what-if moved.** An April drought now costs about 35
+  extra deaths over three years with the council (80% of runs: -9 to
+  +144) and 48 without (-10 to +184). Most of the rise since step 6 is
+  step 7's droughts in runs: in 30% of runs the forced drought brings a
+  second the next year, and two in a row is a great famine. With
+  `--no-drought-runs` it costs 15 and 22. Since this village's multi-year
+  famines are too deadly (see below), the larger numbers are likely too
+  high until calibration.
+- **The full sanity check** (2,930 runs) found two more problems, both in
+  century-long runs, both fixed: after a plague halved a village a wage
+  briefly bought four or five families' food and newcomers poured in, a
+  quarter of the village a year (now at most about 6%); and after a
+  century, rounding left over from large debts tripped the debt check's
+  tolerance (now a thousandth of a coin). The century setting then shows
+  only disasters, within what it allows.
+- **The 100-year stress test** (16 seeds) found a monetary death spiral:
+  a village that stopped selling grain to the town (or had none) paid its
+  coin tax every year and got no coin back; the wage level that prices are
+  reckoned in can fall only about 11% a year, so the tax took nearly all
+  the coins each year, prices deflated a thousandfold, trade seized, and
+  the village died out within 50-90 years. The state now takes coins only
+  beyond what a family keeps for food and firewood, and grain for the
+  rest (where coin is scarce, the tax is paid in kind). Its take is
+  unchanged; a village without a town now deflates but lives.
+- **Speed.** Two parts of setup grew with the square of the population,
+  and three monthly steps scanned everyone once per village; fixed, with
+  identical results: a million people in 1,000 villages now take 1.7
+  seconds a month (4.9 before) and 19 seconds to set up; 200,000 people
+  take 2 seconds to set up (13 before).
+- **Plausibility.** Against a high-pressure pre-industrial population
+  (12 runs, years 6-30):
+
+| Measure | Model | Historical range |
+|---|---|---|
+| Births / deaths per 1,000 | 48 / 44 | 40-50 / 30-45, crisis years far higher |
+| Infant deaths per 1,000 births | 253 | 200-300 |
+| Life expectancy at birth / at 5 | 23 / 37 | 20-35 / 40-45 at the same e0 |
+| Women's mean age at first marriage | 18.0 | 16-20 (east of the Hajnal line) |
+| Women 20-24 married | 91% | 75-95% |
+| Under 15 / over 60 | 38% / 5% | 35-40% / 5-8% |
+| Household size | 4.4 | 4.5-5.5 |
+| Landless families' members | 22% | 20-50% |
+| Seed, as a share of the harvest | 15% (yield 7:1) | 20-33% (3-5:1 in medieval Europe) |
+| Lord, state and council's take | 15% of the harvest | 25-50%, with the tithe |
+| Grain price, June over October | +4% | +10-25% |
+| A labourer's wage, in families fed | 0.93 | about 1 |
+
+Most of it fits. Yields are high, the take is low (there is no tithe),
+grain prices barely rise before the harvest (prices look a year ahead,
+and nothing yet makes peasants sell at harvest to pay their rent and
+tax), adults die a little fast, after a plague the real wage jumps too far
+(four or five times, where England's roughly doubled over decades after
+the Black Death), and three droughts in a row cost about two-thirds of
+the village (a third flee, the rest die), where the Great Famine of
+1315-17 killed perhaps 10-15%: Phase 3's calibration step addresses these.
+
 ## Roadmap after Phase 2
 
 1. **Individual firms** instead of one business per trade.

@@ -44,3 +44,8 @@ def test_council_can_form_during_the_run(tmp_path, capsys):
     main(["--months", "8", "--council-forms-later", "--out", str(tmp_path)])
     out = capsys.readouterr().out
     assert "A council forms once" in out and "formed a council" in out
+
+
+def test_drought_runs_can_be_switched_off(tmp_path, capsys):
+    main(["--months", "6", "--no-drought-runs", "--out", str(tmp_path)])
+    assert "Village of" in capsys.readouterr().out
