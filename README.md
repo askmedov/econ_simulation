@@ -3,7 +3,7 @@
 A month-by-month economic simulation for asking **"what happens over the next
 few years if this event hits?"** It simulates a village of 1,000 people in
 about 200 families who farm, cut wood, weave and make tools, buy and sell
-with coins, get sick, are born and die, with random events like droughts,
+with coins, marry, get sick, are born and die, with random events like droughts,
 forest fires and disease. A village council taxes, keeps a grain reserve,
 gives famine relief and pays healers. See [PLAN.md](PLAN.md) for the design and
 roadmap.
@@ -85,7 +85,7 @@ All parameters are in [`econ_sim/config.py`](econ_sim/config.py).
 | `econ_sim/population.py` | The population table (one row = `count` identical people) |
 | `econ_sim/rng.py` | Named random streams |
 | `econ_sim/world.py` | World state and the starting village |
-| `econ_sim/households.py` | Families: who lives with whom, and their savings |
+| `econ_sim/households.py` | Families: who lives with whom, marriage and heirs, and their savings |
 | `econ_sim/economy.py` | Businesses: production, tools, supplies, fair prices, who works where |
 | `econ_sim/market.py` | Buying and selling, mark-ups, wages, help between neighbours |
 | `econ_sim/council.py` | The village council: forming, taxes, officials, grain reserve, relief |
@@ -104,6 +104,11 @@ All parameters are in [`econ_sim/config.py`](econ_sim/config.py).
 .venv/bin/python -m pytest
 .venv/bin/python scripts/sanity_check.py          # hundreds of seeds and settings
 .venv/bin/python scripts/sanity_check.py --full   # thousands
+.venv/bin/python scripts/stress_test.py           # 40 years of many scenarios: does anything drift?
+.venv/bin/python scripts/stress_test.py --full    # 100 years, more seeds
 ```
 
-The sanity check flags outcomes no real village would show; see PLAN.md.
+The sanity check flags outcomes no real village would show over the
+near-term horizon; the stress test runs far past it to find slow drifts
+(prices, households, vital rates, inequality) that a few years would hide.
+See PLAN.md.

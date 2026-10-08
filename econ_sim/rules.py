@@ -192,12 +192,12 @@ def wage_cover(average_pay: np.ndarray, food_price: np.ndarray, need: np.ndarray
     return np.divide(bought, per_worker, out=np.zeros_like(bought), where=np.isfinite(per_worker) & (per_worker > 0))
 
 
-def birth_factor(cover: np.ndarray, config: Config) -> np.ndarray:
-    """How much being able to feed another family encourages births."""
+def marriage_factor(cover: np.ndarray, config: Config) -> np.ndarray:
+    """How much being able to feed a family encourages people to marry."""
     demo = config.demography
-    low, high = demo.wage_cover_for_births
+    low, high = demo.wage_cover_for_marriage
     room = np.clip((cover - low) / (high - low), 0.0, 1.0)
-    return demo.crowded_birth_factor + (1.0 - demo.crowded_birth_factor) * room
+    return demo.crowded_marriage_factor + (1.0 - demo.crowded_marriage_factor) * room
 
 
 def births(
@@ -209,17 +209,23 @@ def births(
 ) -> np.ndarray:
     """Add this month's newborns; returns births per village.
 
-    `fertility_mult` per village combines events and how crowded the land is.
-    Newborns join their mother's household, with her health and a fresh
-    skill draw.
+    Married women of fertile age with a husband at home (a married man in
+    their household; widows have none) give birth with `annual_birth_chance`
+    times their age's `fertility_by_age`, lowered by poor health and scaled
+    by `fertility_mult` per village (from events). Newborns join their
+    mother's household, with her health and a fresh skill draw.
     """
     demo, health = config.demography, config.health
     age = population.age_years
     youngest, oldest = demo.fertile_ages
-    fertile = population.female & (age >= youngest) & (age <= oldest)
+    husbands = population.count * (population.married & ~population.female & (age >= 18))
+    has_husband = np.bincount(population.household, weights=husbands, minlength=1)[population.household] > 0
+    fertile = population.female & population.married & has_husband & (age >= youngest) & (age <= oldest)
+    from_ages = np.array([a for a, _ in demo.fertility_by_age])
+    by_age = np.array([f for _, f in demo.fertility_by_age])[np.maximum(np.searchsorted(from_ages, age, side="right") - 1, 0)]
     low, high = health.fertility_health
     health_factor = np.clip((population.health - low) / (high - low), 0.0, 1.0)
-    chance = monthly_chance(demo.annual_birth_chance) * health_factor
+    chance = monthly_chance(demo.annual_birth_chance * by_age) * health_factor
     chance = np.where(fertile, chance * fertility_mult[population.location], 0.0)
 
     babies = rng.binomial(population.count, chance)

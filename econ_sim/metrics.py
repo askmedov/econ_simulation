@@ -23,6 +23,7 @@ class MonthRecord:
     workers: int
     elderly: int
     households: int  # with at least one member
+    weddings: int  # couples who left home to start a household
     births: int
     deaths: int
     food_produced: float

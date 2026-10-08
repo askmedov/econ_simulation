@@ -143,3 +143,30 @@ def test_drought_raises_food_price_and_hits_the_poorest_hardest():
     poorest = series(result.scenario, "poorest_fifth_ration").min(axis=1)
     village = series(result.scenario, "ration").min(axis=1)
     assert (poorest <= village + 1e-9).all() and (poorest < village).any()
+
+
+def test_firewood_is_stocked_up_before_winter():
+    assert np.allclose(market.seasonal_buffer((1.0,) * 12), 0.0)
+    buffer = market.seasonal_buffer(CONFIG.needs.firewood)
+    assert buffer.argmax() == 10  # most is needed going into November
+    assert buffer[3] == 0.0  # by April the winter is over
+
+
+def test_families_keep_warm_through_ordinary_winters():
+    config = replace(CONFIG, seed=2, months=60, random_events=False)
+    records = Simulation(config).run()
+    assert min(r.warmth for r in records) > 0.95
+
+
+def test_families_who_cannot_buy_firewood_gather_some():
+    poor = replace(CONFIG, seed=2, months=24, random_events=False, money=replace(CONFIG.money, initial_savings_months=0.0))
+    for record in Simulation(poor).run():
+        assert record.warmth >= CONFIG.needs.gathering - 1e-9
+
+
+def test_customary_wage_follows_the_money_there_is():
+    little = replace(CONFIG, seed=2, months=120, money=replace(CONFIG.money, initial_savings_months=0.5))
+    sim = Simulation(little)
+    start = sim.world.wage_level.copy()
+    sim.run()
+    assert (sim.world.wage_level < start).all()

@@ -47,7 +47,7 @@ def test_infants_and_the_old_are_seen_but_healthy_adults_are_not():
 
 
 def test_an_outbreak_brings_more_patients():
-    pop = people([95.0] * 3, age_months=np.array([3 * 12, 30 * 12, 65 * 12]))
+    pop = people([95.0] * 3, age_months=np.array([3 * 12, 45 * 12, 65 * 12]))
     calm = rules.death_chance(pop, np.ones(1), CONFIG)
     outbreak = rules.death_chance(pop, np.array([2.5]), CONFIG)
     _, seen_calm = healthcare.treat(pop, np.array([10.0]), calm, CONFIG)

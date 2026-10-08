@@ -146,10 +146,16 @@ families with money, taxes need money, healers need someone to pay them.
 ### 1. A village of 1,000 in families (built)
 
 - People get two new columns: `household` and `job`.
-- **Families at the start:** each woman aged 18–49 heads a household;
-  men pair with women of similar age; children join a woman old enough to
-  be their mother; older people live with a family. About 220 households of
-  around 4–5 people.
+- **Families at the start:** each married woman aged 18–64 heads a
+  household; men pair with women of similar age; children, and young
+  people not yet married, join a woman old enough to be their mother;
+  older people live with a family. About 200 households of around 5.
+- **Marriage:** each month a single woman of 17–34 marries with a chance
+  of 1 in 48 (on average at about 21), to a single man of 19–39 from
+  another family. The first of a family to marry stays with their spouse
+  as its heir; later brothers and sisters set up a household of their own,
+  taking their share of the family's savings. People wait to marry when a
+  wage can barely feed a family (see births below).
 - Newborns join their mother's household. When a household has nobody
   left, its savings pass to the remaining families (or the council, once
   there is one).
@@ -207,8 +213,10 @@ Products and business types are data, like events:
   cheap; necessities (food, firewood, tools) are staffed first and
   comforts share whoever is left. A few percent of the gap moves each
   month. Businesses also work less when unsold goods pile up.
-- **Births** follow the real wage: how much food a month's pay buys,
-  against the food need per worker. Dear grain or crowded land lowers it.
+- **Births** come from married women, so they follow marriage, and
+  marriage follows the real wage: how much food a month's pay buys,
+  against the food need per worker. Dear grain or crowded land lowers it,
+  and at worst a fifth as many people marry. (Europe's "preventive check".)
 - Events can hit one business: a drought hits farming, a new forest fire
   hits woodcutting, a harsh winter raises the need for firewood.
 
@@ -247,8 +255,9 @@ with coins sat on a third of the money for months. Suspending taxes in
 famine and filling the reserve in kind fixed both.
 
 **What it does** (April drought, 36 months, 30 runs): with the council,
-about 0 extra deaths, the poorest fifth's worst month at 94% of need and
-1.5 hungry months; without it, about 6 extra deaths, 76% and 16 months.
+about 2 extra deaths, 5 fewer births, the poorest fifth's worst month at
+92% of need and 2 hungry months; without it, about 6 extra deaths, 17 fewer
+births (people put off marrying), 69% and 16 months.
 
 ### 5. Basic healthcare (built)
 
@@ -258,13 +267,13 @@ about 0 extra deaths, the poorest fifth's worst month at 94% of need and
   the people most likely to die first: infants, the old, the starving and
   anyone hit by an outbreak. (Seeing the sickest by health first missed
   most outbreak victims, whose risk rises before their health falls.)
-- **Treatment** adds 10 health and cuts that month's risk of dying by 40%.
+- **Treatment** adds 10 health and cuts that month's risk of dying by 15%
+  (it was 40%, which made a pre-industrial village nearly modern; healers
+  before vaccines and clean water saved few lives).
 - What-if lever: `--no-healthcare`.
 
-**What it does:** about a fifth fewer deaths in normal years (34 against 42
-per 1,000 over two years, mostly infants and the old) and about a sixth
-fewer in an epidemic. In an outbreak more people are at risk than five
-healers can see, so an epidemic still costs extra lives.
+**What it does** (24 months, 40 runs): deaths of about 25.5 against 27.6 per
+1,000 a year in normal years, and 29.3 against 32.0 with an epidemic.
 
 ### New measures (built)
 
@@ -281,9 +290,59 @@ poorest fifth's worst month, relief given and people treated.
 ### Kept simple for now
 
 - Each business type is one business per village (individual firms later).
-- No new households form; families just grow.
+- Widows and widowers don't remarry.
 - No lending, land ownership or rents.
 - The council's rules are fixed policies, not decisions.
+
+## Stress test: does anything drift over decades? (built)
+
+The what-ifs look 1–5 years ahead, but a slow drift there is a fast one
+somewhere else, so `scripts/stress_test.py` runs 55 scenarios (baselines,
+repeated shocks, policies, starting conditions, and every key setting
+halved and doubled) for 40 years with 6 seeds each (`--full`: 100 years, 16
+seeds) and flags any measure that leaves a plausible range, ends far from
+where it started, or keeps trending: population, births, deaths and
+weddings per 1,000, prices in days of work, how much food a wage buys,
+rations for the village and its poorest fifth, warmth, health, the mix of
+trades, how money is spread, food stores and family sizes.
+
+**First run: 52 of 53 scenarios drifted.** What it found, and the fixes:
+
+| Drift | Cause | Fix |
+|---|---|---|
+| Births and deaths of 12–19 per 1,000: a modern village, not an old one | Mortality too low, and healers cut the risk of the infants and old people they saw by 40% every month | A pre-industrial life table (a fifth of babies die in their first year, life expectancy at birth about 35); treatment cuts risk by 15% |
+| Households never split: 195 families became 100, averaging 7 and up to 34 people | Nobody ever left home | Marriage: young people marry (women at about 21) and the first of a family to marry stays as its heir; the rest set up new households. Births come from married women |
+| Population halves when the village starts with little money | Prices were reckoned in a fixed customary wage, so they could never fall to fit the money there was | The customary wage moves with the money: up while families hold more than 3 months of the village's earnings, down while they hold less |
+| Families short of firewood every late winter, worse as the village grows | Woodcutters worked to this month's orders, and the summer's growing stock looked like a glut, so they cut back before winter | Woodcutters stock up ahead of winter (a seasonal buffer), plan by the year's average need, and price by whether the stock is on track; families who can't buy firewood gather up to half their need |
+| Tool prices swinging between 1.3 and 13 | Smiths could spend only half the cash they had set aside for firewood, and farms counted the same missing tools as new orders every month | Businesses may spend what they set aside; farms order replacements plus a quarter of any gap |
+
+Two fixes needed a second try. Letting the customary wage follow what work
+actually paid made prices climb forever once land got crowded (grain sells
+above its cost, so pay outruns the wage, so prices rise, so pay rises); and
+tying it to families' savings against their food bill made prices sink
+forever as the village got poorer, since no price level can make a real
+shortage go away. Tying it to money against earnings (the quantity of money
+sets the price level) has neither problem.
+
+**Now: 0 of 55 scenarios drift.** Four flags are expected and reported as
+such: without neighbourly help large poor families can't afford firewood;
+with neither help nor a council they also go hungry and the village shrinks
+by 40% over 40 years; on crowded land people marry late (births 24 per
+1,000); with plenty of land the village grows 65%. The near-term sanity
+sweep still passes.
+
+**What the long runs show.** The village now behaves like a
+pre-industrial one. Births of about 30 and deaths of about 25 per 1,000
+make it grow just under 1% a year until land runs short, about 1,400 people
+on today's 350 plots. Then grain gets dear, people marry later, more
+people farm and the weavers all but disappear, as nobody has a coin to
+spare. With repeated droughts or crowded land, deaths overtake births. Bad
+years bring a mortality crisis: in a century-long run a third of seeds see
+rations below half at least once, decades in.
+
+This growth matters for what-ifs too: the baseline village grows about 4%
+over 5 years, so an event's effect should always be read against the
+paired baseline, as the CLI does.
 
 ## Roadmap after Phase 2
 

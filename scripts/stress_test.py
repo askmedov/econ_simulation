@@ -42,6 +42,9 @@ class Scenario:
     name: str
     config: Config
     note: str = ""
+    # Measures this scenario is meant to push out of their usual range:
+    # reported, but not counted as drift.
+    expected: tuple[str, ...] = ()
 
 
 def scenarios() -> list[Scenario]:
@@ -77,8 +80,18 @@ def scenarios() -> list[Scenario]:
         Scenario("no council", replace(base, council=CouncilConfig(enabled=False))),
         Scenario("no relief", replace(base, council=CouncilConfig(relief=False))),
         Scenario("no healthcare", replace(base, healthcare=HealthcareConfig(enabled=False))),
-        Scenario("no neighbourly help", replace(base, money=replace(money, sharing_rate=0.0))),
-        Scenario("no council, no help", replace(base, council=CouncilConfig(enabled=False), money=replace(money, sharing_rate=0.0))),
+        Scenario(
+            "no neighbourly help",
+            replace(base, money=replace(money, sharing_rate=0.0)),
+            "large poor families can't afford firewood",
+            ("warmth",),
+        ),
+        Scenario(
+            "no council, no help",
+            replace(base, council=CouncilConfig(enabled=False), money=replace(money, sharing_rate=0.0)),
+            "no safety net at all: families with many children and few earners go hungry",
+            ("poorest_fifth", "deaths_per_1000", "population", "share_farming"),
+        ),
         Scenario("tax 0%", replace(base, council=CouncilConfig(tax_rate=0.0))),
         Scenario("tax 30%", replace(base, council=CouncilConfig(tax_rate=0.3))),
         Scenario("12-month reserve", replace(base, council=CouncilConfig(reserve_months=12.0))),
@@ -88,8 +101,8 @@ def scenarios() -> list[Scenario]:
         Scenario("little money", replace(base, money=replace(money, initial_savings_months=0.5))),
         Scenario("lots of money", replace(base, money=replace(money, initial_savings_months=24.0))),
         Scenario("1 month of food", replace(base, villages=(VillageConfig(initial_food_months=1.0),))),
-        Scenario("crowded land", replace(base, villages=(VillageConfig(land=250),))),
-        Scenario("plenty of land", replace(base, villages=(VillageConfig(land=700),))),
+        Scenario("crowded land", replace(base, villages=(VillageConfig(land=250),)), "people marry late", ("births_per_1000",)),
+        Scenario("plenty of land", replace(base, villages=(VillageConfig(land=700),)), "grows into the land", ("population",)),
         Scenario("95% farmers at start", replace(base, businesses=shares(farming=0.95, woodcutting=0.03, weaving=0.01, smithing=0.01))),
         Scenario("half farmers at start", replace(base, businesses=shares(farming=0.5, woodcutting=0.15, weaving=0.3, smithing=0.05))),
         Scenario(
@@ -106,7 +119,8 @@ def scenarios() -> list[Scenario]:
         ("spoilage", lambda v: replace(base, food=replace(food, spoilage=v)), (0.01, 0.04)),
         ("tool wear", lambda v: replace(base, trade=replace(trade, tool_wear=v)), (0.015, 0.06)),
         ("stock target", lambda v: replace(base, trade=replace(trade, stock_target_months=v)), (2.0, 8.0)),
-        ("birth chance", lambda v: replace(base, demography=replace(demo, annual_birth_chance=v)), (0.14, 0.20)),
+        ("birth chance", lambda v: replace(base, demography=replace(demo, annual_birth_chance=v)), (0.22, 0.34)),
+        ("marriage chance", lambda v: replace(base, demography=replace(demo, marriage_chance=v)), (1 / 72, 1 / 30)),
         ("spare spending", lambda v: replace(base, needs=replace(needs, spare_spending=v)), (0.1, 0.6)),
         ("savings kept", lambda v: replace(base, needs=replace(needs, savings_months=v)), (1.0, 6.0)),
         ("wage payout", lambda v: replace(base, money=replace(money, wage_payout=v)), (0.7, 1.0)),
@@ -152,10 +166,17 @@ def run_one(job: tuple[Scenario, int, int]) -> dict[str, np.ndarray]:
         add("population", year[-1].population)
         add("births_per_1000", 1000 * sum(r.births for r in year) / max(year[0].population, 1))
         add("deaths_per_1000", 1000 * sum(r.deaths for r in year) / max(year[0].population, 1))
+        add("weddings_per_1000", 1000 * sum(r.weddings for r in year) / max(year[0].population, 1))
+        add("wage_cover", np.mean([r.wage_cover for r in year]))
         add("food_price", np.mean([r.food_price for r in year]))
         for product in year[0].prices:
             add(f"price_{product}", np.mean([r.prices[product] for r in year]))
         add("wage", np.mean([r.wage for r in year]))
+        # Prices in days of work: money's own level moves with how much there is.
+        wage = max(rows["wage"][-1], 1e-9)
+        add("real_food_price", rows["food_price"][-1] / wage)
+        for product in year[0].prices:
+            add(f"real_price_{product}", rows[f"price_{product}"][-1] / wage)
         add("ration", np.mean([r.ration for r in year]))
         add("poorest_fifth", np.mean([r.poorest_fifth_ration for r in year]))
         add("poorest_fifth_worst", min(r.poorest_fifth_ration for r in year))
@@ -198,41 +219,49 @@ RANGES = {
     "food_store_months": (0.5, 12.0),
     "household_size": (3.0, 9.0),
     "household_size_max": (0.0, 30.0),
-    "births_per_1000": (20.0, 55.0),
-    "deaths_per_1000": (15.0, 50.0),
+    # A pre-industrial village: births and deaths well above modern levels.
+    "births_per_1000": (25.0, 50.0),
+    "deaths_per_1000": (18.0, 50.0),
+    "weddings_per_1000": (3.0, 15.0),
+    "wage_cover": (0.8, 2.0),
 }
 # Measures that should stay within these multiples of their first-year value.
 RELATIVE = {
     "population": (0.6, 1.6),
-    "food_price": (0.4, 2.5),
-    "price_firewood": (0.33, 3.0),
-    "price_clothing": (0.33, 3.0),
-    "price_tools": (0.33, 3.0),
-    "wage": (0.4, 2.5),
+    "real_food_price": (0.4, 2.5),
+    "real_price_firewood": (0.33, 3.0),
+    "real_price_clothing": (0.33, 3.0),
+    "real_price_tools": (0.33, 3.0),
 }
-# Measures whose trend over the second half shouldn't exceed this share per decade.
-TRENDS = {"population": 0.15, "food_price": 0.3, "wage": 0.3, "household_size": 0.15}
+# Measures whose trend over the second half shouldn't exceed this share per
+# decade. Nominal prices and wages may trend (with money and population);
+# prices in days of work shouldn't keep running away.
+TRENDS = {"population": 0.15, "real_food_price": 0.3, "wage_cover": 0.3, "household_size": 0.15}
 
 
-def drift_flags(mean: dict[str, np.ndarray]) -> list[str]:
+def drift_flags(mean: dict[str, np.ndarray], reference: dict[str, np.ndarray] | None = None) -> list[tuple[str, str]]:
+    """(measure, message) for each measure that drifted. Real prices are
+    compared with `reference`'s first year (the baseline village, as a
+    scenario's own first year may be a famine); other measures with their own."""
     flags = []
     years = len(mean["population"])
     last = slice(max(years - 5, 0), years)
     for key, (low, high) in RANGES.items():
         value = mean[key][last].mean()
         if not low <= value <= high:
-            flags.append(f"{key} {value:.2f} outside [{low:g}, {high:g}]")
+            flags.append((key, f"{key} {value:.2f} outside [{low:g}, {high:g}]"))
     for key, (low, high) in RELATIVE.items():
-        start, value = mean[key][0], mean[key][last].mean()
+        first = reference if reference is not None and key.startswith("real_") else mean
+        start, value = first[key][0], mean[key][last].mean()
         ratio = value / start if start else np.inf
         if not low <= ratio <= high:
-            flags.append(f"{key} x{ratio:.2f} from year 1 ({start:.2f} -> {value:.2f})")
+            flags.append((key, f"{key} x{ratio:.2f} from year 1 ({start:.2f} -> {value:.2f})"))
     for key, limit in TRENDS.items():
         half = mean[key][years // 2 :]
         if len(half) >= 6 and half.mean() > 0:
             slope = np.polyfit(np.arange(len(half)), np.log(np.maximum(half, 1e-9)), 1)[0] * 10
             if abs(slope) > limit:
-                flags.append(f"{key} still trending {slope:+.0%} a decade")
+                flags.append((key, f"{key} still trending {slope:+.0%} a decade"))
     return flags
 
 
@@ -255,11 +284,14 @@ def main() -> int:
     out.mkdir(parents=True, exist_ok=True)
     drifted = 0
     print(f"{len(chosen)} scenarios x {seeds} seeds x {years} years\n")
-    header = f"{'scenario':<30} {'pop':>11} {'food price':>11} {'wage':>11} {'ration':>6} {'poor5':>6} {'farm':>5} {'weave':>5} {'gini':>5} {'top10':>5} {'treas':>5} {'hh':>4}"
+    header = (
+        f"{'scenario':<30} {'pop':>11} {'food price':>11} {'wage':>11} {'ration':>6} {'poor5':>6} {'warm':>5} "
+        f"{'b/1k':>4} {'d/1k':>4} {'farm':>5} {'weave':>5} {'gini':>5} {'top10':>5} {'treas':>5} {'hh':>4}"
+    )
     print(header)
-    for i, scenario in enumerate(chosen):
-        runs = results[i * seeds : (i + 1) * seeds]
-        mean = {k: np.mean([r[k] for r in runs], axis=0) for k in runs[0]}
+    means = [{k: np.mean([r[k] for r in results[i * seeds : (i + 1) * seeds]], axis=0) for k in results[0]} for i in range(len(chosen))]
+    reference = next((m for s, m in zip(chosen, means) if s.name == "baseline"), None)
+    for scenario, mean in zip(chosen, means):
         with (out / f"{scenario.name.replace(' ', '_').replace('%', 'pct').replace(',', '')}.csv").open("w", newline="") as f:
             writer = csv.writer(f)
             writer.writerow(["year", *mean])
@@ -270,14 +302,19 @@ def main() -> int:
         print(
             f"{scenario.name:<30} {mean['population'][0]:>5.0f}>{m('population'):<5.0f} "
             f"{mean['food_price'][0]:>5.2f}>{m('food_price'):<5.2f} {mean['wage'][0]:>5.2f}>{m('wage'):<5.2f} "
-            f"{m('ration'):>6.2f} {m('poorest_fifth'):>6.2f} {m('share_farming'):>5.2f} {m('share_weaving'):>5.2f} "
+            f"{m('ration'):>6.2f} {m('poorest_fifth'):>6.2f} {m('warmth'):>5.2f} "
+            f"{m('births_per_1000'):>4.0f} {m('deaths_per_1000'):>4.0f} {m('share_farming'):>5.2f} {m('share_weaving'):>5.2f} "
             f"{m('money_gini'):>5.2f} {m('money_top10_share'):>5.2f} {m('treasury_share'):>5.2f} {m('household_size'):>4.1f}"
         )
-        flags = drift_flags(mean)
-        if flags:
+        flags = drift_flags(mean, reference)
+        surprises = [message for key, message in flags if key not in scenario.expected]
+        for key, message in flags:
+            if key in scenario.expected:
+                print(f"{'':<4}expected ({scenario.note}): {message}")
+        if surprises:
             drifted += 1
-            for flag in flags:
-                print(f"{'':<4}DRIFT {flag}")
+            for message in surprises:
+                print(f"{'':<4}DRIFT {message}")
     print(f"\n{drifted} of {len(chosen)} scenarios drifted; yearly averages in {out}/")
     return 1 if drifted else 0
 

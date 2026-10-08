@@ -9,7 +9,7 @@ from econ_sim.population import Population
 CONFIG = Config()
 
 
-def people(ages_years, count=1, female=False, health=100.0, location=0):
+def people(ages_years, count=1, female=False, health=100.0, location=0, married=True):
     n = len(ages_years)
     return Population(
         count=np.full(n, count),
@@ -18,6 +18,7 @@ def people(ages_years, count=1, female=False, health=100.0, location=0):
         health=np.full(n, health, dtype=float),
         skill=np.ones(n),
         location=np.full(n, location),
+        married=np.full(n, married),
     )
 
 
@@ -147,23 +148,39 @@ def test_deaths_remove_people():
     assert died[0] == 5 and len(pop) == 0
 
 
-def test_only_healthy_fertile_women_give_birth():
+def with_husband(pop):
+    """Add a married man to the household (0) of everyone in `pop`."""
+    pop.append(people([30], location=int(pop.location[0])))
+    return pop
+
+
+def test_only_healthy_married_fertile_women_give_birth():
     config = replace(CONFIG, demography=replace(CONFIG.demography, annual_birth_chance=1.0))
     rng = np.random.default_rng(0)
     candidates = [
-        people([25], count=1000, female=True),  # fertile
-        people([25], count=1000, female=False),  # men
-        people([10], count=1000, female=True),  # too young
-        people([50], count=1000, female=True),  # too old
-        people([25], count=1000, female=True, health=30.0),  # too weak
+        with_husband(people([25], count=1000, female=True)),  # fertile
+        with_husband(people([25], count=1000, female=False)),  # men
+        with_husband(people([10], count=1000, female=True)),  # too young
+        with_husband(people([50], count=1000, female=True)),  # too old
+        with_husband(people([25], count=1000, female=True, health=30.0)),  # too weak
+        with_husband(people([25], count=1000, female=True, married=False)),  # not married
+        people([25], count=1000, female=True),  # widowed: no husband at home
     ]
     born = [rules.births(pop, np.ones(1), config, rng, 1)[0] for pop in candidates]
-    assert born[0] > 0 and born[1:] == [0, 0, 0, 0]
+    assert born[0] > 0 and born[1:] == [0, 0, 0, 0, 0, 0]
+
+
+def test_fewer_births_from_the_mid_thirties():
+    config = replace(CONFIG, demography=replace(CONFIG.demography, annual_birth_chance=0.5))
+    rng = np.random.default_rng(0)
+    young = rules.births(with_husband(people([25], count=100_000, female=True)), np.ones(1), config, rng, 1)[0]
+    older = rules.births(with_husband(people([42], count=100_000, female=True)), np.ones(1), config, rng, 1)[0]
+    assert older < 0.6 * young
 
 
 def test_newborns_join_the_population():
     config = replace(CONFIG, demography=replace(CONFIG.demography, annual_birth_chance=1.0))
-    pop = people([25] * 200, female=True, health=95.0, location=2)
+    pop = with_husband(people([25] * 200, female=True, health=95.0, location=2))
     born = rules.births(pop, np.ones(3), config, np.random.default_rng(0), 3)
     babies = pop.age_months == 0
     assert born[2] == pop.count[babies].sum() > 0
@@ -182,10 +199,10 @@ def test_wage_cover_is_food_a_wage_buys_over_need_per_worker():
     assert np.isclose(cover[0], 2.0 / 1.5)
 
 
-def test_births_slow_when_a_wage_can_barely_feed_a_family():
-    low, high = CONFIG.demography.wage_cover_for_births
-    factor = rules.birth_factor(np.array([low - 0.1, (low + high) / 2, high + 0.1]), CONFIG)
-    floor = CONFIG.demography.crowded_birth_factor
+def test_weddings_slow_when_a_wage_can_barely_feed_a_family():
+    low, high = CONFIG.demography.wage_cover_for_marriage
+    factor = rules.marriage_factor(np.array([low - 0.1, (low + high) / 2, high + 0.1]), CONFIG)
+    floor = CONFIG.demography.crowded_marriage_factor
     assert np.allclose(factor, [floor, (1 + floor) / 2, 1.0])
 
 def test_realistic_plan_allows_for_weaker_workers():

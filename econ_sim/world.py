@@ -90,7 +90,8 @@ def create_world(config: Config, streams: RandomStreams) -> World:
         population.append(_initial_people(village.population, location, config, rng))
 
     n, n_business, n_products = len(config.villages), len(config.businesses), len(config.products)
-    households = form_households(population, n, rng)
+    yearly_marriage = 1.0 - (1.0 - config.demography.marriage_chance) ** 12
+    households = form_households(population, n, rng, yearly_marriage)
     economy.assign_starting_jobs(population, config, rng)
     land = np.array([v.land for v in config.villages], dtype=np.float64)
     food = config.product_for("food")

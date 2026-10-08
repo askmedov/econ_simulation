@@ -28,24 +28,39 @@ class DemographyConfig:
     adult_age: int = 15  # children (< adult_age) eat less and don't work
     retirement_age: int = 60  # people this age and older don't work
     fertile_ages: tuple[int, int] = (16, 45)  # inclusive, women only
-    annual_birth_chance: float = 0.17  # per fertile woman in full health
-    # People marry later and have fewer children when a wage can barely feed
-    # a family. "Wage cover" is how much food a typical month's pay buys,
-    # over the village's food need per worker: births are at their lowest
-    # (`crowded_birth_factor`) at the first cover, and at full rate from the
-    # second up. Crowded land (less food per farmer) and dear grain both lower it.
-    crowded_birth_factor: float = 0.2
-    wage_cover_for_births: tuple[float, float] = (1.1, 1.5)
+    # Yearly chance a married woman of fertile age in full health gives
+    # birth, times (from age, factor): fewer births from the mid-thirties.
+    annual_birth_chance: float = 0.28
+    fertility_by_age: tuple[tuple[int, float], ...] = ((16, 1.0), (30, 0.9), (35, 0.75), (40, 0.4))
     female_share_at_birth: float = 0.5
-    # (from age in years, yearly chance of dying) before any hunger or events.
+    # Single women of `bride_ages` marry each month with this chance, to a
+    # single man of `groom_ages` from another family (on average at about
+    # 21). The first of a family to marry stays with their spouse as its
+    # heir; later ones set up a household of their own.
+    marriage_chance: float = 1 / 48
+    bride_ages: tuple[int, int] = (17, 34)
+    groom_ages: tuple[int, int] = (19, 39)
+    # People wait to marry when a wage can barely feed a family. "Wage cover"
+    # is how much food a typical month's pay buys, over the village's food
+    # need per worker: weddings are at their fewest (`crowded_marriage_factor`
+    # of the usual chance) at the first cover, and at the usual rate from the
+    # second up. Crowded land (less food per farmer) and dear grain both lower it.
+    crowded_marriage_factor: float = 0.2
+    wage_cover_for_marriage: tuple[float, float] = (1.05, 1.5)
+    # (from age in years, yearly chance of dying) before any hunger or events:
+    # a pre-industrial village, where one baby in five dies in its first
+    # year and life expectancy at birth is about 33.
     annual_mortality: tuple[tuple[int, float], ...] = (
-        (0, 0.18),
-        (1, 0.03),
-        (5, 0.006),
+        (0, 0.20),
+        (1, 0.045),
+        (5, 0.012),
+        (10, 0.006),
         (15, 0.008),
-        (50, 0.02),
-        (60, 0.04),
-        (70, 0.10),
+        (25, 0.011),
+        (40, 0.016),
+        (50, 0.025),
+        (60, 0.05),
+        (70, 0.11),
         (80, 0.25),
     )
     # Starting ages follow a pyramid: weight of age a is exp(-decay * a).
@@ -175,14 +190,18 @@ class NeedsConfig:
     # each month: the better off they are, the more they buy.
     savings_months: float = 3.0
     spare_spending: float = 0.3
+    # Families who can't buy all the firewood they need gather up to this
+    # share of it themselves, from woods, hedges and fields.
+    gathering: float = 0.5
 
 
 @dataclass(frozen=True)
 class TradeConfig:
     tool_wear: float = 0.03  # share of tools worn out each month
     # Share of its cash a business may spend on supplies or tools at each
-    # market (it buys before paying wages).
-    buying_budget: float = 0.5
+    # market. It buys before paying wages, so its cash is then mostly what it
+    # set aside last month for supplies and tools.
+    buying_budget: float = 1.0
     # Businesses (other than farms) aim to keep this many months of orders in
     # stock: they work less as stock piles up beyond it, stopping at twice it.
     stock_target_months: float = 4.0
@@ -205,6 +224,13 @@ class TradeConfig:
     hiring_price_response: float = 0.5
     # Weight of this month's pay in the running averages of pay.
     pay_memory: float = 0.2
+    # The customary wage (that fair prices are reckoned in) moves with the
+    # money there is: each month by up to `wage_adjustment` of itself, up
+    # while families hold more than `money_months` of the village's monthly
+    # earnings and down while they hold less (the quantity of money sets the
+    # price level; a village starts at about 3.3).
+    wage_adjustment: float = 0.01
+    money_months: float = 3.0
 
 
 @dataclass(frozen=True)
@@ -265,7 +291,7 @@ class HealthcareConfig:
     min_risk: float = 0.003
     # Treatment adds this much health and scales that month's risk of dying.
     treatment_recovery: float = 10.0
-    treatment_mortality: float = 0.6
+    treatment_mortality: float = 0.85
 
 
 @dataclass(frozen=True)

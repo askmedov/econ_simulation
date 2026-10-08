@@ -86,6 +86,19 @@ def adjust_markup(markup: np.ndarray, demand: np.ndarray, supply: np.ndarray, co
     return np.clip(markup * (1.0 + change), *cfg.markup_range)
 
 
+def seasonal_buffer(profile: tuple[float, ...]) -> np.ndarray:
+    """Stock to hold going into each calendar month, in months of average
+    need, so that making the average need every month lasts through the
+    coming season: the largest running shortfall of need over that average,
+    from that month on. Index 0 is January."""
+    season = np.asarray(profile, dtype=np.float64) / np.mean(profile)
+    buffer = np.zeros(len(season))
+    for month in range(len(season)):
+        ahead = np.roll(season, -month) - 1.0
+        buffer[month] = max(np.cumsum(ahead).max(), 0.0)
+    return buffer
+
+
 def grain_markup(markup: np.ndarray, cover: np.ndarray, config: Config) -> np.ndarray:
     """Move the grain mark-up toward the level set by how short the year's supply is."""
     food = config.food

@@ -1,7 +1,9 @@
 """Families: who lives, earns and eats together.
 
 Each person row has a `household` index into the Households table. Families
-are formed once at the start; newborns join their mother's family.
+are formed at the start; newborns join their mother's family, and young
+people marry: the first of a family to marry stays and brings their spouse
+home (the heir), later ones set up a household of their own.
 """
 
 from __future__ import annotations
@@ -10,10 +12,11 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from econ_sim.config import Config
 from econ_sim.population import Population
 
 ADULT_AGE = 18
-HEAD_AGES = (18, 49)  # women of these ages head a household at the start
+HEAD_AGES = (18, 64)  # married women of these ages head a household at the start
 PARTNER_MAX_AGE = 64
 MOTHER_AGE_GAP = (18, 45)  # a child joins a woman this much older
 
@@ -33,29 +36,48 @@ class Households:
         return len(self.location)
 
 
-def form_households(population: Population, n_locations: int, rng: np.random.Generator) -> Households:
-    """Group the starting villagers into families and set `population.household`."""
+def form_households(
+    population: Population, n_locations: int, rng: np.random.Generator, yearly_marriage: float = 1.0
+) -> Households:
+    """Group the starting villagers into families and set `population.household`
+    and `population.married`.
+
+    Women of family age head a household, with a husband of similar age if
+    there is one. A young woman has married with `yearly_marriage` for each
+    year since turning 18; the others, like children and young men without a
+    wife, live with a woman old enough to be their mother.
+    """
     household = np.full(len(population), -1, dtype=np.int64)
+    population.married = population.age_years >= ADULT_AGE
     locations: list[int] = []
     for location in range(n_locations):
         rows = np.flatnonzero(population.location == location)
         if len(rows) == 0:
             continue
         first = len(locations)
-        count = _form_village(population, rows, first, household, rng)
+        count = _form_village(population, rows, first, household, yearly_marriage, rng)
         locations.extend([location] * count)
     population.household = household
     return Households(location=np.array(locations))
 
 
 def _form_village(
-    population: Population, rows: np.ndarray, first: int, household: np.ndarray, rng: np.random.Generator
+    population: Population,
+    rows: np.ndarray,
+    first: int,
+    household: np.ndarray,
+    yearly_marriage: float,
+    rng: np.random.Generator,
 ) -> int:
     """Form one village's households, numbered from `first`; returns how many."""
     age = population.age_years[rows]
     female = population.female[rows]
 
-    heads = rows[female & (age >= HEAD_AGES[0]) & (age <= HEAD_AGES[1])]
+    women = female & (age >= HEAD_AGES[0]) & (age <= HEAD_AGES[1])
+    still_single = rng.random(len(rows)) < (1.0 - yearly_marriage) ** (age - ADULT_AGE + 0.5)
+    heads = rows[women & ~still_single]
+    if len(heads) == 0:
+        heads = rows[women]
     if len(heads) == 0:  # no women of family age: everyone lives together
         household[rows] = first
         return 1
@@ -63,20 +85,24 @@ def _form_village(
     ids = first + np.arange(len(heads))
     household[heads] = ids
 
-    # Men pair with women in age order, so partners are of similar age.
+    # Men pair with women in age order, so partners are of similar age. If
+    # there are more men than wives, the youngest stay single.
     men = rows[~female & (age >= ADULT_AGE) & (age <= PARTNER_MAX_AGE)]
     men = men[np.argsort(population.age_years[men], kind="stable")]
     pairs = min(len(men), len(heads))
-    household[men[:pairs]] = ids[:pairs]
+    household[men[len(men) - pairs :]] = ids[:pairs]
+    single = np.concatenate([rows[women & (household[rows] < 0)], men[: len(men) - pairs]])
+    population.married[single] = False
 
-    # Children join a woman old enough to be their mother.
+    # Children and the single young join a woman old enough to be their mother.
     head_ages = population.age_years[heads]
-    for child in rows[age < ADULT_AGE]:
+    young = rows[(age < ADULT_AGE)]
+    for child in np.concatenate([young, single]):
         gap = head_ages - population.age_years[child]
         mothers = ids[(gap >= MOTHER_AGE_GAP[0]) & (gap <= MOTHER_AGE_GAP[1])]
         household[child] = rng.choice(mothers if len(mothers) else ids)
 
-    # Everyone else (older people, unpaired men) lives with a family.
+    # Everyone else (older people) lives with a family.
     rest = rows[household[rows] < 0]
     household[rest] = rng.choice(ids, size=len(rest))
     return len(heads)
@@ -111,3 +137,90 @@ def pass_on_savings(
     inherited = np.where(alive, share[households.location], 0.0)
     keep = gone & (heirs[households.location] == 0)  # nobody left in the village at all
     households.money = np.where(gone & ~keep, 0.0, households.money) + inherited
+
+
+def marry(
+    population: Population,
+    households: Households,
+    config: Config,
+    rng: np.random.Generator,
+    willingness: np.ndarray | None = None,
+) -> int:
+    """Young people marry; returns the number of weddings.
+
+    Each month a single woman of `bride_ages` marries with `marriage_chance`
+    (times `willingness` in her village: people wait when a wage can barely
+    feed a family), to a single man of `groom_ages` from another family of
+    her village while any are left. The couple live with the groom's family
+    if it has no heir yet, else with the bride's if that has none, else in a
+    new household. Whoever moves takes their share of their family's savings
+    (savings / family size).
+    """
+    demo = config.demography
+    n = len(households)
+    age = population.age_years
+    single = (population.count == 1) & ~population.married
+    chance = np.full(len(population), demo.marriage_chance)
+    if willingness is not None:
+        chance *= willingness[population.location]
+    brides = np.flatnonzero(single & population.female & (age >= demo.bride_ages[0]) & (age <= demo.bride_ages[1]))
+    brides = brides[rng.random(len(brides)) < chance[brides]]
+    grooms = np.flatnonzero(single & ~population.female & (age >= demo.groom_ages[0]) & (age <= demo.groom_ages[1]))
+    if len(brides) == 0 or len(grooms) == 0:
+        return 0
+    couples = []
+    for location in np.unique(population.location[brides]):
+        here_b = rng.permutation(brides[population.location[brides] == location])
+        free = list(rng.permutation(grooms[population.location[grooms] == location]))
+        for bride in here_b:
+            home = population.household[bride]
+            match = next((i for i, groom in enumerate(free) if population.household[groom] != home), None)
+            if match is not None:
+                couples.append((bride, free.pop(match), location))
+    if not couples:
+        return 0
+    bride, groom, where = (np.array(x) for x in zip(*couples))
+    family_b, family_g = population.household[bride], population.household[groom]
+
+    # A family takes in a couple (at most one a month) if it holds no more
+    # than one couple and the newlywed is a generation (15 years) younger
+    # than its married members; so heirs stay, their brothers and sisters leave.
+    married = population.count * population.married
+    couples_in = np.bincount(population.household, weights=married, minlength=n)
+    elder = np.full(n, -1, dtype=np.int64)
+    np.maximum.at(elder, population.household[population.married], age[population.married].astype(np.int64))
+    room = couples_in <= 2
+
+    def can_stay(person: np.ndarray, family: np.ndarray) -> np.ndarray:
+        return room[family] & ((elder[family] < 0) | (age[person] <= elder[family] - 15))
+
+    at_groom = can_stay(groom, family_g) & _first(family_g)
+    room[family_g[at_groom]] = False
+    at_bride = ~at_groom & can_stay(bride, family_b) & _first(np.where(at_groom, -1, family_b))
+    new = ~at_groom & ~at_bride
+    home = np.where(at_groom, family_g, family_b)
+    home[new] = n + np.arange(new.sum())
+
+    # Whoever leaves takes their share of their family's savings.
+    size = sizes(population, n).astype(np.float64)
+    leaving = np.concatenate([bride[~at_bride], groom[~at_groom]])
+    left = population.household[leaving]
+    portion = households.money[left] / size[left]
+    np.subtract.at(households.money, left, portion)
+    households.location = np.concatenate([households.location, where[new].astype(np.int32)])
+    households.money = np.concatenate([households.money, np.zeros(new.sum())])
+    np.add.at(households.money, np.concatenate([home[~at_bride], home[~at_groom]]), portion)
+
+    population.household[bride] = home
+    population.household[groom] = home
+    population.married[bride] = True
+    population.married[groom] = True
+    return len(couples)
+
+
+def _first(ids: np.ndarray) -> np.ndarray:
+    """True at the first place each id (>= 0) appears."""
+    first = np.zeros(len(ids), dtype=bool)
+    _, at = np.unique(ids, return_index=True)
+    first[at] = True
+    return first & (ids >= 0)

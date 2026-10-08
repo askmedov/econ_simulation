@@ -69,6 +69,13 @@ class Simulation:
         possible = economy.capacity(effort, world.tools, workers, world.land, mods.production_mult, config)
         possible[:, farm] *= rules.season_factors(config)[world.month_of_year - 1]
         target = config.trade.stock_target_months * world.orders[:, product_of]
+        # Woodcutters also stock up ahead of winter.
+        fuel, wood = config.product_for("heating"), economy.seller_of(config)[config.product_for("heating")]
+        heating = np.asarray(config.needs.firewood)
+        people_here = rules.by_location(pop.count.astype(np.float64), pop, n)
+        usual_heating = people_here * heating.mean() * mods.heating_mult
+        buffer = market.seasonal_buffer(config.needs.firewood)
+        target[:, wood] += buffer[world.month_of_year - 1] * usual_heating
         piled_up = np.divide(world.stock[:, product_of], target, out=np.zeros_like(target), where=target > 0)
         pace = np.clip(2.0 - piled_up, 0.0, 1.0)
         pace[:, farm] = 1.0
@@ -99,8 +106,7 @@ class Simulation:
         n_hh = len(hh)
         members = market.by_household(pop.count.astype(np.float64), pop, n_hh)
         family_food = market.by_household(need_rows, pop, n_hh)
-        fuel = config.product_for("heating")
-        firewood_need = config.needs.firewood[world.month_of_year - 1]
+        firewood_need = heating[world.month_of_year - 1]
         family_fuel = members * firewood_need * mods.heating_mult[hh.location]
         essentials = family_food * world.prices[hh.location, food] + family_fuel * world.prices[hh.location, fuel]
         shared = market.share_with_neighbours(hh.money, essentials, hh.location, n, config)
@@ -153,8 +159,11 @@ class Simulation:
         def business_want(product: int) -> np.ndarray | None:
             per_unit = economy.input_needs(config)[:, product]
             if config.products[product].use == "tool":
+                # Replace worn tools, and close any other gap over a few months.
                 boost = np.array([b.tool_boost for b in config.businesses])
-                return np.where(boost > 0, np.maximum(workers - world.tools, 0.0), 0.0)
+                gap = np.maximum(workers - world.tools, 0.0)
+                wanted = np.minimum(gap, config.trade.tool_wear * workers + gap / config.trade.stock_target_months)
+                return np.where(boost > 0, wanted, 0.0)
             if per_unit.any():
                 return np.maximum(possible * per_unit - world.supplies[:, :, product], 0.0)
             return None
@@ -177,7 +186,11 @@ class Simulation:
         relief = council.give_relief(world.council, bought[food], family_food, hh.location, config)
         bought[food] = bought[food] + relief
         family_share = np.divide(bought[food], family_food, out=np.ones_like(family_food), where=family_food > 0)
-        warmth = np.divide(bought[fuel], family_fuel, out=np.ones_like(family_fuel), where=family_fuel > 0)
+        # Families who couldn't buy all their firewood gather some from the
+        # commons, unless the woods have burned.
+        can_gather = config.needs.gathering * family_fuel * mods.production_mult[hh.location, wood]
+        gathered = np.clip(family_fuel - bought[fuel], 0.0, can_gather)
+        warmth = np.divide(bought[fuel] + gathered, family_fuel, out=np.ones_like(family_fuel), where=family_fuel > 0)
         eaten = market.by_village(bought[food], hh.location, n)
         share = np.divide(eaten, need, out=np.ones_like(need), where=need > 0)
         self._track_shortages(share)
@@ -214,6 +227,14 @@ class Simulation:
         healer_income, _ = council.pay_staff(pop, world.council, healer, healer_pay, n_hh)
         hh.money += healer_income
         world.council_costs = running_costs
+        # The customary wage that fair prices are reckoned in rises slowly
+        # while families hold more money than `money_months` of the village's
+        # earnings, and falls while they hold less: prices follow the money
+        # there is.
+        earnings = (world.pay * workers).sum(axis=1) + running_costs
+        held = market.by_village(hh.money, hh.location, n)
+        months_held = np.divide(held, config.trade.money_months * earnings, out=np.ones(n), where=earnings > 0)
+        world.wage_level *= 1.0 + config.trade.wage_adjustment * np.clip(months_held - 1.0, -1.0, 1.0)
         levied = council.levy_grain(world.council, produced, world.granary, need, famine, config)
 
         # 7. Some stored food spoils, in the granary and the council's reserve.
@@ -234,8 +255,8 @@ class Simulation:
         # short. Farms aim to grow a little more than the village eats.
         died = rules.deaths(pop, mods.mortality_mult, config, streams["deaths"], n, care)
         cover = rules.wage_cover(average_pay, world.food_price, need, all_workers)
-        crowding = rules.birth_factor(cover, config)
-        born = rules.births(pop, mods.fertility_mult * crowding, config, streams["births"], n)
+        willing = rules.marriage_factor(cover, config)
+        born = rules.births(pop, mods.fertility_mult, config, streams["births"], n)
         rules.grow_older(pop)
         people = rules.by_location(pop.count.astype(np.float64), pop, n)
         for location in np.flatnonzero(council.check_formation(world.council, people, config)):
@@ -243,8 +264,13 @@ class Simulation:
         council.staff(pop, world.council, official, cc.officials_per_1000, config, streams["council"])
         per_1000 = config.healthcare.healers_per_1000 if config.healthcare.enabled else 0.0
         council.staff(pop, world.council, healer, per_1000, config, streams["council"])
+        # Firewood orders count families' need at its yearly average, not
+        # this month's, so woodcutters work steadily all year.
         weight = config.trade.orders_memory
-        world.orders = (1 - weight) * world.orders + weight * demand
+        families_heating = market.by_village(family_fuel, hh.location, n)
+        steady = demand.copy()
+        steady[:, fuel] += families_heating * (heating.mean() / firewood_need - 1.0)
+        world.orders = (1 - weight) * world.orders + weight * steady
         orders = world.orders[:, product_of]
         orders[:, farm] = need * (1.0 + config.food.reserve_margin)
         pull = world.markup[:, product_of] ** config.trade.hiring_price_response
@@ -252,19 +278,28 @@ class Simulation:
         wanted = economy.wanted_workers(work_needed, economy.headcount(pop, n, config), config)
         economy.assign_new_workers(pop, wanted, config)
         switched = economy.move_workers(pop, wanted, config, streams["jobs"])
-        size = households.sizes(pop, n_hh)
+        # Measure families before weddings move young people into new homes.
+        underfed = int(pop.count[family_share[pop.household] < 0.9].sum())
+        poorest = metrics.poorest_fifth_ration(hh.money, households.sizes(pop, n_hh), bought[food], family_food)
+        weddings = households.marry(pop, hh, config, streams["marriage"], willing)
+        size = households.sizes(pop, len(hh))
         households.pass_on_savings(hh, size, world.council.treasury, world.council.formed)
 
         # 10. Mark-ups move with the gap between demand and supply: for most
         # goods, what was asked for against what was made this month plus any
         # stock piled up beyond the target.
-        target_by_product = config.trade.stock_target_months * world.orders
-        excess = np.maximum(stock_before - target_by_product, 0.0) / config.trade.stock_target_months
+        months = config.trade.stock_target_months
+        target_by_product = months * world.orders
+        excess = np.maximum(stock_before - target_by_product, 0.0) / months
         made_by_product = np.zeros_like(world.stock)
         made_by_product[:, product_of] = made
         supply = made_by_product + excess
+        # Firewood: steady orders against what was cut plus the stock beyond
+        # the usual stock and next season's buffer (or short of them).
+        ahead = target_by_product[:, fuel] + buffer[world.month_of_year % 12] * usual_heating
+        supply[:, fuel] = np.maximum(made_by_product[:, fuel] + (world.stock[:, fuel] - ahead) / 12, 0.0)
         food_markup = world.markup[:, food].copy()
-        world.markup = market.adjust_markup(world.markup, demand, supply, config)
+        world.markup = market.adjust_markup(world.markup, steady, supply, config)
         # Grain follows how short the year's supply looks (King-Davenant).
         world.markup[:, food] = market.grain_markup(food_markup, supply_cover, config)
 
@@ -280,6 +315,7 @@ class Simulation:
             workers=working,
             elderly=elderly,
             households=int((size > 0).sum()),
+            weddings=weddings,
             births=int(born.sum()),
             deaths=int(died.sum()),
             food_produced=float(produced.sum()),
@@ -307,9 +343,9 @@ class Simulation:
             treated=int(round(treated.sum())),
             cash_relief=float(cash_relief.sum()),
             shared=float(shared.sum()),
-            underfed=int(pop.count[family_share[pop.household] < 0.9].sum()),
-            poorest_fifth_ration=metrics.poorest_fifth_ration(hh.money, size, bought[food], family_food),
-            warmth=float(bought[fuel].sum() / family_fuel.sum()) if family_fuel.sum() > 0 else 1.0,
+            underfed=underfed,
+            poorest_fifth_ration=poorest,
+            warmth=float((bought[fuel] + gathered).sum() / family_fuel.sum()) if family_fuel.sum() > 0 else 1.0,
             clothing=float(bought[config.product_for("comfort")].sum() / max(pop.size, 1)),
             job_changes=switched,
             prices={p.name: float(world.prices[:, i].mean()) for i, p in enumerate(config.products)},
