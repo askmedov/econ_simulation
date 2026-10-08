@@ -105,3 +105,13 @@ def test_households_with_nobody_left_pay_no_state_tax():
 def test_a_village_needs_people():
     with pytest.raises(ValueError):
         Simulation(replace(Config(), villages=(VillageConfig(), VillageConfig(name="empty", population=0))))
+
+
+def test_the_state_takes_grain_rather_than_the_coins_a_family_needs():
+    hh = Households(np.zeros(2), money=np.array([10.0, 1.0]), grain=np.array([50.0, 50.0]))
+    keep = np.array([8.0, 5.0])
+    due = CONFIG.state.hearth_tax_months * 4.0  # 2 coins each
+    take = lords.collect_state_tax(hh, Lords.none(1), np.array([4.0]), np.zeros(1), np.ones(1), np.array([False]),
+                                   CONFIG, keep=keep)
+    assert np.allclose(hh.money, [8.0, 1.0])  # the first pays from its spare coins, the second keeps its coin
+    assert np.isclose(hh.grain[1], 50.0 - due) and np.isclose(take.grain[0], due) and np.isclose(take.coins[0], 2.0)

@@ -421,7 +421,8 @@ class Simulation:
         state_tax = lords.TaxTake(coins=np.zeros(n), grain=np.zeros(n))
         if world.month_of_year == config.state.collection_month:
             state_tax = lords.collect_state_tax(
-                hh, world.lord, world.wage_level, rent_per_plot, world.food_price, famine, config, members > 0
+                hh, world.lord, world.wage_level, rent_per_plot, world.food_price, famine, config, members > 0,
+                keep=coin_target,
             )
         limit = config.credit.loan_to_value * credit.collateral(hh, plot_price, worth)
         written_off = credit.default(hh, limit + config.credit.personal_months * world.wage_level[hh.location], config)

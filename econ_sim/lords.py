@@ -92,13 +92,14 @@ class TaxTake:
 
 def collect_state_tax(
     households: Households, lords: Lords, wage: np.ndarray, rent_per_plot: np.ndarray, food_price: np.ndarray,
-    famine: np.ndarray, config: Config, living: np.ndarray | None = None,
+    famine: np.ndarray, config: Config, living: np.ndarray | None = None, keep: np.ndarray | None = None,
 ) -> TaxTake:
     """The state's yearly tax: `hearth_tax_months` of the customary wage on
     every living household and `land_tax` of a year's rent on every plot
-    families hold. Paid in coins; from families without enough, the
-    collector seizes grain at the market price; what they still can't pay
-    is let go. In a famine it is remitted if `remit_in_famine`. Households
+    families hold. Paid in coins, but not out of the coins a family must
+    `keep` for its food and firewood: for the rest the collector seizes
+    grain at the market price (where coin is scarce, the tax is paid in
+    kind); what they still can't pay is let go. In a famine it is remitted if `remit_in_famine`. Households
     with nobody left (`living` False) pay nothing."""
     cfg = config.state
     n = len(wage)
@@ -110,7 +111,8 @@ def collect_state_tax(
         due = np.where(living, due, 0.0)
     if cfg.remit_in_famine:
         due = np.where(famine[loc], 0.0, due)
-    paid = np.minimum(due, np.maximum(households.money, 0.0))
+    can_pay = households.money if keep is None else households.money - keep
+    paid = np.minimum(due, np.maximum(can_pay, 0.0))
     households.money -= paid
     short = due - paid
     seized = np.minimum(np.divide(short, food_price[loc], out=np.zeros_like(short), where=food_price[loc] > 0),

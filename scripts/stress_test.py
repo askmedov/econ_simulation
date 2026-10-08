@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import warnings
 import sys
 from dataclasses import dataclass, replace
 from multiprocessing import Pool
@@ -65,7 +66,9 @@ def scenarios() -> list[Scenario]:
 
     out = [
         Scenario("baseline", base),
-        Scenario("no random events", replace(base, random_events=False)),
+        Scenario("no random events", replace(base, random_events=False),
+                 "no famines or plagues: over a century the village grows until crowded and unequal",
+                 ("population", "share_farming", "money_top10_share", "money_gini", "wage_cover")),
         Scenario("start in October", replace(base, start_month=10)),
         Scenario("village of 300", replace(base, villages=(VillageConfig(population=300, land=105),)), "too small for a council"),
         Scenario("village of 3000", replace(base, villages=(VillageConfig(population=3000, land=1050),))),
@@ -74,7 +77,7 @@ def scenarios() -> list[Scenario]:
                  "a great famine; survivors take up the land of the dead", ("population", "sown", "landless_share")),
         Scenario("drought every other year", replace(base, scheduled_events=every("drought", 4, 24, 20)),
                  "a ruinous climate", ("population", "sown", "ration", "births_per_1000", "deaths_per_1000",
-                                       "household_size", "poorest_fifth")),
+                                       "household_size", "poorest_fifth", "health", "share_farming")),
         Scenario("epidemic every 5 years", replace(base, scheduled_events=every("disease", 6, 60, 10))),
         Scenario("5 harsh winters in a row", replace(base, scheduled_events=every("harsh_winter", 12, 12, 5))),
         Scenario("forest fires 3 years running", replace(base, scheduled_events=every("forest_fire", 7, 12, 3))),
@@ -129,7 +132,8 @@ def scenarios() -> list[Scenario]:
             "few can live off their land", ("births_per_1000", "landless_share", "money_gini", "money_top10_share"),
         ),
         Scenario("plenty of land", replace(base, villages=(VillageConfig(land=700),)),
-                 "grows into the land, and outgrows its woods", ("population", "woods")),
+                 "grows into the land, and outgrows its woods: cold winters, dear tools",
+                 ("population", "woods", "warmth", "real_price_tools")),
         Scenario("95% farmers at start", replace(base, businesses=shares(farming=0.95, woodcutting=0.03, weaving=0.01, smithing=0.01))),
         Scenario("half farmers at start", replace(base, businesses=shares(farming=0.5, woodcutting=0.15, weaving=0.3, smithing=0.05))),
         Scenario(
@@ -205,8 +209,9 @@ def run_one(job: tuple[Scenario, int, int]) -> dict[str, np.ndarray]:
         for product in year[0].prices:
             add(f"price_{product}", np.mean([r.prices[product] for r in year]))
         add("wage", np.mean([r.wage for r in year]))
-        # Prices in days of work: money's own level moves with how much there is.
-        wage = max(rows["wage"][-1], 1e-9)
+        # Prices in days of work: money's own level moves with how much there
+        # is. A hamlet of a few survivors has no market to speak of.
+        wage = max(rows["wage"][-1], 1e-9) if year[-1].population >= 20 else np.nan
         add("real_food_price", rows["food_price"][-1] / wage)
         for product in year[0].prices:
             add(f"real_price_{product}", rows[f"price_{product}"][-1] / wage)
@@ -307,16 +312,17 @@ def drift_flags(mean: dict[str, np.ndarray], reference: dict[str, np.ndarray] | 
     last = slice(max(years - 5, 0), years)
     for key, (low, high) in RANGES.items():
         value = mean[key][last].mean()
-        if not low <= value <= high:
+        if np.isfinite(value) and not low <= value <= high:
             flags.append((key, f"{key} {value:.2f} outside [{low:g}, {high:g}]"))
     for key, (low, high) in RELATIVE.items():
         first = reference if reference is not None and key.startswith("real_") else mean
-        start, value = first[key][0], mean[key][last].mean()
+        start, value = first[key][0], np.nanmean(mean[key][last])
         ratio = value / start if start else np.inf
-        if not low <= ratio <= high:
+        if np.isfinite(value) and not low <= ratio <= high:
             flags.append((key, f"{key} x{ratio:.2f} from year 1 ({start:.2f} -> {value:.2f})"))
     for key, limit in TRENDS.items():
         half = mean[key][years // 2 :]
+        half = half[np.isfinite(half)]
         if len(half) >= 6 and half.mean() > 0:
             slope = np.polyfit(np.arange(len(half)), np.log(np.maximum(half, 1e-9)), 1)[0] * 10
             if abs(slope) > limit:
@@ -354,7 +360,10 @@ def main() -> int:
         f"{'b/1k':>4} {'d/1k':>4} {'farm':>5} {'weave':>5} {'gini':>5} {'top10':>5} {'treas':>5} {'hh':>4}"
     )
     print(header)
-    means = [{k: np.mean([r[k] for r in results[i * seeds : (i + 1) * seeds]], axis=0) for k in results[0]} for i in range(len(chosen))]
+    with np.errstate(all="ignore"), warnings.catch_warnings():
+        warnings.simplefilter("ignore", category=RuntimeWarning)  # years when every run's village was empty
+        means = [{k: np.nanmean([r[k] for r in results[i * seeds : (i + 1) * seeds]], axis=0) for k in results[0]}
+                 for i in range(len(chosen))]
     reference = next((m for s, m in zip(chosen, means) if s.name == "baseline"), None)
     for scenario, mean in zip(chosen, means):
         with (out / f"{scenario.name.replace(' ', '_').replace('%', 'pct').replace(',', '')}.csv").open("w", newline="") as f:
