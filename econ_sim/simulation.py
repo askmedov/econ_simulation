@@ -6,7 +6,7 @@ import calendar
 
 import numpy as np
 
-from econ_sim import council, economy, events, farms, healthcare, households, market, metrics, rules
+from econ_sim import council, economy, events, farms, healthcare, households, livestock, market, metrics, rules
 from econ_sim.config import Config
 from econ_sim.metrics import MonthRecord
 from econ_sim.rng import RandomStreams
@@ -63,13 +63,30 @@ class Simulation:
         hh.grain -= lost_by_family
         lost = market.by_village(lost_by_family, hh.location, n) + world.farm_grain * mods.granary_loss
         world.farm_grain[:] *= 1.0 - mods.granary_loss
+        # Herds grow, or die off in bad weather; each November they are
+        # thinned to what can be fed through winter, the meat into stores.
+        animals_lost = livestock.grow_and_die(hh, mods.production_mult[:, farm], mods.heating_mult, config)
+        culled, meat = np.zeros(n), np.zeros(n)
+        if world.month_of_year == 11:
+            culled, meat = livestock.winter_cull(hh, world.land, config)
+        # Families with no food and no coins slaughter their animals.
+        hungry_need = market.by_household(rules.food_need(pop, config), pop, len(hh))
+        killed, eaten_animals = livestock.slaughter_in_hunger(hh, hungry_need, world.food_price, config)
+        culled, meat = culled + killed, meat + eaten_animals
 
         # 2. Businesses make goods, using up supplies and wearing out tools.
-        # Other than farms, they work less when unsold goods pile up.
+        # Other than farms, they work less when unsold goods pile up. Farms
+        # grow more with plough animals, and only as much as was sown.
         product_of = economy.product_of(config)
         workers = economy.headcount(pop, n, config)
         effort = economy.labor(pop, n, config, rng=streams["production"])
-        possible = economy.capacity(effort, world.tools, workers, world.land, mods.production_mult, config)
+        herd = market.by_village(hh.animals, hh.location, n)
+        animal_factor = livestock.farm_factor(herd, world.land, config)
+        farm_output = config.businesses[farm].output * economy.tool_factor(world.tools, workers, config)[:, farm]
+        farmed = economy.land_in_use(world.land, workers[:, farm], config, 12.0 * farm_output * animal_factor)
+        possible = economy.capacity(
+            effort, world.tools, workers, world.land, mods.production_mult, config, animal_factor, world.sown
+        )
         possible[:, farm] *= rules.season_factors(config)[world.month_of_year - 1]
         target = config.trade.stock_target_months * world.orders[:, product_of]
         # Woodcutters also stock up ahead of winter.
@@ -87,8 +104,9 @@ class Simulation:
         world.tools *= 1.0 - config.trade.tool_wear
         produced = made[:, farm]
 
-        # Prices: what each product fairly costs to make, times its mark-up.
-        per_worker = economy.productivity(pop, world.tools, workers, world.land, config)
+        # Prices: what each product fairly costs to make in a normal year
+        # (a poor sowing or harvest shows in the grain mark-up), times its mark-up.
+        per_worker = economy.productivity(pop, world.tools, workers, world.land, config, animal_factor)
         world.prices = economy.fair_prices(world.wage_level, per_worker, world.prices, config) * world.markup
 
         # 3. How well the village's stores and coming harvests cover the year
@@ -97,23 +115,36 @@ class Simulation:
         need = rules.by_location(need_rows, pop, n)
         full_strength = economy.labor(pop, n, config, at_full_health=True)
         no_events = np.ones_like(mods.production_mult)
-        normal = economy.capacity(full_strength, world.tools, workers, world.land, no_events, config)[:, farm]
-        ahead = events.production_outlook(world, max(config.food.planning_months - 1, 0), names[farm])
-        outlook = rules.harvest_outlook(normal, ahead, world.month_of_year, config)
+        normal_gross = economy.capacity(full_strength, world.tools, workers, world.land, no_events, config, animal_factor)[:, farm]
+        months_ahead = max(config.food.planning_months - 1, 0)
+        ahead = events.production_outlook(world, months_ahead, names[farm])
+        ahead = ahead * farms.sown_outlook(world.sown, world.month_of_year, ahead.shape[1], config)
+        # Food to come: the harvests expected, less the seed picked from them.
+        harvests = rules.harvest_outlook(normal_gross, ahead, world.month_of_year, config)
+        seed_ahead = farms.seed_outlook(farms.seed_needed(farmed, config), world.month_of_year, ahead.shape[1], config)
+        outlook = harvests - np.minimum(seed_ahead, config.food.max_seed_share * harvests)
         supply_cover = rules.plan_ration_realistically(world.granary, need, outlook, config, most=2.0)
         famine = supply_cover < 1.0
 
         # The harvest is shared out in kind. The council's levy comes off the
-        # top; the farms keep enough to sell for new tools; the rest goes to
-        # the families who worked the fields and the families who hold them.
+        # top, then (at harvest time) next year's seed; the farms keep enough
+        # to sell for new tools; the rest goes to the owners of the plough
+        # animals, the families who worked the fields and the families who
+        # hold them.
         n_hh = len(hh)
         levied = council.levy_grain(world.council, produced, world.farm_grain, need, famine, config)
+        seed_needed = farms.seed_needed(farmed, config)
+        if world.seed is None:  # the first month: seed already picked this season
+            world.seed = seed_needed * farms.seed_gathered(world.month_of_year, config)
+        seed_kept = farms.keep_seed(world.farm_grain, world.seed, seed_needed, produced, world.month_of_year, config)
         tool = config.product_for("tool")
         tools_value = config.trade.tool_wear * workers[:, farm] * world.prices[:, tool]
         keep_for_tools = np.divide(tools_value, world.food_price, out=np.zeros(n), where=world.food_price > 0)
-        shares = farms.income_shares(pop, hh, world.land, config)
+        shares = farms.income_shares(pop, hh, world.land, config, livestock.owners_part(animal_factor))
         harvest_share = farms.share_harvest(hh, world.farm_grain, keep_for_tools, shares)
-        labour_grain = config.food.labor_share * market.by_village(harvest_share, hh.location, n)
+        labour_grain = config.food.labor_share * (1 - livestock.owners_part(animal_factor)) * market.by_village(
+            harvest_share, hh.location, n
+        )
 
         # 4. What families need this month. They eat from their own store as
         # far as it lasts until their next harvest, offer what they can
@@ -136,6 +167,12 @@ class Simulation:
         keep = 2.0 * world.council_costs
         cash_relief = council.cash_relief(
             world.council, hh.money, np.maximum(essentials - hh.money, 0.0), hh.location, keep, config
+        )
+        # Families still short sell animals to families with coins to spare;
+        # when many must sell at once, the price collapses.
+        worth = config.livestock.value_months * world.wage_level
+        animal_sales = livestock.distress_sales(
+            hh, np.maximum(essentials - hh.money, 0.0), hh.money - config.needs.savings_months * usual_costs, worth, config
         )
 
         # 5. Markets, most needed first. Businesses buy supplies and tools
@@ -217,7 +254,13 @@ class Simulation:
 
         # The council gives food from its reserve to families who couldn't eat enough.
         relief = council.give_relief(world.council, plan.own + bought[food], family_food, hh.location, config)
-        family_eaten = plan.own + bought[food] + relief
+        # Families still hungry find famine foods: roots, greens, nuts, fish
+        # (more in summer and autumn; fewer in a drought).
+        summer = 4 / 3 if 5 <= world.month_of_year <= 10 else 2 / 3
+        can_find = config.food.foraging * summer * np.minimum(mods.production_mult[:, farm], 1.0)
+        fed = plan.own + bought[food] + relief
+        foraged = np.clip(family_food - fed, 0.0, family_food * can_find[hh.location])
+        family_eaten = fed + foraged
         family_share = np.divide(family_eaten, family_food, out=np.ones_like(family_food), where=family_food > 0)
         # Families who couldn't buy all their firewood gather some from the
         # commons, unless the woods have burned.
@@ -280,6 +323,10 @@ class Simulation:
         spoiled = market.by_village(rules.spoil(hh.grain, config.food.spoilage), hh.location, n)
         spoiled += rules.spoil(world.farm_grain, config.food.spoilage)
         rules.spoil(world.council.reserve, config.food.spoilage)
+        # Sowing, after the month's harvest is in.
+        seed_from_families = np.zeros(n)
+        if world.month_of_year == farms.sowing_month(config):
+            world.sown, seed_from_families = farms.sow(hh, world.seed, seed_needed, family_food)
 
         # 8. Health follows each family's food and warmth, plus events.
         coldness = firewood_need / max(config.needs.firewood)
@@ -368,13 +415,22 @@ class Simulation:
             food_needed=float(need.sum()),
             food_eaten=float(eaten.sum()),
             own_food=float(plan.own.sum()),
+            foraged=float(foraged.sum()),
             grain_sold=float(sale.sold.sum()),
             ration=float(eaten.sum() / need.sum()) if need.sum() > 0 else 1.0,
             food_spoiled=float(spoiled.sum()),
             food_lost=float(lost.sum()),
             food_levied=float(levied.sum()),
+            food_to_seed=float((seed_kept + seed_from_families).sum()),
+            meat=float(meat.sum()),
+            seed_store=float(world.seed.sum()),
+            sown=float(world.sown.mean()),
+            animals=float(hh.animals.sum()),
+            animals_lost=float(animals_lost.sum() + culled.sum()),
+            animals_sold=float(animal_sales.sold.sum()),
+            animal_price=float(animal_sales.price.mean()),
             food_stock=float(world.granary.sum()),
-            food_margin=float(normal.sum() / need.sum()) if need.sum() > 0 else 0.0,
+            food_margin=float((normal_gross - seed_needed / 12.0).sum() / need.sum()) if need.sum() > 0 else 0.0,
             food_cover=float(np.average(supply_cover, weights=np.maximum(need, 1e-9))),
             wage_cover=float(np.average(cover, weights=np.maximum(need, 1e-9))),
             food_price=float(np.average(world.food_price, weights=np.maximum(need, 1e-9))),

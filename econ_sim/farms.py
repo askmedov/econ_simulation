@@ -26,10 +26,27 @@ def by_village(values: np.ndarray, location: np.ndarray, n_locations: int) -> np
 
 
 def income_shares(
-    population: Population, households: Households, village_land: np.ndarray, config: Config
+    population: Population, households: Households, village_land: np.ndarray, config: Config,
+    animals_part: np.ndarray | None = None,
 ) -> np.ndarray:
     """Each household's share of its village's harvest (after deductions):
-    the labour share by its farm work, the land share by its plots."""
+    `animals_part` (per village) to the owners of plough animals by their
+    animals; of the rest, the labour share by its farm work and the land
+    share by its plots."""
+    n, n_households = len(village_land), len(households)
+    rest = _work_and_land_shares(population, households, village_land, config)
+    if animals_part is None:
+        return rest
+    loc = households.location
+    herd = by_village(households.animals, loc, n)
+    owned = np.divide(households.animals, herd[loc], out=np.zeros(n_households), where=herd[loc] > 0)
+    part = np.where(herd > 0, animals_part, 0.0)[loc]
+    return part * owned + (1.0 - part) * rest
+
+
+def _work_and_land_shares(
+    population: Population, households: Households, village_land: np.ndarray, config: Config
+) -> np.ndarray:
     n, n_households = len(village_land), len(households)
     a = config.food.labor_share
     effort = economy.household_effort(population, config.farming, n_households, config)
@@ -108,3 +125,86 @@ def sellers_share(sold: np.ndarray, offered_by_families: np.ndarray, farm_offer:
     offered = by_village(offered_by_families, location, n)
     filled = np.divide(sold - by_farms, offered, out=np.zeros(n), where=offered > 0)
     return offered_by_families * np.minimum(filled, 1.0)[location], by_farms
+
+
+def seed_needed(farmed: np.ndarray, config: Config) -> np.ndarray:
+    """Seed to sow the plots farmed for a year."""
+    return config.food.seed_per_plot * farmed
+
+
+def sowing_month(config: Config) -> int:
+    return config.food.seed_months[-1]
+
+
+def seed_plan(month_of_year: int, config: Config) -> float:
+    """Share of the year's seed meant to be picked from this calendar
+    month's harvest (by its share of the seed months' harvests)."""
+    months = config.food.seed_months
+    if month_of_year not in months:
+        return 0.0
+    season = rules.season_factors(config)
+    return float(season[month_of_year - 1] / sum(season[m - 1] for m in months))
+
+
+def keep_seed(
+    farm_grain: np.ndarray, seed: np.ndarray, needed: np.ndarray, harvest: np.ndarray, month_of_year: int,
+    config: Config,
+) -> np.ndarray:
+    """In the seed months, pick next year's seed from this month's `harvest`
+    before it is shared out: this month's part of what is `needed`, plus
+    anything a past seed month fell short, but never more than
+    `max_seed_share` of the harvest. Changes both; returns grain kept."""
+    share = seed_plan(month_of_year, config)
+    if share <= 0:
+        return np.zeros_like(seed)
+    months = config.food.seed_months
+    done = sum(seed_plan(m, config) for m in months if m < month_of_year)
+    wanted = np.maximum(needed * (done + share) - seed, 0.0)
+    kept = np.minimum(np.minimum(wanted, config.food.max_seed_share * harvest), farm_grain)
+    farm_grain -= kept
+    seed += kept
+    return kept
+
+
+def seed_gathered(month_of_year: int, config: Config) -> float:
+    """Share of the year's seed picked by the start of this calendar month
+    (for a run that starts in the middle of the seed months)."""
+    return sum(seed_plan(m, config) for m in config.food.seed_months if m < month_of_year)
+
+
+def seed_outlook(needed: np.ndarray, month_of_year: int, months: int, config: Config) -> np.ndarray:
+    """Seed expected to be taken from each coming month's harvest (next month
+    first), villages x months."""
+    upcoming = (month_of_year + np.arange(months)) % 12 + 1
+    plan = np.array([seed_plan(m, config) for m in upcoming])
+    return needed[:, None] * plan[None, :]
+
+
+def sow(households: Households, seed: np.ndarray, needed: np.ndarray, need: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Sow the seed store; if it is short, landholding families make up the
+    rest from their own grain, by the land they hold, keeping at least two
+    months of their `need`. Returns (share of the needed seed sown, grain
+    families gave) per village."""
+    n = len(seed)
+    loc = households.location
+    short = np.maximum(needed - seed, 0.0)
+    can_give = np.where(households.land > 0, np.maximum(households.grain - 2.0 * need, 0.0), 0.0)
+    held = by_village(households.land * (can_give > 0), loc, n)
+    # By land held, but nobody gives more than they can.
+    ask = np.divide(households.land * (can_give > 0), held[loc], out=np.zeros(len(loc)), where=held[loc] > 0) * short[loc]
+    given = np.minimum(ask, can_give)
+    households.grain -= given
+    from_families = by_village(given, loc, n)
+    sown = np.divide(seed + from_families, needed, out=np.ones(n), where=needed > 0)
+    seed[:] = 0.0
+    return np.clip(sown, 0.0, 1.0), from_families
+
+
+def sown_outlook(sown: np.ndarray, month_of_year: int, months: int, config: Config) -> np.ndarray:
+    """Multiplier on each coming month's harvest (next month first) from the
+    seed sown: this year's sowing up to and including the next sowing month
+    (fewer plots sown, worked harder: sown ** (1 - labour share)), a full
+    sowing after it (villages x months)."""
+    until_sowing = (sowing_month(config) - month_of_year) % 12
+    before = np.arange(1, months + 1) <= until_sowing
+    return np.where(before[None, :], sown[:, None] ** (1.0 - config.food.labor_share), 1.0)

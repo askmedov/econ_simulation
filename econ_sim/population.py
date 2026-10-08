@@ -24,9 +24,10 @@ DTYPES = {
     "household": np.int64,
     "job": np.int16,
     "married": np.bool_,
+    "couple": np.int64,
 }
 # Columns that may be left out when building a table, and their fill value.
-DEFAULTS = {"household": 0, "job": NO_JOB, "married": False}
+DEFAULTS = {"household": 0, "job": NO_JOB, "married": False, "couple": -1}
 
 
 @dataclass
@@ -40,6 +41,7 @@ class Population:
     household: np.ndarray | None = None  # family the row's people belong to
     job: np.ndarray | None = None  # business they work in, or NO_JOB
     married: np.ndarray | None = None  # married (or widowed): no longer looking for a spouse
+    couple: np.ndarray | None = None  # id shared with their spouse; -1 if never had one here
 
     def __post_init__(self) -> None:
         for name, fill in DEFAULTS.items():

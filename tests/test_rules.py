@@ -149,8 +149,12 @@ def test_deaths_remove_people():
 
 
 def with_husband(pop):
-    """Add a married man to the household (0) of everyone in `pop`."""
-    pop.append(people([30], location=int(pop.location[0])))
+    """Add a married man to the household (0) of everyone in `pop`, as the
+    husband of the married women there."""
+    husband = people([30], location=int(pop.location[0]))
+    husband.couple[:] = 0
+    pop.couple[pop.married] = 0
+    pop.append(husband)
     return pop
 
 
@@ -164,7 +168,7 @@ def test_only_healthy_married_fertile_women_give_birth():
         with_husband(people([50], count=1000, female=True)),  # too old
         with_husband(people([25], count=1000, female=True, health=30.0)),  # too weak
         with_husband(people([25], count=1000, female=True, married=False)),  # not married
-        people([25], count=1000, female=True),  # widowed: no husband at home
+        people([25] * 1000, female=True),  # widowed: no husband alive
     ]
     born = [rules.births(pop, np.ones(1), config, rng, 1)[0] for pop in candidates]
     assert born[0] > 0 and born[1:] == [0, 0, 0, 0, 0, 0]

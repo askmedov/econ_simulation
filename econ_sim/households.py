@@ -12,6 +12,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from econ_sim import rules
 from econ_sim.config import Config
 from econ_sim.population import Population
 
@@ -27,10 +28,11 @@ class Households:
     money: np.ndarray | None = None  # savings, in coins
     land: np.ndarray | None = None  # farmland held, in plots
     grain: np.ndarray | None = None  # food in the family's own store, in rations
+    animals: np.ndarray | None = None  # livestock units
 
     def __post_init__(self) -> None:
         self.location = np.asarray(self.location, dtype=np.int32)
-        for name in ("money", "land", "grain"):
+        for name in ("money", "land", "grain", "animals"):
             value = getattr(self, name)
             setattr(self, name, np.zeros(len(self.location)) if value is None else np.asarray(value, dtype=np.float64))
 
@@ -41,7 +43,7 @@ class Households:
         """Append empty households in these villages; returns their ids."""
         first = len(self)
         self.location = np.concatenate([self.location, np.asarray(location, dtype=np.int32)])
-        for name in ("money", "land", "grain"):
+        for name in ("money", "land", "grain", "animals"):
             setattr(self, name, np.concatenate([getattr(self, name), np.zeros(len(location))]))
         return first + np.arange(len(location))
 
@@ -59,6 +61,7 @@ def form_households(
     """
     household = np.full(len(population), -1, dtype=np.int64)
     population.married = population.age_years >= ADULT_AGE
+    population.couple = np.full(len(population), -1, dtype=np.int64)
     locations: list[int] = []
     for location in range(n_locations):
         rows = np.flatnonzero(population.location == location)
@@ -101,6 +104,8 @@ def _form_village(
     men = men[np.argsort(population.age_years[men], kind="stable")]
     pairs = min(len(men), len(heads))
     household[men[len(men) - pairs :]] = ids[:pairs]
+    population.couple[heads[:pairs]] = ids[:pairs]
+    population.couple[men[len(men) - pairs :]] = ids[:pairs]
     single = np.concatenate([rows[women & (household[rows] < 0)], men[: len(men) - pairs]])
     population.married[single] = False
 
@@ -146,26 +151,27 @@ def pass_on_land_and_grain(
 ) -> np.ndarray:
     """Land and grain of families with nobody left.
 
-    A vacant holding goes whole to a landless family of the village (the
-    newest, usually a young couple), or if there is none is shared among
-    the other families by size. Grain goes to the council's reserve where
-    there is a council, otherwise to the other families by size. Returns
-    grain added to the reserve, per village.
+    A vacant holding, with its animals, goes whole to a landless family of
+    the village (the newest, usually a young couple), or if there is none
+    is shared among the other families by size. Grain goes to the council's
+    reserve where there is a council, otherwise to the other families by
+    size. Returns grain added to the reserve, per village.
     """
     gone = size == 0
     n = len(reserve)
-    vacant = np.flatnonzero(gone & (households.land > 0))
+    vacant = np.flatnonzero(gone & ((households.land > 0) | (households.animals > 0)))
     for household in vacant:
         village = households.location[household]
         here = (households.location == village) & ~gone
         landless = np.flatnonzero(here & (households.land <= 0))
-        if len(landless):
-            households.land[landless[-1]] += households.land[household]
-        elif here.any():
-            households.land[here] += households.land[household] * size[here] / size[here].sum()
-        else:
-            continue  # nobody left in the village: the land waits
-        households.land[household] = 0.0
+        for held in (households.land, households.animals):
+            if len(landless):
+                held[landless[-1]] += held[household]
+            elif here.any():
+                held[here] += held[household] * size[here] / size[here].sum()
+            else:
+                continue  # nobody left in the village: it waits
+            held[household] = 0.0
 
     left = gone & (households.grain > 0)
     if not left.any():
@@ -221,27 +227,36 @@ def marry(
     rng: np.random.Generator,
     willingness: np.ndarray | None = None,
 ) -> int:
-    """Young people marry; returns the number of weddings.
+    """Young people marry, and widows and widowers remarry; returns the
+    number of weddings.
 
-    Each month a single woman of `bride_ages` marries with `marriage_chance`
-    (times `willingness` in her village: people wait when a wage can barely
-    feed a family), to a single man of `groom_ages` from another family of
-    her village while any are left. The couple live with the groom's family
-    if it has no heir yet, else with the bride's if that has none, else in a
-    new household. Whoever moves takes their share of their family's savings
-    and grain (savings / family size), and of its land if land is split
-    among children (`LandConfig.partible`); otherwise the heir keeps it all.
+    Each month a single woman of `bride_ages` (or a widow up to
+    `widow_ages[0]`) marries with `marriage_chance` (times `willingness` in
+    her village: people wait when a wage can barely feed a family), to a
+    single man of `groom_ages` (or a widower up to `widow_ages[1]`) from
+    another family of her village while any are left. A widow or widower
+    stays in their household and the new spouse moves in. Otherwise the
+    couple live with the groom's family if it has no heir yet, else with
+    the bride's if that has none, else in a new household. Whoever moves takes their share of their family's savings
+    and grain (savings / family size), and of its land and animals if land
+    is split among children (`LandConfig.partible`); otherwise the heir
+    keeps them all.
     """
     demo = config.demography
     n = len(households)
     age = population.age_years
-    single = (population.count == 1) & ~population.married
+    alone = population.count == 1
+    single = alone & ~population.married
+    widowed = alone & population.married & ~rules.spouse_alive(population)
     chance = np.full(len(population), demo.marriage_chance)
     if willingness is not None:
         chance *= willingness[population.location]
-    brides = np.flatnonzero(single & population.female & (age >= demo.bride_ages[0]) & (age <= demo.bride_ages[1]))
+    female = population.female
+    may_wed_woman = (single & (age <= demo.bride_ages[1])) | (widowed & (age <= demo.widow_ages[0]))
+    may_wed_man = (single & (age <= demo.groom_ages[1])) | (widowed & (age <= demo.widow_ages[1]))
+    brides = np.flatnonzero(female & may_wed_woman & (age >= demo.bride_ages[0]))
     brides = brides[rng.random(len(brides)) < chance[brides]]
-    grooms = np.flatnonzero(single & ~population.female & (age >= demo.groom_ages[0]) & (age <= demo.groom_ages[1]))
+    grooms = np.flatnonzero(~female & may_wed_man & (age >= demo.groom_ages[0]))
     if len(brides) == 0 or len(grooms) == 0:
         return 0
     couples = []
@@ -269,9 +284,16 @@ def marry(
     def can_stay(person: np.ndarray, family: np.ndarray) -> np.ndarray:
         return room[family] & ((elder[family] < 0) | (age[person] <= elder[family] - 15))
 
-    at_groom = can_stay(groom, family_g) & _first(family_g)
-    room[family_g[at_groom]] = False
-    at_bride = ~at_groom & can_stay(bride, family_b) & _first(np.where(at_groom, -1, family_b))
+    # Widows and widowers stay where they are, with their children.
+    at_bride = widowed[bride].copy()
+    at_groom = ~at_bride & widowed[groom]
+    rest = ~at_bride & ~at_groom
+    heir_g = rest & can_stay(groom, family_g) & _first(np.where(rest, family_g, -1))
+    room[family_g[heir_g]] = False
+    rest &= ~heir_g
+    heir_b = rest & can_stay(bride, family_b) & _first(np.where(rest, family_b, -1))
+    at_groom |= heir_g
+    at_bride |= heir_b
     new = ~at_groom & ~at_bride
     home = np.where(at_groom, family_g, family_b)
     home[new] = n + np.arange(new.sum())
@@ -283,7 +305,7 @@ def marry(
     left = population.household[leaving]
     households.add(where[new])
     going_to = np.concatenate([home[~at_bride], home[~at_groom]])
-    for name in ("money", "grain", "land") if config.land.partible else ("money", "grain"):
+    for name in ("money", "grain", "land", "animals") if config.land.partible else ("money", "grain"):
         held = getattr(households, name)
         portion = held[left] / size[left]
         np.subtract.at(held, left, portion)
@@ -293,6 +315,9 @@ def marry(
     population.household[groom] = home
     population.married[bride] = True
     population.married[groom] = True
+    couple = population.couple.max() + 1 + np.arange(len(bride))
+    population.couple[bride] = couple
+    population.couple[groom] = couple
     return len(couples)
 
 

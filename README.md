@@ -2,9 +2,10 @@
 
 A month-by-month economic simulation for asking **"what happens over the next
 few years if this event hits?"** It simulates a village of 1,000 people in
-about 200 families who hold land (or don't), live off their own grain
-stores, cut wood, weave and make tools, buy and sell with coins, marry,
-get sick, are born and die, with random events like droughts,
+about 200 families who hold land and animals (or don't), live off their
+own grain stores, keep seed for next year, cut wood, weave and make tools,
+buy and sell with coins, marry and remarry, get sick, are born and die
+(at pre-modern rates), with random events like droughts, plague,
 forest fires and disease. A village council taxes, keeps a grain reserve,
 gives famine relief and pays healers. See [PLAN.md](PLAN.md) for the design and
 roadmap.
@@ -87,7 +88,8 @@ All parameters are in [`econ_sim/config.py`](econ_sim/config.py).
 | `econ_sim/rng.py` | Named random streams |
 | `econ_sim/world.py` | World state and the starting village |
 | `econ_sim/households.py` | Families: who lives with whom, marriage and heirs, their savings, land and grain |
-| `econ_sim/farms.py` | Peasant farms: the harvest shared out in kind, families' own food plans, grain sales |
+| `econ_sim/farms.py` | Peasant farms: the harvest shared out in kind, families' own food plans, grain sales, seed |
+| `econ_sim/livestock.py` | Plough animals and herds: farm output, growth, the winter cull, slaughter and distress sales |
 | `econ_sim/economy.py` | Businesses: production, tools, supplies, fair prices, who works where |
 | `econ_sim/market.py` | Buying and selling, mark-ups, wages, help between neighbours |
 | `econ_sim/council.py` | The village council: forming, taxes, officials, grain reserve, relief |

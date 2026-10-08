@@ -90,7 +90,7 @@ def scenarios() -> list[Scenario]:
             "no council, no help",
             replace(base, council=CouncilConfig(enabled=False), money=replace(money, sharing_rate=0.0)),
             "no safety net at all: families with many children and few earners go hungry",
-            ("poorest_fifth", "deaths_per_1000", "population", "share_farming"),
+            ("poorest_fifth", "deaths_per_1000", "population", "share_farming", "landless_share"),
         ),
         Scenario("tax 0%", replace(base, council=CouncilConfig(tax_rate=0.0))),
         Scenario("tax 30%", replace(base, council=CouncilConfig(tax_rate=0.3))),
@@ -167,6 +167,8 @@ def run_one(job: tuple[Scenario, int, int]) -> dict[str, np.ndarray]:
         add("births_per_1000", 1000 * sum(r.births for r in year) / max(year[0].population, 1))
         add("deaths_per_1000", 1000 * sum(r.deaths for r in year) / max(year[0].population, 1))
         add("weddings_per_1000", 1000 * sum(r.weddings for r in year) / max(year[0].population, 1))
+        add("sown", min(r.sown for r in year))
+        add("animals_per_plot", year[-1].animals / max(sim.world.land.sum(), 1e-9))
         add("wage_cover", np.mean([r.wage_cover for r in year]))
         add("food_price", np.mean([r.food_price for r in year]))
         for product in year[0].prices:
@@ -228,12 +230,14 @@ RANGES = {
     "food_store_months": (0.5, 12.0),
     "household_size": (3.0, 9.0),
     "household_size_max": (0.0, 30.0),
-    # A pre-industrial village: births and deaths well above modern levels
-    # (at the land's limit, late marriage holds births to the low 20s).
-    "births_per_1000": (22.0, 50.0),
-    "deaths_per_1000": (18.0, 50.0),
-    "weddings_per_1000": (3.0, 15.0),
-    "wage_cover": (0.8, 2.5),
+    # A high-pressure pre-industrial village: early marriage, many births,
+    # many deaths.
+    "births_per_1000": (30.0, 60.0),
+    "deaths_per_1000": (25.0, 60.0),
+    "weddings_per_1000": (5.0, 20.0),
+    "sown": (0.85, 1.01),
+    "animals_per_plot": (0.1, 0.5),
+    "wage_cover": (0.7, 2.5),
 }
 # Measures that should stay within these multiples of their first-year value.
 RELATIVE = {

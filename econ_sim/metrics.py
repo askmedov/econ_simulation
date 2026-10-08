@@ -28,13 +28,22 @@ class MonthRecord:
     deaths: int
     food_produced: float
     food_needed: float
-    food_eaten: float  # from families' own stores, bought, and relief from the council's reserve
+    food_eaten: float  # from families' own stores, bought, relief from the council's reserve, and foraged
     own_food: float  # rations families ate from their own grain stores
+    foraged: float  # rations of famine foods (roots, greens, fish) hungry families found
     grain_sold: float  # rations sold on the village market
     ration: float  # share of food need met, 1.0 = everyone fully fed
     food_spoiled: float
     food_lost: float  # destroyed by events
     food_levied: float  # taken by the council into its reserve (levy, and stores of families who died out)
+    food_to_seed: float  # picked from the harvest as seed, or given by families at sowing
+    meat: float  # rations of meat from animals slaughtered (the winter cull, or in hunger), into stores
+    seed_store: float  # grain kept for the next sowing
+    sown: float  # share of the needed seed sown at the last sowing (averaged over villages)
+    animals: float  # livestock units held by families
+    animals_lost: float  # died this month, net of births (negative: the herds grew)
+    animals_sold: float  # sold by families who couldn't afford their food
+    animal_price: float  # coins per animal at this month's sales
     food_stock: float  # at the end of the month
     food_margin: float  # normal harvest over need; below ~1.05 the land is crowded
     food_cover: float  # stores plus expected harvests, as a share of the coming year's need

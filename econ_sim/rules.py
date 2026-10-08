@@ -13,6 +13,17 @@ from econ_sim.config import Config, SkillConfig
 from econ_sim.population import Population
 
 
+def spouse_alive(population: Population) -> np.ndarray:
+    """Married people whose husband or wife is still living (per row). In a
+    row standing for many people, married people count as couples."""
+    paired = population.couple >= 0
+    alive = (population.count > 1) & ~paired
+    if paired.any():
+        living = np.bincount(population.couple[paired], weights=population.count[paired])
+        alive[paired] = living[population.couple[paired]] >= 2
+    return alive & population.married
+
+
 def monthly_chance(annual: float | np.ndarray) -> float | np.ndarray:
     return 1.0 - (1.0 - np.asarray(annual)) ** (1.0 / 12.0)
 
@@ -227,8 +238,7 @@ def births(
 ) -> np.ndarray:
     """Add this month's newborns; returns births per village.
 
-    Married women of fertile age with a husband at home (a married man in
-    their household; widows have none) give birth with `annual_birth_chance`
+    Married women of fertile age whose husband is alive give birth with `annual_birth_chance`
     times their age's `fertility_by_age`, lowered by poor health and scaled
     by `fertility_mult` per village (from events). Newborns join their
     mother's household, with her health and a fresh skill draw.
@@ -236,9 +246,7 @@ def births(
     demo, health = config.demography, config.health
     age = population.age_years
     youngest, oldest = demo.fertile_ages
-    husbands = population.count * (population.married & ~population.female & (age >= 18))
-    has_husband = np.bincount(population.household, weights=husbands, minlength=1)[population.household] > 0
-    fertile = population.female & population.married & has_husband & (age >= youngest) & (age <= oldest)
+    fertile = population.female & spouse_alive(population) & (age >= youngest) & (age <= oldest)
     from_ages = np.array([a for a, _ in demo.fertility_by_age])
     by_age = np.array([f for _, f in demo.fertility_by_age])[np.maximum(np.searchsorted(from_ages, age, side="right") - 1, 0)]
     low, high = health.fertility_health

@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from econ_sim import council, economy, rules
+from econ_sim import council, economy, livestock, rules
 from econ_sim.council import Councils
 from econ_sim.config import Config, EventSpec
 from econ_sim.households import Households, assign_land, form_households
@@ -43,10 +43,15 @@ class World:
     active_events: list[ActiveEvent] = field(default_factory=list)
     council_costs: np.ndarray | None = None  # last month's council running costs, per village
     coin_earnings: np.ndarray | None = None  # running average of families' monthly coin income, per village
+    seed: np.ndarray | None = None  # grain kept back to sow at the next sowing, per village (set in the first month)
+    sown: np.ndarray | None = None  # share of the needed seed sown at the last sowing, per village
 
     def __post_init__(self) -> None:
+        n = len(self.names)
         if self.council_costs is None:
-            self.council_costs = np.zeros(len(self.names))
+            self.council_costs = np.zeros(n)
+        if self.sown is None:
+            self.sown = np.ones(n)
 
     @property
     def farm_grain(self) -> np.ndarray:
@@ -106,8 +111,13 @@ def create_world(config: Config, streams: RandomStreams) -> World:
     boost = np.array([b.tool_boost for b in config.businesses])
     tools = np.where(boost > 0, workers, 0.0)
 
+    # Families hold the land, and landholders the plough animals.
+    assign_land(households, population, land, config, streams["land"])
+    livestock.place_herds(households, land, config, streams["land"])
+    animals = livestock.farm_factor(np.bincount(households.location, weights=households.animals, minlength=n), land, config)
+
     # Prices start fair, with the wage set so food costs `food_price`.
-    per_worker = economy.productivity(population, tools, workers, land, config)
+    per_worker = economy.productivity(population, tools, workers, land, config, animals)
     wage = config.money.food_price * per_worker[:, config.farming]
     prices = np.zeros((n, n_products))
     for _ in range(len(config.products)):  # supplies are valued at the prices being worked out
@@ -124,7 +134,7 @@ def create_world(config: Config, streams: RandomStreams) -> World:
     )
     households.money = config.money.initial_savings_months * monthly
 
-    made = economy.capacity(economy.labor(population, n, config), tools, workers, land, np.ones((n, n_business)), config)
+    made = economy.capacity(economy.labor(population, n, config), tools, workers, land, np.ones((n, n_business)), config, animals)
     # Food in store as configured; other goods, the stock their trade aims to keep.
     food_need = rules.by_location(need_rows, population, n)
     orders = np.zeros((n, n_products))
@@ -133,9 +143,8 @@ def create_world(config: Config, streams: RandomStreams) -> World:
     stock = config.trade.stock_target_months * orders
     stock[:, food] = 0.0
 
-    # Families hold the land and the food in store: half of each village's
-    # stores spread by families' needs, half by the land they hold.
-    assign_land(households, population, land, config, streams["land"])
+    # Families hold the food in store: half of each village's stores spread
+    # by families' needs, half by the land they hold.
     in_store = food_need * np.array([v.initial_food_months for v in config.villages])
     loc = households.location
     held = np.bincount(loc, weights=households.land, minlength=n)

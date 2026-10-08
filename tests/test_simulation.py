@@ -34,7 +34,8 @@ def test_food_is_accounted_for():
     for _ in range(240):
         r = sim.step()
         # Families eat what they buy plus relief from the council's reserve.
-        stock += r.food_produced - (r.food_eaten - r.relief) - r.food_spoiled - r.food_lost - r.food_levied
+        stock += (r.food_produced + r.meat - (r.food_eaten - r.relief - r.foraged) - r.food_spoiled - r.food_lost
+                  - r.food_levied - r.food_to_seed)
         assert np.isclose(stock, r.food_stock)
 
 
@@ -79,6 +80,7 @@ def test_grouped_population_runs_and_keeps_totals_consistent():
         health=pop.health[:100],
         skill=pop.skill[:100],
         location=pop.location[:100],
+        married=pop.age_years[:100] >= 18,
     )
     sim.world.population = grouped
     people = grouped.size

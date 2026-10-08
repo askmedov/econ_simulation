@@ -86,11 +86,27 @@ def test_jobs_follow_people_as_they_age():
     assert (pop.job == NO_JOB).all()
 
 
+def pair_up(pop):
+    """Married men and women of each household are couples in age order
+    (anyone left over is widowed)."""
+    pop.couple[:] = -1
+    next_id = 0
+    for h in np.unique(pop.household):
+        here = (pop.household == h) & pop.married
+        men = np.flatnonzero(here & ~pop.female)
+        women = np.flatnonzero(here & pop.female)
+        men, women = men[np.argsort(-pop.age_months[men])], women[np.argsort(-pop.age_months[women])]
+        for m, w in zip(men, women):
+            pop.couple[[m, w]] = next_id
+            next_id += 1
+    return pop
+
+
 def families(members, money=None):
     """Households from (household, age, female, married) tuples."""
     household, age, female, married = (np.array(x) for x in zip(*members))
     n = len(members)
-    pop = Population(
+    pop = pair_up(Population(
         count=np.ones(n, dtype=np.int64),
         age_months=age * 12,
         female=female,
@@ -99,7 +115,7 @@ def families(members, money=None):
         location=np.zeros(n),
         household=household,
         married=married,
-    )
+    ))
     n_households = household.max() + 1
     return pop, households.Households(np.zeros(n_households), money)
 
@@ -179,3 +195,26 @@ def test_families_in_a_long_run_stay_family_sized():
     size = households.sizes(sim.world.population, len(sim.world.households))
     assert 3.5 < size[size > 0].mean() < 6.5
     assert sum(r.weddings for r in sim.records) > 50
+
+
+def test_a_widow_remarries_and_her_new_husband_moves_in():
+    config = sure_weddings(Config())
+    pop, hh = families([(0, 30, True, True), (0, 8, False, False), (1, 50, True, True), (1, 52, False, True),
+                        (1, 26, False, False)])
+    pop.couple[0] = 99  # her husband has died
+    assert not rules.spouse_alive(pop)[0] and rules.spouse_alive(pop)[2]
+    assert households.marry(pop, hh, config, np.random.default_rng(0)) == 1
+    assert pop.household[4] == 0 and pop.couple[0] == pop.couple[4] >= 0
+    assert rules.spouse_alive(pop)[[0, 4]].all()
+
+
+def test_couples_are_paired_at_the_start_and_only_they_have_children():
+    world, config = village()
+    pop = world.population
+    alive = rules.spouse_alive(pop)
+    assert alive.sum() > 200 and (pop.married[alive]).all()
+    couples = pop.couple[alive]
+    assert (np.bincount(couples)[couples] == 2).all()
+    # Each couple lives together.
+    for c in np.unique(couples)[:20]:
+        assert len(set(pop.household[pop.couple == c])) == 1

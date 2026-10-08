@@ -75,22 +75,46 @@ def tool_factor(tools: np.ndarray, workers: np.ndarray, config: Config) -> np.nd
 
 def capacity(
     labor_now: np.ndarray, tools: np.ndarray, workers: np.ndarray, land: np.ndarray,
-    production_mult: np.ndarray, config: Config,
+    production_mult: np.ndarray, config: Config, farm_mult: np.ndarray | None = None,
+    sown: np.ndarray | None = None,
 ) -> np.ndarray:
     """What each business could make in an average month, before supplies run short.
 
-    Farming has diminishing returns on the village's land; other trades
-    make the same amount per worker however many there are.
+    Farming has diminishing returns on the land in use (`land_in_use`) that
+    was sown (the share of the seed `sown`), and its output (gross of seed)
+    is scaled by `farm_mult` per village (plough animals); other trades make
+    the same amount per worker however many there are.
     """
     output = np.array([b.output for b in config.businesses])
     made = output * tool_factor(tools, workers, config) * production_mult * labor_now
     a = config.food.labor_share
     farm = config.farming
-    made[:, farm] = (
-        output[farm] * tool_factor(tools, workers, config)[:, farm] * production_mult[:, farm]
-        * labor_now[:, farm] ** a * land ** (1.0 - a)
-    )
+    boost = tool_factor(tools, workers, config)[:, farm] * (1.0 if farm_mult is None else farm_mult)
+    farmed = farm_land(land, tools, workers, config, farm_mult)
+    if sown is not None:  # plots left unsown: the farmers work the rest harder
+        farmed = farmed * sown
+    made[:, farm] = output[farm] * boost * production_mult[:, farm] * labor_now[:, farm] ** a * farmed ** (1.0 - a)
     return made
+
+
+def farm_land(
+    land: np.ndarray, tools: np.ndarray, workers: np.ndarray, config: Config, farm_mult: np.ndarray | None = None
+) -> np.ndarray:
+    """Plots each village farms, given its farmers, tools and `farm_mult` (plough animals)."""
+    farm = config.farming
+    boost = tool_factor(tools, workers, config)[:, farm] * (1.0 if farm_mult is None else farm_mult)
+    return land_in_use(land, workers[:, farm], config, 12.0 * config.businesses[farm].output * boost)
+
+
+def land_in_use(land: np.ndarray, farmers: np.ndarray, config: Config, per_plot_output: np.ndarray | float = 1.0) -> np.ndarray:
+    """Plots worth farming: all the village's land, unless there are so few
+    farmers that the last plots would not repay their seed. Farmers stop
+    adding plots where a plot's share of the harvest, (1 - labour share) x
+    output per plot, falls to the seed it takes; `per_plot_output` is the
+    yearly output per plot of one farmer on one plot (with tools and animals)."""
+    a = config.food.labor_share
+    worth = np.maximum((1.0 - a) * per_plot_output / config.food.seed_per_plot, 1e-9) ** (1.0 / a)
+    return np.minimum(land, farmers * worth)
 
 
 def input_needs(config: Config) -> np.ndarray:
@@ -128,17 +152,27 @@ def seller_of(config: Config) -> np.ndarray:
 
 
 def productivity(
-    population: Population, tools: np.ndarray, workers: np.ndarray, land: np.ndarray, config: Config
+    population: Population, tools: np.ndarray, workers: np.ndarray, land: np.ndarray, config: Config,
+    farm_mult: np.ndarray | None = None, sown: np.ndarray | None = None,
 ) -> np.ndarray:
     """Normal output per worker in each business: full health, no events, an
-    average month. For a trade nobody works in, what a first worker would make."""
+    average month; for farming, net of the seed its plots need. For a trade
+    nobody works in, what a first worker would make."""
     n = len(land)
     full = labor(population, n, config, at_full_health=True)
     normal = np.ones_like(full)
-    made = capacity(full, tools, workers, land, normal, config)
+    farm = config.farming
+    made = capacity(full, tools, workers, land, normal, config, farm_mult, sown)
+    made[:, farm] = _net_of_seed(made[:, farm], farm_land(land, tools, workers, config, farm_mult), config)
     per_worker = np.divide(made, workers, out=np.zeros_like(made), where=workers > 0)
-    first = capacity(normal, np.zeros_like(tools), normal, land, normal, config)
+    first = capacity(normal, np.zeros_like(tools), normal, land, normal, config, farm_mult, sown)
+    first[:, farm] = _net_of_seed(first[:, farm], farm_land(land, np.zeros_like(tools), normal, config, farm_mult), config)
     return np.where(workers >= 1, per_worker, first)
+
+
+def _net_of_seed(gross: np.ndarray, farmed: np.ndarray, config: Config) -> np.ndarray:
+    """Monthly farm output less the seed its plots take (never below a tenth of it)."""
+    return np.maximum(gross - config.food.seed_per_plot * farmed / 12.0, 0.1 * gross)
 
 
 def fair_prices(wage: np.ndarray, per_worker: np.ndarray, prices: np.ndarray, config: Config) -> np.ndarray:

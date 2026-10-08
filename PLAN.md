@@ -290,7 +290,6 @@ poorest fifth's worst month, relief given and people treated.
 ### Kept simple for now
 
 - Each business type is one business per village (individual firms later).
-- Widows and widowers don't remarry.
 - No lending or rents (land holding came in Phase 2b).
 - The council's rules are fixed policies, not decisions.
 
@@ -487,11 +486,11 @@ tested, sanity-checked and stress-tested:
 | Step | Branch | Adds |
 |---|---|---|
 | 1 | `claude/peasant-farms` | families hold land and grain; the harvest is shared out in kind; a grain market among families (built) |
-| 2 | `claude/seed-and-livestock` | seed kept back from each harvest; plough animals, herds and their losses |
+| 2 | `claude/seed-and-livestock` | seed kept back from each harvest; plough animals, herds and their losses; a high-pressure demography (built) |
 | 3 | `claude/debt-and-distress` | grain and coin loans, then sales of animals and land, in bad years |
 | 4 | `claude/lord-and-state` | a lord's land and rent in kind, taxes in coin, the lord's granary |
 | 5 | `claude/regional-market` | a town grain price with a transport cost; people leave and arrive |
-| 6 | `claude/household-work` | everyone at harvest, women's spinning and weaving at home, kin who help, remarriage |
+| 6 | `claude/household-work` | everyone at harvest, women's spinning and weaving at home, kin who help |
 | 7 | `claude/environment` | woods that shrink when cut, soil that tires, droughts that come in runs |
 
 ### 1. Families hold land and grain (built)
@@ -530,6 +529,69 @@ deaths in three years. Families with grain keep it for themselves as the
 outlook darkens, and grain dries up on the market. With the council's
 reserve and relief the worst month is 91% (landless 88%), with about 13
 extra deaths.
+
+### 2. Seed grain and livestock (built)
+
+- **Seed.** A quarter of the grain harvest (6 rations a plot) is picked
+  as seed at harvest (August to October) before anything is shared out,
+  and sown at the end of October; next year's harvests follow the share
+  sown. Seed comes first, so a 40% harvest failure leaves families about
+  half their grain. But no more than 40% of a month's harvest goes to seed
+  (people sow less rather than starve now), and landholders make up a
+  short store from their own grain at sowing if they can. A village sows
+  only the plots that repay their seed, so a village thinned by famine
+  farms less land, more intensively. Half the seed gives about 80% of a
+  harvest (the labour goes on the plots that were sown), so sowing
+  recovers within a year or two.
+- **Livestock.** Families (landholders, at the start) hold plough
+  animals: a full set (a quarter of a livestock unit a plot) raises farm
+  output 30%, and the owners get that share of the harvest (hiring out a
+  plough team). Herds grow 15% a year, are thinned each November to what
+  can be fed through winter (the meat goes into the owners' stores), and
+  die off in droughts and hard winters. Families with no food and no
+  coins slaughter their animals; families short of coins sell them to
+  families with coins to spare, and when many must sell at once the price
+  collapses (to a fifth of an animal's worth at worst).
+- **Famine foods.** Families still hungry find roots, greens, nuts and
+  fish for up to 15% of their need (more in summer, less in a drought).
+
+**A high-pressure demography.** As in most villages of this size before
+modern times (and unlike north-western Europe's late marriage), women
+marry young (about 18) and nearly all do; married women bear about six
+children; more than a quarter of babies die in their first year and life
+expectancy at birth is about 25. Births run about 45 and deaths about 40
+per 1,000 in ordinary years. People put off marriage only a little in hard
+times; what holds the village to its land is deaths: hunger, epidemics,
+and now **plague** (about once a generation, killing a tenth to a fifth).
+Couples are tracked, so widows and widowers are known: only women whose
+husband is alive bear children, and widows up to 45 and widowers up to 55
+remarry, the new spouse moving in with them and their children.
+
+**What it changes.** Bad years now cast a shadow: a drought that eats
+into the seed shrinks the next harvest too. Without a council, an April
+drought costs about 23 extra deaths and 15 fewer births in three years;
+landless families fall to 54% of their need in the worst month. With the
+council, about 7 extra deaths and 91% for the landless. Three droughts in
+a row cost a quarter to two-fifths of the village, which recovers slowly
+over decades; a few runs in a hundred years see a third of the village
+die in a year. Some villages never recover, as historically.
+
+**Bugs the stress test caught on the way:** seed set aside from every
+month's harvest until the store was full took the whole spring harvest
+while people starved; seed sized by the village's full labour force grew
+as weak survivors harvested less; and seed for all the land meant the
+survivors of a famine could never sow enough, so villages died out to the
+last person. Each was a rule no farmer would follow.
+
+### Money is metal, not paper
+
+Coins here are silver (or shells, or barley by weight): nobody prints
+them. The village's coins are a fixed stock and prices adjust to it (the
+customary wage drifts with how many months of earnings families hold).
+Still to come with the state and the regional market: coins flow in when
+the village sells grain to the town and out with imports and taxes in
+coin; some are lost or buried each year; and a ruler can debase the
+coinage.
 
 ## Roadmap after Phase 2
 

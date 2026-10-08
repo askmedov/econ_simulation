@@ -27,41 +27,47 @@ class VillageConfig:
 class DemographyConfig:
     adult_age: int = 15  # children (< adult_age) eat less and don't work
     retirement_age: int = 60  # people this age and older don't work
-    fertile_ages: tuple[int, int] = (16, 45)  # inclusive, women only
-    # Yearly chance a married woman of fertile age in full health gives
-    # birth, times (from age, factor): fewer births from the mid-thirties.
-    annual_birth_chance: float = 0.28
-    fertility_by_age: tuple[tuple[int, float], ...] = ((16, 1.0), (30, 0.9), (35, 0.75), (40, 0.4))
+    fertile_ages: tuple[int, int] = (15, 45)  # inclusive, women only
+    # Yearly chance a married woman of fertile age in full health, with her
+    # husband alive, gives birth, times (from age, factor): fewer births
+    # from the mid-thirties. Natural fertility: about six children for a
+    # woman married at 18 whose husband lives until she is 45.
+    annual_birth_chance: float = 0.26
+    fertility_by_age: tuple[tuple[int, float], ...] = ((15, 1.0), (30, 0.9), (35, 0.75), (40, 0.4))
     female_share_at_birth: float = 0.5
-    # Single women of `bride_ages` marry each month with this chance, to a
-    # single man of `groom_ages` from another family (on average at about
-    # 21). The first of a family to marry stays with their spouse as its
-    # heir; later ones set up a household of their own.
-    marriage_chance: float = 1 / 48
-    bride_ages: tuple[int, int] = (17, 34)
-    groom_ages: tuple[int, int] = (19, 39)
-    # People wait to marry when a wage can barely feed a family. "Wage cover"
-    # is how much food a typical month's pay buys, over the village's food
-    # need per worker: weddings are at their fewest (`crowded_marriage_factor`
-    # of the usual chance) at the first cover, and at the usual rate from the
-    # second up. Crowded land (less food per farmer) and dear grain both lower it.
-    crowded_marriage_factor: float = 0.2
-    wage_cover_for_marriage: tuple[float, float] = (1.05, 1.5)
+    # Marriage is early and nearly universal: each month a single woman of
+    # `bride_ages` marries with this chance (on average at about 18), to a
+    # single man of `groom_ages` from another family. The first of a family
+    # to marry stays with their spouse as its heir; later ones set up a
+    # household of their own. Widows up to `widow_ages[0]` and widowers up
+    # to `widow_ages[1]` remarry too; the new spouse moves in with them.
+    marriage_chance: float = 1 / 24
+    bride_ages: tuple[int, int] = (15, 35)
+    groom_ages: tuple[int, int] = (18, 45)
+    widow_ages: tuple[int, int] = (45, 55)
+    # People put off marrying a little when a wage can barely feed a family.
+    # "Wage cover" is how much food a typical month's pay buys, over the
+    # village's food need per worker: weddings are at their fewest
+    # (`crowded_marriage_factor` of the usual chance) at the first cover,
+    # and at the usual rate from the second up.
+    crowded_marriage_factor: float = 0.5
+    wage_cover_for_marriage: tuple[float, float] = (1.0, 1.4)
     # (from age in years, yearly chance of dying) before any hunger or events:
-    # a pre-industrial village, where one baby in five dies in its first
-    # year and life expectancy at birth is about 33.
+    # a high-pressure pre-industrial village, where more than a quarter of
+    # babies die in their first year, half of children before five, and life
+    # expectancy at birth is about 25.
     annual_mortality: tuple[tuple[int, float], ...] = (
-        (0, 0.20),
-        (1, 0.045),
-        (5, 0.012),
-        (10, 0.006),
-        (15, 0.008),
-        (25, 0.011),
-        (40, 0.016),
-        (50, 0.025),
-        (60, 0.05),
-        (70, 0.11),
-        (80, 0.25),
+        (0, 0.28),
+        (1, 0.07),
+        (5, 0.02),
+        (10, 0.01),
+        (15, 0.012),
+        (25, 0.016),
+        (40, 0.022),
+        (50, 0.035),
+        (60, 0.07),
+        (70, 0.14),
+        (80, 0.3),
     )
     # Starting ages follow a pyramid: weight of age a is exp(-decay * a).
     initial_age_decay: float = 0.03
@@ -99,6 +105,21 @@ class FoodConfig:
     price_adjustment: float = 0.3
     # Random good/bad days: spread of each worker's monthly output.
     output_noise: float = 0.1
+    # Seed: `seed_per_plot` rations of grain a year for each plot farmed,
+    # about a quarter of the grain harvest (a yield of 4 grains per grain
+    # sown; the rest of the year's food, from gardens, dairy and the like,
+    # needs none). It is picked from the harvest in `seed_months`, before
+    # anything is shared out, but never more than `max_seed_share` of a
+    # month's harvest (people sow less rather than starve now), and sown at
+    # the end of the last of them. The next year's harvests scale with the
+    # share of the seed that was sown. Farming output is gross of seed.
+    seed_per_plot: float = 6.0
+    seed_months: tuple[int, ...] = (8, 9, 10)
+    max_seed_share: float = 0.4
+    # Hungry families find famine foods (roots, greens, nuts, fish) for up to
+    # this share of their need, in summer and autumn twice what they find
+    # in winter and spring; fewer in a drought.
+    foraging: float = 0.15
 
 
 @dataclass(frozen=True)
@@ -170,7 +191,9 @@ DEFAULT_PRODUCTS: tuple[ProductSpec, ...] = (
 )
 
 DEFAULT_BUSINESSES: tuple[BusinessSpec, ...] = (
-    BusinessSpec("farming", "food", output=1.8, tool_boost=0.25, uses_land=True, initial_share=0.80),
+    # Farming output is gross of seed and before plough animals: with a full
+    # set of tools and animals and after seed it is about 1.8 rations a farmer.
+    BusinessSpec("farming", "food", output=1.67, tool_boost=0.25, uses_land=True, initial_share=0.80),
     BusinessSpec("woodcutting", "firewood", output=6.0, tool_boost=0.3, initial_share=0.10),
     BusinessSpec("weaving", "clothing", output=2.0, initial_share=0.07),
     BusinessSpec("smithing", "tools", output=1.0, inputs=(("firewood", 2.0),), initial_share=0.03),
@@ -275,6 +298,36 @@ class LandConfig:
     # share of the family's land (partible inheritance) or none (the heir
     # keeps it all).
     partible: bool = False
+
+
+@dataclass(frozen=True)
+class LivestockConfig:
+    """Plough animals and herds, held by families, in livestock units (an
+    ox or a cow; a few sheep or pigs count as one)."""
+
+    # Animals per plot for full ploughing and manuring; farms grow up to
+    # `farm_boost` more with a full set, and the owners get that part of
+    # the harvest (hiring out a plough team).
+    per_plot: float = 0.25
+    farm_boost: float = 0.3
+    # Herds grow this much a year with enough fodder. Each November they are
+    # thinned to what the village can feed through winter; the meat goes
+    # into the owners' stores.
+    growth: float = 0.15
+    winter_capacity_per_plot: float = 0.3
+    meat_rations: float = 5.0
+    # Extra yearly losses per unit of farm output lost to bad weather
+    # (pasture and hay fail too), and per unit of extra heating a hard
+    # winter needs.
+    drought_losses: float = 0.6
+    winter_losses: float = 0.3
+    # An animal is worth this many months of the customary wage. Families
+    # who can't afford their food sell animals to families with coins to
+    # spare, who put up to `buyers_spend` of their spare coins into them;
+    # with many sellers the price drops, to no less than `lowest_price` of its worth.
+    value_months: float = 6.0
+    buyers_spend: float = 0.5
+    lowest_price: float = 0.2
 
 
 @dataclass(frozen=True)
@@ -394,8 +447,18 @@ DEFAULT_EVENTS: tuple[EventSpec, ...] = (
         scope="location",
         chance=0.02,
         duration=(2, 3),
+        group="epidemic",
         effects={"health_delta": -8.0, "mortality_mult": 2.5, "production_mult": 0.85},
         message="Disease outbreak",
+    ),
+    EventSpec(
+        name="plague",
+        scope="location",
+        chance=0.003,
+        duration=(4, 8),
+        group="epidemic",
+        effects={"health_delta": -10.0, "mortality_mult": (6.0, 10.0), "production_mult": 0.7},
+        message="Plague: a deadly epidemic sweeps the village",
     ),
     EventSpec(
         name="granary_fire",
@@ -437,6 +500,7 @@ class Config:
     needs: NeedsConfig = field(default_factory=NeedsConfig)
     trade: TradeConfig = field(default_factory=TradeConfig)
     land: LandConfig = field(default_factory=LandConfig)
+    livestock: LivestockConfig = field(default_factory=LivestockConfig)
     council: CouncilConfig = field(default_factory=CouncilConfig)
     healthcare: HealthcareConfig = field(default_factory=HealthcareConfig)
     products: tuple[ProductSpec, ...] = DEFAULT_PRODUCTS
