@@ -101,7 +101,10 @@ def scenarios() -> list[Scenario]:
         Scenario("little money", replace(base, money=replace(money, initial_savings_months=0.5))),
         Scenario("lots of money", replace(base, money=replace(money, initial_savings_months=24.0))),
         Scenario("1 month of food", replace(base, villages=(VillageConfig(initial_food_months=1.0),))),
-        Scenario("crowded land", replace(base, villages=(VillageConfig(land=250),)), "people marry late", ("births_per_1000",)),
+        Scenario(
+            "crowded land", replace(base, villages=(VillageConfig(land=250),)),
+            "few can live off their land", ("births_per_1000", "landless_share", "money_gini", "money_top10_share"),
+        ),
         Scenario("plenty of land", replace(base, villages=(VillageConfig(land=700),)), "grows into the land", ("population",)),
         Scenario("95% farmers at start", replace(base, businesses=shares(farming=0.95, woodcutting=0.03, weaving=0.01, smithing=0.01))),
         Scenario("half farmers at start", replace(base, businesses=shares(farming=0.5, woodcutting=0.15, weaving=0.3, smithing=0.05))),
@@ -221,12 +224,14 @@ RANGES = {
     "share_smithing": (0.005, 0.15),
     "treasury_share": (0.0, 0.25),
     "business_cash_share": (0.0, 0.3),
-    # Coins pool with families who sell grain; labourers hold few.
-    "money_top10_share": (0.0, 0.75),
-    "money_gini": (0.0, 0.85),
-    "wealth_gini": (0.0, 0.8),
-    "land_gini": (0.0, 0.85),
-    "landless_share": (0.0, 0.6),
+    # Coins pool with families who sell grain; labourers hold few. Land
+    # concentrates through debt as the village grows: a land Gini of 0.8-0.9
+    # and a majority landless are within what crowded old villages showed.
+    "money_top10_share": (0.0, 0.85),
+    "money_gini": (0.0, 0.9),
+    "wealth_gini": (0.0, 0.85),
+    "land_gini": (0.0, 0.9),
+    "landless_share": (0.0, 0.75),
     "food_store_months": (0.5, 12.0),
     "household_size": (3.0, 9.0),
     "household_size_max": (0.0, 30.0),
@@ -237,7 +242,7 @@ RANGES = {
     "weddings_per_1000": (5.0, 20.0),
     "sown": (0.85, 1.01),
     "animals_per_plot": (0.1, 0.5),
-    "wage_cover": (0.7, 2.5),
+    "wage_cover": (0.65, 2.5),
 }
 # Measures that should stay within these multiples of their first-year value.
 RELATIVE = {

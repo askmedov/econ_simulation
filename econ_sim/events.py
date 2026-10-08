@@ -13,7 +13,9 @@ import numpy as np
 from econ_sim.config import EffectValue, EventSpec, HealthConfig, ScheduledEvent
 from econ_sim.world import ActiveEvent, World
 
-EFFECTS = ("production_mult", "health_delta", "mortality_mult", "fertility_mult", "granary_loss", "heating_mult")
+EFFECTS = (
+    "production_mult", "health_delta", "mortality_mult", "fertility_mult", "granary_loss", "heating_mult", "debt_cancel",
+)
 PERSON_EFFECTS = ("health_delta",)
 
 
@@ -28,12 +30,14 @@ class Modifiers:
     fertility_mult: np.ndarray
     granary_loss: np.ndarray
     heating_mult: np.ndarray
+    debt_cancel: np.ndarray
 
     @classmethod
     def neutral(cls, n_locations: int, n_businesses: int = 1) -> Modifiers:
         ones, zeros = np.ones(n_locations), np.zeros(n_locations)
         return cls(
-            np.ones((n_locations, n_businesses)), zeros.copy(), ones.copy(), ones.copy(), zeros.copy(), ones.copy()
+            np.ones((n_locations, n_businesses)), zeros.copy(), ones.copy(), ones.copy(), zeros.copy(), ones.copy(),
+            zeros.copy(),
         )
 
 
@@ -199,8 +203,9 @@ def modifiers(world: World, businesses: tuple[str, ...] = ("farming",)) -> Modif
                         mods.production_mult[loc, b] *= value
             elif effect == "health_delta":
                 mods.health_delta[loc] += value
-            elif effect == "granary_loss":
-                mods.granary_loss[loc] = 1.0 - (1.0 - mods.granary_loss[loc]) * (1.0 - value)
+            elif effect in ("granary_loss", "debt_cancel"):
+                share = getattr(mods, effect)
+                share[loc] = 1.0 - (1.0 - share[loc]) * (1.0 - value)
             else:
                 getattr(mods, effect)[loc] *= value
     return mods

@@ -101,7 +101,7 @@ def plan_family_food(
     buy the rest of its need. It sells only what is beyond the store it
     needs to eat fully until its harvests come in, plus `keep_months` of
     need as a margin, which it lets go when grain is dear (divided by the
-    grain `markup`, per village). `after_deductions` (per village) is the
+    grain `markup`, per village) or when it is in debt. `after_deductions` (per village) is the
     share of the harvest left after the council's levy.
     """
     loc = households.location
@@ -109,7 +109,8 @@ def plan_family_food(
     ration = rules.plan_ration(households.grain, need, outlook, config, most=1.0)
     own = np.minimum(ration * need, households.grain)
     dear = np.ones(len(loc)) if markup is None else np.maximum(markup[loc], 1.0)
-    keep = rules.stock_to_keep(need, outlook, config) + config.land.keep_months * need / dear
+    margin = np.where(households.debt > 0, 0.0, config.land.keep_months)  # debtors sell it to pay
+    keep = rules.stock_to_keep(need, outlook, config) + margin * need / dear
     spare = np.maximum(households.grain - np.maximum(keep, own), 0.0)
     return FoodPlan(own=own, spare=spare, want=np.maximum(need - own, 0.0))
 

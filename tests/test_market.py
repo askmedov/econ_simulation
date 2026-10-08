@@ -157,7 +157,8 @@ def test_firewood_is_stocked_up_before_winter():
 def test_families_keep_warm_through_ordinary_winters():
     config = replace(CONFIG, seed=2, months=60, random_events=False)
     records = Simulation(config).run()
-    assert min(r.warmth for r in records) > 0.95
+    # The poorest gather most of their fuel and go a little cold.
+    assert min(r.warmth for r in records) > 0.85
 
 
 def test_families_who_cannot_buy_firewood_gather_some():

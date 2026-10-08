@@ -290,7 +290,7 @@ poorest fifth's worst month, relief given and people treated.
 ### Kept simple for now
 
 - Each business type is one business per village (individual firms later).
-- No lending or rents (land holding came in Phase 2b).
+- No rents yet (land holding and lending came in Phase 2b).
 - The council's rules are fixed policies, not decisions.
 
 ## Stress test: does anything drift over decades? (built)
@@ -487,7 +487,7 @@ tested, sanity-checked and stress-tested:
 |---|---|---|
 | 1 | `claude/peasant-farms` | families hold land and grain; the harvest is shared out in kind; a grain market among families (built) |
 | 2 | `claude/seed-and-livestock` | seed kept back from each harvest; plough animals, herds and their losses; a high-pressure demography (built) |
-| 3 | `claude/debt-and-distress` | grain and coin loans, then sales of animals and land, in bad years |
+| 3 | `claude/debt-and-distress` | loans, foreclosure, distress land sales, a debt jubilee (built) |
 | 4 | `claude/lord-and-state` | a lord's land and rent in kind, taxes in coin, the lord's granary |
 | 5 | `claude/regional-market` | a town grain price with a transport cost; people leave and arrive |
 | 6 | `claude/household-work` | everyone at harvest, women's spinning and weaving at home, kin who help |
@@ -582,6 +582,42 @@ while people starved; seed sized by the village's full labour force grew
 as weak survivors harvested less; and seed for all the land meant the
 survivors of a famine could never sow enough, so villages died out to the
 last person. Each was a rule no farmer would follow.
+
+### 3. Debt, distress sales and a land market (built)
+
+- **Help is mostly credit.** Neighbours' gifts cover at most half of what
+  a family is short for its food; for the rest it sells animals, then
+  borrows, then sells land. Firewood is gathered (up to 80% of the need)
+  rather than borrowed for.
+- **Loans** come from families with coins to spare (half of their spare),
+  at 30% a year, up to half of what the borrower's land and animals are
+  worth plus two months' wages on its word. Loans are pooled in each
+  village: every borrower owes the village's lenders, who share
+  repayments by their claims. Borrowers pay half their coin income toward
+  their debts, and sell the grain they would otherwise keep as a margin.
+- **Foreclosure.** A debt that passes 80% of what a family's animals and
+  land are worth costs it animals, then land, until it is back to half of
+  what is left; the biggest creditors take them. Debt beyond twice what a
+  family could ever borrow is written off, a loss to the lenders.
+- **Land sales.** Families still short sell land to the families with the
+  most coins to spare; land is worth 15 years of its rent at the usual
+  grain price, and when many must sell at once its price falls, to 30% of
+  its worth at worst.
+- **Jubilee:** a `debt_jubilee` event cancels all debts (`--event
+  debt_jubilee@MONTH`), the what-if of Hammurabi's edicts and Solon's
+  "shaking off of burdens".
+- **New measures:** debt, families in debt, interest, borrowing and
+  repayment, land sold and foreclosed, animals foreclosed, land price.
+
+**What it changes.** Borrowing follows the hungry gap each spring and
+summer, and bad years leave debts behind. Over 40 years a seventh to a
+quarter of the land changes hands through debt, the land Gini rises from
+about 0.63 to 0.75-0.85, and the landless share (also swelled by younger
+sons founding households of their own) rises from about 30% to between 30%
+and 65%, depending on the run's bad years: the slow polarisation that
+debt cancellations were meant to stop. A three-year what-if is mostly
+unchanged by credit: in a drought, without a council, about 18 extra
+deaths and landless families at 54% of their need in the worst month.
 
 ### Money is metal, not paper
 

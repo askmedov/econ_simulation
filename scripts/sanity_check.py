@@ -78,7 +78,10 @@ def problems(sim: Simulation, extreme: bool = False) -> list[tuple[str, int]]:
             flag("age groups don't add up", r.month_number)
         if extreme:
             continue
-        if one_village and r.food_needed > 0 and r.ration < 0.95 and r.food_stock > 6 * r.food_needed:
+        # Families own their stores now, so a poor family can go short while a
+        # rich one holds plenty; but the whole village going hungry amid
+        # full stores means something is broken.
+        if one_village and r.food_needed > 0 and r.ration < 0.85 and r.food_stock > 6 * r.food_needed:
             flag("rationing with 6+ months of food in store", r.month_number)
         if r.food_needed > 0 and r.food_stock > 36 * r.food_needed:
             flag("more than 3 years of food in store", r.month_number)

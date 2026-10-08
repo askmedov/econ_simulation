@@ -130,10 +130,11 @@ def distress_sales(
     price = np.maximum(price, cfg.lowest_price * worth)
     sold = np.minimum(offered, np.divide(coins, price, out=np.zeros(n), where=price > 0))
     filled = np.divide(sold, offered, out=np.zeros(n), where=offered > 0)
-    paid = sold * price
-    spend = np.divide(budget, coins[loc], out=np.zeros_like(budget), where=coins[loc] > 0) * paid[loc]
-    got = np.divide(budget, coins[loc], out=np.zeros_like(budget), where=coins[loc] > 0) * sold[loc]
     selling = offer * filled[loc]
+    # The families with the most coins to spare buy them, as far as their coins go.
+    from econ_sim.credit import _biggest_first
+
+    got = _biggest_first(np.divide(budget, price[loc], out=np.zeros_like(budget), where=price[loc] > 0), sold, loc)
     households.animals += got - selling
-    households.money += selling * price[loc] - spend
+    households.money += (selling - got) * price[loc]
     return AnimalSales(sold=sold, price=price)

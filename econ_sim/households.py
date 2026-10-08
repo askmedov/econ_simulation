@@ -29,10 +29,12 @@ class Households:
     land: np.ndarray | None = None  # farmland held, in plots
     grain: np.ndarray | None = None  # food in the family's own store, in rations
     animals: np.ndarray | None = None  # livestock units
+    debt: np.ndarray | None = None  # coins owed to the village's lenders
+    lent: np.ndarray | None = None  # coins the family is owed (its claim on the village's borrowers)
 
     def __post_init__(self) -> None:
         self.location = np.asarray(self.location, dtype=np.int32)
-        for name in ("money", "land", "grain", "animals"):
+        for name in ("money", "land", "grain", "animals", "debt", "lent"):
             value = getattr(self, name)
             setattr(self, name, np.zeros(len(self.location)) if value is None else np.asarray(value, dtype=np.float64))
 
@@ -43,7 +45,7 @@ class Households:
         """Append empty households in these villages; returns their ids."""
         first = len(self)
         self.location = np.concatenate([self.location, np.asarray(location, dtype=np.int32)])
-        for name in ("money", "land", "grain", "animals"):
+        for name in ("money", "land", "grain", "animals", "debt", "lent"):
             setattr(self, name, np.concatenate([getattr(self, name), np.zeros(len(location))]))
         return first + np.arange(len(location))
 

@@ -32,13 +32,15 @@ def share_with_neighbours(
     """Families with plenty help families who can't afford their food.
 
     Savings above `sharing_threshold_months` of a family's own food cost are
-    given at `sharing_rate` a month into a village pot, which goes to families
-    short of money for this month's food, in proportion to the shortfall.
+    given at `sharing_rate` a month into a village pot, which covers up to
+    `gift_share` of what families are short of for this month's food and
+    firewood, in proportion to the shortfall (the rest they must borrow or
+    raise by selling).
     Changes `money` in place; returns the amount shared per village.
     """
     cfg = config.money
     surplus = np.maximum(0.0, money - cfg.sharing_threshold_months * cost)
-    shortfall = np.maximum(0.0, cost - money)
+    shortfall = cfg.gift_share * np.maximum(0.0, cost - money)
     offered = by_village(cfg.sharing_rate * surplus, location, n_locations)
     wanted = by_village(shortfall, location, n_locations)
     pot = np.minimum(offered, wanted)

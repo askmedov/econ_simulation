@@ -6,7 +6,7 @@ import calendar
 
 import numpy as np
 
-from econ_sim import council, economy, events, farms, healthcare, households, livestock, market, metrics, rules
+from econ_sim import council, credit, economy, events, farms, healthcare, households, livestock, market, metrics, rules
 from econ_sim.config import Config
 from econ_sim.metrics import MonthRecord
 from econ_sim.rng import RandomStreams
@@ -58,6 +58,9 @@ class Simulation:
         mods = events.modifiers(world, names)
         farm, food = config.farming, world.food
         hh = world.households
+        # Debts grow by a month's interest; a ruler may cancel them.
+        interest = credit.accrue_interest(hh, config)
+        cancelled = credit.cancel_debts(hh, mods.debt_cancel)
         # Fire or pests strike stored grain: families' stores and the farms'.
         lost_by_family = hh.grain * mods.granary_loss[hh.location]
         hh.grain -= lost_by_family
@@ -156,9 +159,12 @@ class Simulation:
         firewood_need = heating[world.month_of_year - 1]
         family_fuel = members * firewood_need * mods.heating_mult[hh.location]
         essentials = plan.want * world.prices[hh.location, food] + family_fuel * world.prices[hh.location, fuel]
-        # Families keep coins for a few months of all their food and firewood
-        # before spending on comforts, even if they live off their own grain now.
-        usual_costs = family_food * world.prices[hh.location, food] + family_fuel * world.prices[hh.location, fuel]
+        # Families keep coins for a few months of firewood and of whatever food
+        # their own store won't cover, before they spend on comforts, lend, or
+        # buy animals and land.
+        months = config.needs.savings_months
+        uncovered = np.maximum(months * family_food - hh.grain, 0.0)
+        coin_target = uncovered * world.prices[hh.location, food] + months * family_fuel * world.prices[hh.location, fuel]
         offer = world.stock.copy()
         offer[:, food] = market.by_village(plan.spare, hh.location, n) + world.farm_grain
         stock_before = world.stock.copy()
@@ -172,8 +178,26 @@ class Simulation:
         # when many must sell at once, the price collapses.
         worth = config.livestock.value_months * world.wage_level
         animal_sales = livestock.distress_sales(
-            hh, np.maximum(essentials - hh.money, 0.0), hh.money - config.needs.savings_months * usual_costs, worth, config
+            hh, np.maximum(essentials - hh.money, 0.0), hh.money - coin_target, worth, config
         )
+        # Then they borrow against their land and animals (and a little on
+        # their word); failing that, they sell land. Land is worth some years
+        # of its rent at the usual grain price.
+        normal_food_price = world.food_price / np.maximum(world.markup[:, food], 1e-9)
+        yearly_net = np.maximum(12.0 * normal_gross - seed_needed, 0.0)
+        land_part = (1.0 - config.food.labor_share) * (1.0 - livestock.owners_part(animal_factor))
+        rent = np.divide(land_part * yearly_net, world.land, out=np.zeros(n), where=world.land > 0) * normal_food_price
+        plot_price = credit.land_price(rent, config)
+        # Only food is worth debt or land: firewood can be gathered.
+        food_cost = plan.want * world.food_price[hh.location]
+        borrowed = np.zeros(n)
+        if config.credit.enabled:
+            borrowed = credit.borrow(
+                hh, np.maximum(food_cost - hh.money, 0.0), hh.money - coin_target,
+                credit.collateral(hh, plot_price, worth), config.credit.personal_months * world.wage_level[hh.location],
+                config,
+            )
+        land_sales = credit.sell_land(hh, np.maximum(food_cost - hh.money, 0.0), hh.money - coin_target, plot_price, config)
 
         # 5. Markets, most needed first. Businesses buy supplies and tools
         # with part of their cash, before paying wages.
@@ -244,7 +268,7 @@ class Simulation:
             elif spec.use == "heating":
                 trade(product, family_fuel, hh.money, business_want(product))
             elif spec.use == "comfort":
-                spare = np.maximum(0.0, hh.money - config.needs.savings_months * usual_costs)
+                spare = np.maximum(0.0, hh.money - coin_target)
                 spend = config.needs.spare_spending * spare
                 price = world.prices[hh.location, product]
                 want = np.divide(spend, price, out=np.zeros_like(spend), where=(spend > 0) & (price > 0))
@@ -306,6 +330,12 @@ class Simulation:
         healer_income, _ = council.pay_staff(pop, world.council, healer, healer_pay, n_hh)
         hh.money += healer_income
         world.council_costs = running_costs
+        # Borrowers pay part of their income toward their debts; debts that
+        # outgrow a family's animals and land cost them those.
+        repaid = credit.repay(hh, income + staff_income + healer_income, config)
+        foreclosed = credit.foreclose(hh, plot_price, worth, config)
+        limit = config.credit.loan_to_value * credit.collateral(hh, plot_price, worth)
+        written_off = credit.default(hh, limit + config.credit.personal_months * world.wage_level[hh.location], config)
         # The customary wage that fair prices are reckoned in rises slowly
         # while families hold more money than `money_months` of their coin
         # earnings (averaged over a year), and falls while they hold less:
@@ -375,6 +405,7 @@ class Simulation:
         poorest = metrics.poorest_fifth_ration(wealth, households.sizes(pop, n_hh), family_eaten, family_food)
         weddings = households.marry(pop, hh, config, streams["marriage"], willing)
         size = households.sizes(pop, len(hh))
+        credit.write_off(hh, size == 0)
         households.pass_on_savings(hh, size, world.council.treasury, world.council.formed)
         levied += households.pass_on_land_and_grain(hh, size, world.council.reserve, world.council.formed)
 
@@ -429,6 +460,17 @@ class Simulation:
             animals_lost=float(animals_lost.sum() + culled.sum()),
             animals_sold=float(animal_sales.sold.sum()),
             animal_price=float(animal_sales.price.mean()),
+            debt=float(hh.debt.sum()),
+            debtors=int(((hh.debt > 0.01) & (size > 0)).sum()),
+            interest=float(interest.sum()),
+            borrowed=float(borrowed.sum()),
+            repaid=float(repaid.sum()),
+            debts_cancelled=float(cancelled.sum()),
+            debts_written_off=float(written_off.sum()),
+            land_sold=float(land_sales.plots.sum()),
+            land_foreclosed=float(foreclosed.land.sum()),
+            animals_foreclosed=float(foreclosed.animals.sum()),
+            land_price=float(plot_price.mean()),
             food_stock=float(world.granary.sum()),
             food_margin=float((normal_gross - seed_needed / 12.0).sum() / need.sum()) if need.sum() > 0 else 0.0,
             food_cover=float(np.average(supply_cover, weights=np.maximum(need, 1e-9))),

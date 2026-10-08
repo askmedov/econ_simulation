@@ -214,8 +214,8 @@ class NeedsConfig:
     savings_months: float = 3.0
     spare_spending: float = 0.3
     # Families who can't buy all the firewood they need gather up to this
-    # share of it themselves, from woods, hedges and fields.
-    gathering: float = 0.5
+    # share of it themselves: wood, furze, dung and peat from the commons.
+    gathering: float = 0.8
 
 
 @dataclass(frozen=True)
@@ -273,6 +273,9 @@ class MoneyConfig:
     # `sharing_rate` of the excess each month to families who can't afford food.
     sharing_threshold_months: float = 2.0
     sharing_rate: float = 0.25
+    # Gifts cover at most this share of a family's shortfall; for the rest it
+    # must borrow, or sell animals or land.
+    gift_share: float = 0.5
 
 
 @dataclass(frozen=True)
@@ -331,6 +334,40 @@ class LivestockConfig:
 
 
 @dataclass(frozen=True)
+class CreditConfig:
+    """Loans between families, and what happens when they can't repay."""
+
+    enabled: bool = True
+    # A year's interest: grain loans in Hammurabi's Babylon were capped at a
+    # third; medieval rates ran from a tenth to a half.
+    interest: float = 0.3
+    # Families with coins beyond their savings target lend up to this share
+    # of the excess to families who can't afford their food.
+    lend_share: float = 0.5
+    # A family can borrow up to this share of what its land and animals are
+    # worth, plus `personal_months` of the customary wage on its word alone.
+    loan_to_value: float = 0.5
+    personal_months: float = 2.0
+    # Borrowers pay this share of each month's coin income toward their
+    # debts (and sell the grain they would otherwise keep as a margin).
+    repay_share: float = 0.5
+    # When a debt passes this share of what a family's animals and land are
+    # worth, the lenders take them (animals first) until it is back to
+    # `loan_to_value` of what is left.
+    foreclose_at: float = 0.8
+    # Debt beyond this many times a family's credit limit can never be
+    # repaid: the lenders write it off.
+    default_at: float = 2.0
+    # Land sells for this many years of its rent; families still short of
+    # food sell land to families with coins to spare, who put up to
+    # `buyers_spend` of their spare coins into it. With many sellers the
+    # price falls, to no less than `lowest_price` of its worth.
+    years_purchase: float = 15.0
+    buyers_spend: float = 0.5
+    lowest_price: float = 0.3
+
+
+@dataclass(frozen=True)
 class CouncilConfig:
     enabled: bool = True  # False: the village never forms a council
     # A council forms once the village has had this many people for this long.
@@ -384,6 +421,7 @@ class EventSpec:
       mortality_mult   multiplies age-based death risk (hits young and old hardest)
       fertility_mult   multiplies birth chance
       granary_loss     share of stored food destroyed
+      debt_cancel      share of debts cancelled by decree
 
     Location events hit everyone in a village. Person events hit each person
     independently, last one month and support only health_delta for now.
@@ -461,6 +499,13 @@ DEFAULT_EVENTS: tuple[EventSpec, ...] = (
         message="Plague: a deadly epidemic sweeps the village",
     ),
     EventSpec(
+        name="debt_jubilee",
+        scope="location",
+        chance=0.0,  # only when scheduled: a what-if lever
+        effects={"debt_cancel": 1.0},
+        message="The ruler cancels all debts",
+    ),
+    EventSpec(
         name="granary_fire",
         scope="location",
         chance=0.01,
@@ -501,6 +546,7 @@ class Config:
     trade: TradeConfig = field(default_factory=TradeConfig)
     land: LandConfig = field(default_factory=LandConfig)
     livestock: LivestockConfig = field(default_factory=LivestockConfig)
+    credit: CreditConfig = field(default_factory=CreditConfig)
     council: CouncilConfig = field(default_factory=CouncilConfig)
     healthcare: HealthcareConfig = field(default_factory=HealthcareConfig)
     products: tuple[ProductSpec, ...] = DEFAULT_PRODUCTS

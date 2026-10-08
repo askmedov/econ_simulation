@@ -44,6 +44,17 @@ class MonthRecord:
     animals_lost: float  # died this month, net of births (negative: the herds grew)
     animals_sold: float  # sold by families who couldn't afford their food
     animal_price: float  # coins per animal at this month's sales
+    debt: float  # coins families owe the village's lenders
+    debtors: int  # families in debt
+    interest: float  # coins of interest added to debts this month
+    borrowed: float  # coins lent to families who couldn't afford their food
+    repaid: float  # coins paid back
+    debts_cancelled: float  # coins of debt cancelled by decree
+    debts_written_off: float  # coins of debt that could never be repaid, lost to the lenders
+    land_sold: float  # plots sold by families who couldn't afford their food
+    land_foreclosed: float  # plots taken by lenders for debts
+    animals_foreclosed: float  # animals taken by lenders for debts
+    land_price: float  # coins a plot is worth (years of its rent)
     food_stock: float  # at the end of the month
     food_margin: float  # normal harvest over need; below ~1.05 the land is crowded
     food_cover: float  # stores plus expected harvests, as a share of the coming year's need
