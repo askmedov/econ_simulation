@@ -9,8 +9,10 @@ from econ_sim.population import NO_JOB
 from econ_sim.world import World
 
 
-def _close(a: np.ndarray, b: np.ndarray, scale: np.ndarray) -> bool:
-    return bool(np.all(np.abs(a - b) <= 1e-6 * np.maximum(scale, 1.0)))
+def _close(a: np.ndarray, b: np.ndarray, scale: np.ndarray, floor: float = 1.0) -> bool:
+    """Equal up to rounding: a millionth of `scale`, or of `floor` when the
+    values are small (rounding left from when they were large)."""
+    return bool(np.all(np.abs(a - b) <= 1e-6 * np.maximum(scale, floor)))
 
 
 def broken_invariants(world: World) -> list[str]:
@@ -27,7 +29,7 @@ def broken_invariants(world: World) -> list[str]:
         broken.append("land not conserved")
     # Debts and claims on them balance in every village.
     debt, lent = per_village(hh.debt), per_village(hh.lent)
-    if not _close(debt, lent, np.maximum(debt, lent)):
+    if not _close(debt, lent, np.maximum(debt, lent), floor=1000.0):  # a thousandth of a coin
         broken.append("debts and claims don't balance")
     # Nothing held is negative.
     held = {

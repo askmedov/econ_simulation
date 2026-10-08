@@ -509,9 +509,12 @@ class MigrationConfig:
     flee_chance: float = 0.05
     # When a wage buys more than `welcome_cover` of a family's food, about
     # `arrive_rate` young people a month per 1,000 villagers per unit of cover
-    # above it come from the region, as servants of landholding families.
+    # above it come from the region, as servants of landholding families; the
+    # pull stops growing `max_pull` above it (word travels, but only so many
+    # can come: at most about 6% of the village a year).
     welcome_cover: float = 1.3
     arrive_rate: float = 5.0
+    max_pull: float = 1.0
 
 
 @dataclass(frozen=True)

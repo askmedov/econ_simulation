@@ -96,3 +96,13 @@ def test_a_debased_coinage_raises_prices_in_coins():
     assert np.isclose(after[-1].town_price, before[-1].town_price / (1 - 0.25))
     late = slice(36, 48)
     assert np.mean([r.food_price for r in after[late]]) > np.mean([r.food_price for r in before[late]])
+
+
+def test_a_wage_that_buys_plenty_draws_only_so_many_newcomers():
+    cfg = CONFIG.migration
+    pop = people([40] * 100, list(range(100)), married=[True] * 100)
+    hh = Households(np.zeros(100), land=np.ones(100))
+    at_cap = cfg.welcome_cover + cfg.max_pull
+    capped = migration.arrive(pop.select(np.arange(100)), hh, np.array([at_cap]), CONFIG, np.random.default_rng(3))
+    beyond = migration.arrive(pop.select(np.arange(100)), hh, np.array([at_cap + 5.0]), CONFIG, np.random.default_rng(3))
+    assert capped[0] == beyond[0]

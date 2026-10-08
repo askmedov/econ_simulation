@@ -75,7 +75,7 @@ def arrive(
     if not cfg.enabled:
         return arrived
     people = rules.by_location(population.count.astype(np.float64), population, n)
-    expected = cfg.arrive_rate * people / 1000.0 * np.maximum(cover - cfg.welcome_cover, 0.0)
+    expected = cfg.arrive_rate * people / 1000.0 * np.clip(cover - cfg.welcome_cover, 0.0, cfg.max_pull)
     count = rng.poisson(expected)
     rows = []
     hosting = (households.land > 0) & (sizes(population, len(households)) > 0)
