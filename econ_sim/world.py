@@ -6,10 +6,11 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from econ_sim import council, economy, livestock, rules
+from econ_sim import council, economy, livestock, lords, rules
 from econ_sim.council import Councils
 from econ_sim.config import Config, EventSpec
 from econ_sim.households import Households, assign_land, form_households
+from econ_sim.lords import Lords
 from econ_sim.population import Population
 from econ_sim.rng import RandomStreams
 
@@ -44,12 +45,15 @@ class World:
     council_costs: np.ndarray | None = None  # last month's council running costs, per village
     coin_earnings: np.ndarray | None = None  # running average of families' monthly coin income, per village
     seed: np.ndarray | None = None  # grain kept back to sow at the next sowing, per village (set in the first month)
+    lord: Lords | None = None  # the lord's demesne, barn and purse, and the state's purse
     sown: np.ndarray | None = None  # share of the needed seed sown at the last sowing, per village
 
     def __post_init__(self) -> None:
         n = len(self.names)
         if self.council_costs is None:
             self.council_costs = np.zeros(n)
+        if self.lord is None:
+            self.lord = Lords.none(n)
         if self.sown is None:
             self.sown = np.ones(n)
 
@@ -88,9 +92,14 @@ class World:
         return len(self.names)
 
     @property
-    def money(self) -> float:
-        """All coins in the world; never changes."""
+    def village_money(self) -> float:
+        """Coins held in the villages: by families, businesses and councils."""
         return float(self.households.money.sum() + self.cash.sum() + self.council.treasury.sum())
+
+    @property
+    def money(self) -> float:
+        """All coins, including those the lord and the state took away; never changes."""
+        return self.village_money + float(self.lord.purse.sum() + self.lord.state_purse.sum())
 
 
 def create_world(config: Config, streams: RandomStreams) -> World:
@@ -111,8 +120,10 @@ def create_world(config: Config, streams: RandomStreams) -> World:
     boost = np.array([b.tool_boost for b in config.businesses])
     tools = np.where(boost > 0, workers, 0.0)
 
-    # Families hold the land, and landholders the plough animals.
-    assign_land(households, population, land, config, streams["land"])
+    # The lord holds his demesne; families hold the rest, and landholders
+    # the plough animals.
+    demesne = lords.take_demesne(land, config)
+    assign_land(households, population, land - demesne, config, streams["land"])
     livestock.place_herds(households, land, config, streams["land"])
     animals = livestock.farm_factor(np.bincount(households.location, weights=households.animals, minlength=n), land, config)
 
@@ -185,6 +196,7 @@ def create_world(config: Config, streams: RandomStreams) -> World:
         food=food,
         council=councils,
         names=tuple(v.name for v in config.villages),
+        lord=Lords(land=demesne, barn=np.zeros(n), purse=np.zeros(n), state_purse=np.zeros(n)),
     )
 
 

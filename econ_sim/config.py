@@ -368,6 +368,42 @@ class CreditConfig:
 
 
 @dataclass(frozen=True)
+class LordConfig:
+    """A lord who holds part of the land and takes its harvest out of the village."""
+
+    enabled: bool = True
+    # Share of the village's land held by the lord (his demesne): its share
+    # of each harvest goes to his barn. Tenants also owe labour days: this
+    # share of the farm workers' labour share goes to him unpaid.
+    demesne: float = 0.25
+    labour_service: float = 0.1
+    # Each month this share of his barn is carted away to his hall, his
+    # steward sells up to `sells` of the rest in the village (the coins go
+    # into his purse, outside the village), and his household spends
+    # `spends_locally` of his purse on the village's cloth.
+    carted_away: float = 0.2
+    sells: float = 0.3
+    spends_locally: float = 0.05
+    # A what-if lever: a lord who opens his barn to the hungry in a famine.
+    charity_in_famine: bool = False
+
+
+@dataclass(frozen=True)
+class StateConfig:
+    """A state that taxes the village in coin once a year, after harvest."""
+
+    enabled: bool = True
+    collection_month: int = 11
+    # Every household pays this many months of the customary wage, and
+    # families pay `land_tax` of a year's rent on every plot they hold.
+    # Families without the coins have grain seized; the rest is let go.
+    hearth_tax_months: float = 0.5
+    land_tax: float = 0.1
+    # A what-if lever: no tax in a famine year.
+    remit_in_famine: bool = False
+
+
+@dataclass(frozen=True)
 class CouncilConfig:
     enabled: bool = True  # False: the village never forms a council
     # A council forms once the village has had this many people for this long.
@@ -422,6 +458,7 @@ class EventSpec:
       fertility_mult   multiplies birth chance
       granary_loss     share of stored food destroyed
       debt_cancel      share of debts cancelled by decree
+      requisition      share of stored grain and animals taken by soldiers or raiders
 
     Location events hit everyone in a village. Person events hit each person
     independently, last one month and support only health_delta for now.
@@ -499,6 +536,24 @@ DEFAULT_EVENTS: tuple[EventSpec, ...] = (
         message="Plague: a deadly epidemic sweeps the village",
     ),
     EventSpec(
+        name="army",
+        scope="location",
+        chance=0.003,
+        duration=1,
+        group="soldiers",
+        effects={"requisition": (0.2, 0.4), "health_delta": -5.0},
+        message="An army passes through: soldiers take grain and animals",
+    ),
+    EventSpec(
+        name="raid",
+        scope="location",
+        chance=0.002,
+        duration=1,
+        group="soldiers",
+        effects={"requisition": (0.1, 0.3), "mortality_mult": 1.5, "health_delta": -5.0},
+        message="Raiders strike: grain and animals taken, people killed",
+    ),
+    EventSpec(
         name="debt_jubilee",
         scope="location",
         chance=0.0,  # only when scheduled: a what-if lever
@@ -547,6 +602,8 @@ class Config:
     land: LandConfig = field(default_factory=LandConfig)
     livestock: LivestockConfig = field(default_factory=LivestockConfig)
     credit: CreditConfig = field(default_factory=CreditConfig)
+    lord: LordConfig = field(default_factory=LordConfig)
+    state: StateConfig = field(default_factory=StateConfig)
     council: CouncilConfig = field(default_factory=CouncilConfig)
     healthcare: HealthcareConfig = field(default_factory=HealthcareConfig)
     products: tuple[ProductSpec, ...] = DEFAULT_PRODUCTS

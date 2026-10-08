@@ -58,7 +58,10 @@ def problems(sim: Simulation, extreme: bool = False) -> list[tuple[str, int]]:
     def flag(name: str, month: int) -> None:
         found.append((name, month))
 
-    money = records[0].savings + records[0].business_cash + records[0].treasury if records else 0.0
+    def coins(r) -> float:
+        return r.savings + r.business_cash + r.treasury + r.lord_purse + r.state_purse
+
+    money = coins(records[0]) if records else 0.0
     start_prices = dict(records[0].prices) if records else {}
     hungry_amid_plenty = 0
     for r in records:
@@ -68,7 +71,7 @@ def problems(sim: Simulation, extreme: bool = False) -> list[tuple[str, int]]:
         if min(r.population, r.food_stock, r.food_eaten, r.food_produced, r.avg_health, r.savings, r.business_cash,
                r.treasury, r.food_reserve) < 0:
             flag("negative value", r.month_number)
-        if not math.isclose(r.savings + r.business_cash + r.treasury, money, rel_tol=1e-6, abs_tol=1e-6):
+        if not math.isclose(coins(r), money, rel_tol=1e-6, abs_tol=1e-6):
             flag("money created or destroyed", r.month_number)
         if not all(price > 0 for price in r.prices.values()) and r.population > 0:
             flag("price not positive", r.month_number)

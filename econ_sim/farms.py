@@ -27,60 +27,63 @@ def by_village(values: np.ndarray, location: np.ndarray, n_locations: int) -> np
 
 def income_shares(
     population: Population, households: Households, village_land: np.ndarray, config: Config,
-    animals_part: np.ndarray | None = None,
-) -> np.ndarray:
-    """Each household's share of its village's harvest (after deductions):
-    `animals_part` (per village) to the owners of plough animals by their
-    animals; of the rest, the labour share by its farm work and the land
-    share by its plots."""
+    animals_part: np.ndarray | None = None, lord_land: np.ndarray | None = None,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Each household's share of its village's harvest (after deductions),
+    and the lord's share per village.
+
+    `animals_part` (per village) goes to the owners of plough animals by
+    their animals; of the rest, the labour share goes to families by their
+    farm work (less the labour days owed to the lord, `labour_service`) and
+    the land share to the holders of the land by their plots, the lord's
+    demesne (`lord_land`) included.
+    """
     n, n_households = len(village_land), len(households)
-    rest = _work_and_land_shares(population, households, village_land, config)
-    if animals_part is None:
-        return rest
     loc = households.location
-    herd = by_village(households.animals, loc, n)
-    owned = np.divide(households.animals, herd[loc], out=np.zeros(n_households), where=herd[loc] > 0)
-    part = np.where(herd > 0, animals_part, 0.0)[loc]
-    return part * owned + (1.0 - part) * rest
-
-
-def _work_and_land_shares(
-    population: Population, households: Households, village_land: np.ndarray, config: Config
-) -> np.ndarray:
-    n, n_households = len(village_land), len(households)
     a = config.food.labor_share
+    lord = np.zeros(n) if lord_land is None else lord_land
     effort = economy.household_effort(population, config.farming, n_households, config)
-    total_effort = by_village(effort, households.location, n)
-    held = by_village(households.land, households.location, n)
-    loc = households.location
+    total_effort = by_village(effort, loc, n)
+    all_land = by_village(households.land, loc, n) + lord
     work = np.divide(effort, total_effort[loc], out=np.zeros(n_households), where=total_effort[loc] > 0)
-    land = np.divide(households.land, held[loc], out=np.zeros(n_households), where=held[loc] > 0)
+    land = np.divide(households.land, all_land[loc], out=np.zeros(n_households), where=all_land[loc] > 0)
     # Where nobody holds land (or nobody farms), the other share goes to the workers (or holders).
-    land_part = np.where(held[loc] > 0, 1.0 - a, 0.0)
-    work_part = np.where(total_effort[loc] > 0, a, 0.0)
+    land_part = np.where(all_land > 0, 1.0 - a, 0.0)
+    work_part = np.where(total_effort > 0, a, 0.0)
     total = land_part + work_part
-    work_part = np.divide(work_part, total, out=np.zeros(n_households), where=total > 0)
-    land_part = np.divide(land_part, total, out=np.zeros(n_households), where=total > 0)
-    return work_part * work + land_part * land
+    land_part = np.divide(land_part, total, out=np.zeros(n), where=total > 0)
+    work_part = np.divide(work_part, total, out=np.zeros(n), where=total > 0)
+    service = np.where(lord > 0, config.lord.labour_service, 0.0)
+    to_lord = land_part * np.divide(lord, all_land, out=np.zeros(n), where=all_land > 0) + work_part * service
+    shares = work_part[loc] * (1.0 - service[loc]) * work + land_part[loc] * land
+    if animals_part is not None:
+        herd = by_village(households.animals, loc, n)
+        owned = np.divide(households.animals, herd[loc], out=np.zeros(n_households), where=herd[loc] > 0)
+        part = np.where(herd > 0, animals_part, 0.0)
+        shares = part[loc] * owned + (1.0 - part[loc]) * shares
+        to_lord = (1.0 - part) * to_lord
+    return shares, to_lord
 
 
 def share_harvest(
-    households: Households, farm_grain: np.ndarray, keep_for_tools: np.ndarray, shares: np.ndarray
-) -> np.ndarray:
+    households: Households, farm_grain: np.ndarray, keep_for_tools: np.ndarray, shares: np.ndarray,
+    to_lord: np.ndarray | None = None,
+) -> tuple[np.ndarray, np.ndarray]:
     """Move the farms' grain, beyond what they keep to sell for tools, into
-    families' stores by their `shares`. Changes `farm_grain`; returns grain
-    received per household."""
+    families' stores by their `shares` and to the lord by his. Changes
+    `farm_grain`; returns (grain received per household, grain for the lord
+    per village)."""
     n = len(farm_grain)
-    to_share = np.maximum(farm_grain - keep_for_tools, 0.0)
-    shared_out = by_village(shares, households.location, n)
+    loc = households.location
+    lord = np.zeros(n) if to_lord is None else to_lord
+    claims = by_village(shares, loc, n) + lord
     # Villages where nobody has a claim keep their grain in the farm store.
-    to_share = np.where(shared_out > 0, to_share, 0.0)
-    received = to_share[households.location] * np.divide(
-        shares, shared_out[households.location], out=np.zeros_like(shares), where=shared_out[households.location] > 0
-    )
+    to_share = np.where(claims > 0, np.maximum(farm_grain - keep_for_tools, 0.0), 0.0)
+    per_claim = np.divide(to_share, claims, out=np.zeros(n), where=claims > 0)
+    received = shares * per_claim[loc]
     farm_grain -= to_share
     households.grain += received
-    return received
+    return received, lord * per_claim
 
 
 @dataclass
@@ -116,16 +119,18 @@ def plan_family_food(
 
 
 def sellers_share(sold: np.ndarray, offered_by_families: np.ndarray, farm_offer: np.ndarray,
-                  location: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+                  location: np.ndarray, lord_offer: np.ndarray | None = None
+                  ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Split each village's grain sales between the farm store (sold first:
-    it is grain kept back to pay for tools) and the families who offered
-    grain, in proportion to what each offered. Returns (sold per household,
-    sold by the farm store per village)."""
+    it is grain kept back to pay for tools), and the families and the lord's
+    steward who offered grain, in proportion to what each offered. Returns
+    (sold per household, sold by the farm store, sold by the lord) per village."""
     n = len(farm_offer)
+    lord = np.zeros(n) if lord_offer is None else lord_offer
     by_farms = np.minimum(sold, farm_offer)
-    offered = by_village(offered_by_families, location, n)
-    filled = np.divide(sold - by_farms, offered, out=np.zeros(n), where=offered > 0)
-    return offered_by_families * np.minimum(filled, 1.0)[location], by_farms
+    offered = by_village(offered_by_families, location, n) + lord
+    filled = np.minimum(np.divide(sold - by_farms, offered, out=np.zeros(n), where=offered > 0), 1.0)
+    return offered_by_families * filled[location], by_farms, lord * filled
 
 
 def seed_needed(farmed: np.ndarray, config: Config) -> np.ndarray:

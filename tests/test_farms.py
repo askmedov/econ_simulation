@@ -34,19 +34,31 @@ def test_harvest_goes_to_workers_by_work_and_to_landholders_by_land():
     # nobody in it farms; household 2 is a smith's family.
     pop = workers([FARM, 3, 3], [0, 1, 2])
     hh = Households(np.zeros(3), land=np.array([0.0, 10.0, 0.0]))
-    shares = farms.income_shares(pop, hh, np.array([10.0]), CONFIG)
+    shares, to_lord = farms.income_shares(pop, hh, np.array([10.0]), CONFIG)
     a = CONFIG.food.labor_share
-    assert np.allclose(shares, [a, 1 - a, 0.0])
+    assert np.allclose(shares, [a, 1 - a, 0.0]) and to_lord[0] == 0
     farm_grain = np.array([100.0])
-    received = farms.share_harvest(hh, farm_grain, np.array([20.0]), shares)
-    assert np.allclose(received, [80 * a, 80 * (1 - a), 0.0])
+    received, rent = farms.share_harvest(hh, farm_grain, np.array([20.0]), shares)
+    assert np.allclose(received, [80 * a, 80 * (1 - a), 0.0]) and rent[0] == 0
     assert np.isclose(farm_grain[0], 20.0) and np.allclose(hh.grain, received)
+
+
+def test_the_lord_takes_his_demesnes_share_and_labour_days():
+    pop = workers([FARM, 3], [0, 1])
+    hh = Households(np.zeros(2), land=np.array([0.0, 6.0]))
+    shares, to_lord = farms.income_shares(pop, hh, np.array([10.0]), CONFIG, lord_land=np.array([4.0]))
+    a, service = CONFIG.food.labor_share, CONFIG.lord.labour_service
+    assert np.isclose(shares[0], a * (1 - service)) and np.isclose(shares[1], (1 - a) * 0.6)
+    assert np.isclose(to_lord[0], (1 - a) * 0.4 + a * service)
+    assert np.isclose(shares.sum() + to_lord[0], 1.0)
+    received, rent = farms.share_harvest(hh, np.array([100.0]), np.zeros(1), shares, to_lord)
+    assert np.isclose(received.sum() + rent[0], 100.0)
 
 
 def test_with_nobody_holding_land_the_workers_get_it_all():
     pop = workers([FARM, FARM], [0, 1])
     hh = Households(np.zeros(2))
-    assert np.allclose(farms.income_shares(pop, hh, np.array([10.0]), CONFIG), [0.5, 0.5])
+    assert np.allclose(farms.income_shares(pop, hh, np.array([10.0]), CONFIG)[0], [0.5, 0.5])
 
 
 def test_stock_to_keep_is_what_a_full_ration_needs():
@@ -71,16 +83,17 @@ def test_families_eat_from_their_store_sell_their_spare_and_buy_what_they_lack()
 
 
 def test_the_farm_store_sells_first_then_families_by_what_they_offered():
-    sold_by_family, by_farms = farms.sellers_share(
-        np.array([50.0]), np.array([30.0, 90.0]), np.array([20.0]), np.zeros(2, dtype=np.int32)
+    sold_by_family, by_farms, by_lord = farms.sellers_share(
+        np.array([50.0]), np.array([30.0, 90.0]), np.array([20.0]), np.zeros(2, dtype=np.int32), np.array([30.0])
     )
-    assert by_farms[0] == 20.0 and np.allclose(sold_by_family, [7.5, 22.5])
+    assert by_farms[0] == 20.0 and np.allclose(sold_by_family, [6.0, 18.0]) and np.isclose(by_lord[0], 6.0)
 
 
 def test_land_is_spread_with_some_families_landless():
     world = create_world(Config(seed=1), RandomStreams(1))
     hh = world.households
-    assert np.isclose(hh.land.sum(), world.land[0])
+    assert np.isclose(hh.land.sum() + world.lord.land[0], world.land[0])
+    assert np.isclose(world.lord.land[0], CONFIG.lord.demesne * world.land[0])
     landless = (hh.land == 0).mean()
     assert 0.15 < landless < 0.45
     holders = hh.land[hh.land > 0]
@@ -151,4 +164,4 @@ def test_two_villages_each_share_their_own_land():
     world = create_world(config, RandomStreams(1))
     hh = world.households
     for v, land in enumerate([350.0, 200.0]):
-        assert np.isclose(hh.land[hh.location == v].sum(), land)
+        assert np.isclose(hh.land[hh.location == v].sum() + world.lord.land[v], land)

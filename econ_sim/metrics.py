@@ -55,6 +55,16 @@ class MonthRecord:
     land_foreclosed: float  # plots taken by lenders for debts
     animals_foreclosed: float  # animals taken by lenders for debts
     land_price: float  # coins a plot is worth (years of its rent)
+    food_rent: float  # rations of the harvest that went to the lord (his demesne and labour days)
+    lord_carted: float  # rations carted from the lord's barn to his hall
+    lord_sold: float  # rations the lord's steward sold in the village
+    lord_relief: float  # rations a charitable lord gave the hungry
+    lord_barn: float  # rations in the lord's barn
+    lord_purse: float  # coins the lord has taken out of the village
+    state_tax: float  # coins the state collected this month
+    tax_grain: float  # rations seized from families who couldn't pay the state's tax
+    state_purse: float  # coins the state has taken out of the village
+    food_requisitioned: float  # rations soldiers or raiders took from families and farms
     food_stock: float  # at the end of the month
     food_margin: float  # normal harvest over need; below ~1.05 the land is crowded
     food_cover: float  # stores plus expected harvests, as a share of the coming year's need

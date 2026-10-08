@@ -6,7 +6,9 @@ import calendar
 
 import numpy as np
 
-from econ_sim import council, credit, economy, events, farms, healthcare, households, livestock, market, metrics, rules
+from econ_sim import (
+    council, credit, economy, events, farms, healthcare, households, livestock, lords, market, metrics, rules,
+)
 from econ_sim.config import Config
 from econ_sim.metrics import MonthRecord
 from econ_sim.rng import RandomStreams
@@ -61,6 +63,8 @@ class Simulation:
         # Debts grow by a month's interest; a ruler may cancel them.
         interest = credit.accrue_interest(hh, config)
         cancelled = credit.cancel_debts(hh, mods.debt_cancel)
+        # Soldiers or raiders take grain and animals.
+        requisitioned, taken_from_lord = lords.requisition(hh, world.lord, world.farm_grain, mods.requisition)
         # Fire or pests strike stored grain: families' stores and the farms'.
         lost_by_family = hh.grain * mods.granary_loss[hh.location]
         hh.grain -= lost_by_family
@@ -143,11 +147,16 @@ class Simulation:
         tool = config.product_for("tool")
         tools_value = config.trade.tool_wear * workers[:, farm] * world.prices[:, tool]
         keep_for_tools = np.divide(tools_value, world.food_price, out=np.zeros(n), where=world.food_price > 0)
-        shares = farms.income_shares(pop, hh, world.land, config, livestock.owners_part(animal_factor))
-        harvest_share = farms.share_harvest(hh, world.farm_grain, keep_for_tools, shares)
-        labour_grain = config.food.labor_share * (1 - livestock.owners_part(animal_factor)) * market.by_village(
-            harvest_share, hh.location, n
+        shares, to_lord = farms.income_shares(
+            pop, hh, world.land, config, livestock.owners_part(animal_factor), world.lord.land
         )
+        harvest_share, rent = farms.share_harvest(hh, world.farm_grain, keep_for_tools, shares, to_lord)
+        share_out = market.by_village(harvest_share, hh.location, n) + rent
+        service = np.where(world.lord.land > 0, config.lord.labour_service, 0.0)
+        labour_grain = config.food.labor_share * (1 - livestock.owners_part(animal_factor)) * (1 - service) * share_out
+        # The lord's share goes to his barn; part of it is carted away to his hall.
+        lords.into_barn(world.lord, rent)
+        carted_away = lords.cart_away(world.lord, config)
 
         # 4. What families need this month. They eat from their own store as
         # far as it lasts until their next harvest, offer what they can
@@ -166,7 +175,8 @@ class Simulation:
         uncovered = np.maximum(months * family_food - hh.grain, 0.0)
         coin_target = uncovered * world.prices[hh.location, food] + months * family_fuel * world.prices[hh.location, fuel]
         offer = world.stock.copy()
-        offer[:, food] = market.by_village(plan.spare, hh.location, n) + world.farm_grain
+        lord_offer = lords.offer(world.lord, config)
+        offer[:, food] = market.by_village(plan.spare, hh.location, n) + world.farm_grain + lord_offer
         stock_before = world.stock.copy()
         shared = market.share_with_neighbours(hh.money, essentials, hh.location, n, config)
         # The council helps families who still can't afford them.
@@ -186,8 +196,8 @@ class Simulation:
         normal_food_price = world.food_price / np.maximum(world.markup[:, food], 1e-9)
         yearly_net = np.maximum(12.0 * normal_gross - seed_needed, 0.0)
         land_part = (1.0 - config.food.labor_share) * (1.0 - livestock.owners_part(animal_factor))
-        rent = np.divide(land_part * yearly_net, world.land, out=np.zeros(n), where=world.land > 0) * normal_food_price
-        plot_price = credit.land_price(rent, config)
+        rent_per_plot = np.divide(land_part * yearly_net, world.land, out=np.zeros(n), where=world.land > 0) * normal_food_price
+        plot_price = credit.land_price(rent_per_plot, config)
         # Only food is worth debt or land: firewood can be gathered.
         food_cost = plan.want * world.food_price[hh.location]
         borrowed = np.zeros(n)
@@ -207,12 +217,17 @@ class Simulation:
         bought = {}
 
         def trade(product: int, family_want: np.ndarray | None, family_money: np.ndarray | None,
-                  business_want: np.ndarray | None) -> None:
+                  business_want: np.ndarray | None, lord_spend: np.ndarray | None = None) -> None:
             money_parts, want_parts, where = [], [], []
             if family_want is not None:
                 money_parts.append(family_money)
                 want_parts.append(family_want)
                 where.append(hh.location)
+            if lord_spend is not None:
+                price = world.prices[:, product]
+                money_parts.append(lord_spend.copy())
+                want_parts.append(np.divide(lord_spend, price, out=np.zeros(n), where=price > 0))
+                where.append(np.arange(n))
             budget = config.trade.buying_budget * world.cash
             if business_want is not None:
                 money_parts.append(budget.reshape(-1).copy())
@@ -230,6 +245,9 @@ class Simulation:
                 else:
                     hh.money[:] = money[:n_hh]
                 bought[product] = sale.bought[:n_hh]
+            if lord_spend is not None:
+                first = n_hh if family_want is not None else 0
+                world.lord.purse -= sale.spent[first:first + n]
             if business_want is not None:
                 spent = sale.spent[-budget.size:].reshape(budget.shape)
                 world.cash -= spent
@@ -256,7 +274,10 @@ class Simulation:
         sale = market.buy(hh.money, plan.want, world.food_price, offer[:, food], hh.location)
         demand[:, food], sold[:, food] = sale.demand, sale.sold
         bought[food] = sale.bought
-        sold_by_family, sold_by_farms = farms.sellers_share(sale.sold, plan.spare, world.farm_grain, hh.location)
+        sold_by_family, sold_by_farms, sold_by_lord = farms.sellers_share(
+            sale.sold, plan.spare, world.farm_grain, hh.location, lord_offer
+        )
+        lords.sold(world.lord, sold_by_lord, world.food_price)
         grain_receipts = sold_by_family * world.food_price[hh.location]
         world.cash[:, farm] += sold_by_farms * world.food_price
         world.farm_grain[:] -= sold_by_farms
@@ -272,7 +293,8 @@ class Simulation:
                 spend = config.needs.spare_spending * spare
                 price = world.prices[hh.location, product]
                 want = np.divide(spend, price, out=np.zeros_like(spend), where=(spend > 0) & (price > 0))
-                trade(product, want, spend, business_want(product))
+                # The lord's household buys the village's cloth too.
+                trade(product, want, spend, business_want(product), lords.local_spending(world.lord, config))
             else:
                 trade(product, None, None, business_want(product))
 
@@ -282,6 +304,10 @@ class Simulation:
         # (more in summer and autumn; fewer in a drought).
         summer = 4 / 3 if 5 <= world.month_of_year <= 10 else 2 / 3
         can_find = config.food.foraging * summer * np.minimum(mods.production_mult[:, farm], 1.0)
+        lord_relief = lords.charity(
+            world.lord, np.maximum(family_food - plan.own - bought[food] - relief, 0.0), hh.location, famine, config
+        )
+        relief = relief + lord_relief
         fed = plan.own + bought[food] + relief
         foraged = np.clip(family_food - fed, 0.0, family_food * can_find[hh.location])
         family_eaten = fed + foraged
@@ -334,6 +360,13 @@ class Simulation:
         # outgrow a family's animals and land cost them those.
         repaid = credit.repay(hh, income + staff_income + healer_income, config)
         foreclosed = credit.foreclose(hh, plot_price, worth, config)
+        # Once a year, after harvest, the state collects its tax in coin
+        # (or seizes grain from families without the coins).
+        state_tax = lords.TaxTake(coins=np.zeros(n), grain=np.zeros(n))
+        if world.month_of_year == config.state.collection_month:
+            state_tax = lords.collect_state_tax(
+                hh, world.lord, world.wage_level, rent_per_plot, world.food_price, famine, config
+            )
         limit = config.credit.loan_to_value * credit.collateral(hh, plot_price, worth)
         written_off = credit.default(hh, limit + config.credit.personal_months * world.wage_level[hh.location], config)
         # The customary wage that fair prices are reckoned in rises slowly
@@ -353,6 +386,7 @@ class Simulation:
         spoiled = market.by_village(rules.spoil(hh.grain, config.food.spoilage), hh.location, n)
         spoiled += rules.spoil(world.farm_grain, config.food.spoilage)
         rules.spoil(world.council.reserve, config.food.spoilage)
+        rules.spoil(world.lord.barn, config.food.spoilage)
         # Sowing, after the month's harvest is in.
         seed_from_families = np.zeros(n)
         if world.month_of_year == farms.sowing_month(config):
@@ -471,6 +505,16 @@ class Simulation:
             land_foreclosed=float(foreclosed.land.sum()),
             animals_foreclosed=float(foreclosed.animals.sum()),
             land_price=float(plot_price.mean()),
+            food_rent=float(rent.sum()),
+            lord_carted=float(carted_away.sum()),
+            lord_sold=float(sold_by_lord.sum()),
+            lord_relief=float(lord_relief.sum()),
+            lord_barn=float(world.lord.barn.sum()),
+            lord_purse=float(world.lord.purse.sum()),
+            state_tax=float(state_tax.coins.sum()),
+            tax_grain=float(state_tax.grain.sum()),
+            state_purse=float(world.lord.state_purse.sum()),
+            food_requisitioned=float(requisitioned.sum()),
             food_stock=float(world.granary.sum()),
             food_margin=float((normal_gross - seed_needed / 12.0).sum() / need.sum()) if need.sum() > 0 else 0.0,
             food_cover=float(np.average(supply_cover, weights=np.maximum(need, 1e-9))),

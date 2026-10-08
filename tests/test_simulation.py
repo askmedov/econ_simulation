@@ -34,8 +34,8 @@ def test_food_is_accounted_for():
     for _ in range(240):
         r = sim.step()
         # Families eat what they buy plus relief from the council's reserve.
-        stock += (r.food_produced + r.meat - (r.food_eaten - r.relief - r.foraged) - r.food_spoiled - r.food_lost
-                  - r.food_levied - r.food_to_seed)
+        stock += (r.food_produced + r.meat - (r.food_eaten - r.relief - r.foraged - r.lord_sold) - r.food_spoiled
+                  - r.food_lost - r.food_levied - r.food_to_seed - r.food_rent - r.tax_grain - r.food_requisitioned)
         assert np.isclose(stock, r.food_stock)
 
 
