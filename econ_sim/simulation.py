@@ -269,7 +269,8 @@ class Simulation:
         weight = config.trade.orders_memory
         families_heating = market.by_village(family_fuel, hh.location, n)
         steady = demand.copy()
-        steady[:, fuel] += families_heating * (heating.mean() / firewood_need - 1.0)
+        if firewood_need > 0:
+            steady[:, fuel] += families_heating * (heating.mean() / firewood_need - 1.0)
         world.orders = (1 - weight) * world.orders + weight * steady
         orders = world.orders[:, product_of]
         orders[:, farm] = need * (1.0 + config.food.reserve_margin)

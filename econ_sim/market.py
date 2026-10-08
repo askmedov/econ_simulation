@@ -91,8 +91,10 @@ def seasonal_buffer(profile: tuple[float, ...]) -> np.ndarray:
     need, so that making the average need every month lasts through the
     coming season: the largest running shortfall of need over that average,
     from that month on. Index 0 is January."""
+    buffer = np.zeros(len(profile))
+    if np.mean(profile) <= 0:
+        return buffer
     season = np.asarray(profile, dtype=np.float64) / np.mean(profile)
-    buffer = np.zeros(len(season))
     for month in range(len(season)):
         ahead = np.roll(season, -month) - 1.0
         buffer[month] = max(np.cumsum(ahead).max(), 0.0)

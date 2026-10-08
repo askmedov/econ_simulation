@@ -185,11 +185,10 @@ def marry(
     # A family takes in a couple (at most one a month) if it holds no more
     # than one couple and the newlywed is a generation (15 years) younger
     # than its married members; so heirs stay, their brothers and sisters leave.
-    married = population.count * population.married
-    couples_in = np.bincount(population.household, weights=married, minlength=n)
+    married = np.bincount(population.household, weights=population.count * population.married, minlength=n)
     elder = np.full(n, -1, dtype=np.int64)
     np.maximum.at(elder, population.household[population.married], age[population.married].astype(np.int64))
-    room = couples_in <= 2
+    room = married <= 2  # at most one couple (or a widowed parent)
 
     def can_stay(person: np.ndarray, family: np.ndarray) -> np.ndarray:
         return room[family] & ((elder[family] < 0) | (age[person] <= elder[family] - 15))

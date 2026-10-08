@@ -170,3 +170,7 @@ def test_customary_wage_follows_the_money_there_is():
     start = sim.world.wage_level.copy()
     sim.run()
     assert (sim.world.wage_level < start).all()
+
+
+def test_no_heating_needs_no_buffer():
+    assert np.allclose(market.seasonal_buffer((0.0,) * 12), 0.0)
