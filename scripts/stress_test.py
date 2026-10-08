@@ -29,6 +29,7 @@ from econ_sim import households  # noqa: E402
 from econ_sim.config import (  # noqa: E402
     Config,
     CouncilConfig,
+    EnvironmentConfig,
     FoodConfig,
     HealthcareConfig,
     LordConfig,
@@ -109,6 +110,11 @@ def scenarios() -> list[Scenario]:
             base, lord=LordConfig(charity_in_famine=True), state=StateConfig(remit_in_famine=True))),
         Scenario("no town", replace(base, town=TownConfig(enabled=False))),
         Scenario("no migration", replace(base, migration=MigrationConfig(enabled=False))),
+        Scenario("no woods or soil limits", replace(base, environment=EnvironmentConfig(enabled=False))),
+        Scenario("droughts without runs", replace(base, events=tuple(
+            replace(e, repeat_chance=None) for e in base.events))),
+        Scenario("two cold years", replace(base, scheduled_events=(ScheduledEvent("cold_years", 4),)),
+                 "a volcanic winter: two failed harvests", ("population", "sown")),
         Scenario("tax 0%", replace(base, council=CouncilConfig(tax_rate=0.0))),
         Scenario("tax 30%", replace(base, council=CouncilConfig(tax_rate=0.3))),
         Scenario("12-month reserve", replace(base, council=CouncilConfig(reserve_months=12.0))),
@@ -122,7 +128,8 @@ def scenarios() -> list[Scenario]:
             "crowded land", replace(base, villages=(VillageConfig(land=250),)),
             "few can live off their land", ("births_per_1000", "landless_share", "money_gini", "money_top10_share"),
         ),
-        Scenario("plenty of land", replace(base, villages=(VillageConfig(land=700),)), "grows into the land", ("population",)),
+        Scenario("plenty of land", replace(base, villages=(VillageConfig(land=700),)),
+                 "grows into the land, and outgrows its woods", ("population", "woods")),
         Scenario("95% farmers at start", replace(base, businesses=shares(farming=0.95, woodcutting=0.03, weaving=0.01, smithing=0.01))),
         Scenario("half farmers at start", replace(base, businesses=shares(farming=0.5, woodcutting=0.15, weaving=0.3, smithing=0.05))),
         Scenario(
@@ -149,7 +156,8 @@ def scenarios() -> list[Scenario]:
     for label, make, values in perturb:
         for value in values:
             if label == "birth chance" and value > demo.annual_birth_chance:
-                out.append(Scenario(f"{label} {value:g}", make(value), "fertility at its natural limit", ("births_per_1000",)))
+                out.append(Scenario(f"{label} {value:g}", make(value), "fertility at its natural limit: crowded and unequal",
+                                    ("births_per_1000", "money_top10_share")))
             else:
                 out.append(Scenario(f"{label} {value:g}", make(value)))
     return out
@@ -206,6 +214,8 @@ def run_one(job: tuple[Scenario, int, int]) -> dict[str, np.ndarray]:
         add("poorest_fifth", np.mean([r.poorest_fifth_ration for r in year]))
         add("poorest_fifth_worst", min(r.poorest_fifth_ration for r in year))
         add("warmth", np.mean([r.warmth for r in year]))
+        add("woods", np.mean([r.woods for r in year]))
+        add("soil", np.mean([r.soil for r in year]))
         add("health", np.mean([r.avg_health for r in year]))
         add("clothing_per_person_year", sum(r.clothing for r in year))
         for name in names:
@@ -263,6 +273,10 @@ RANGES = {
     "sown": (0.85, 1.01),
     "animals_per_plot": (0.1, 0.5),
     "wage_cover": (0.6, 2.5),
+    # Woods against the start, and soil fertility: a village that outgrows
+    # its woods or crowds its land shows it here.
+    "woods": (0.5, 1.5),
+    "soil": (0.85, 1.11),
 }
 # Measures that should stay within these multiples of their first-year value.
 RELATIVE = {
@@ -276,9 +290,12 @@ RELATIVE = {
 # decade. Nominal prices and wages may trend (with money and population);
 # prices in days of work shouldn't keep running away.
 TRENDS = {
-    "population": 0.15, "real_food_price": 0.3, "wage_cover": 0.3, "household_size": 0.15,
-    "land_gini": 0.15, "landless_share": 0.5,
+    "population": 0.15, "real_food_price": 0.3, "wage_cover": 0.3, "household_size": 0.15, "land_gini": 0.15,
 }
+# Shares that may be small, whose trend is checked in points per decade
+# instead: the landless share falls after deaths free up holdings and rises
+# again as the village grows and debts concentrate the land.
+TRENDS_ABSOLUTE = {"landless_share": 0.15}
 
 
 def drift_flags(mean: dict[str, np.ndarray], reference: dict[str, np.ndarray] | None = None) -> list[tuple[str, str]]:
@@ -304,6 +321,12 @@ def drift_flags(mean: dict[str, np.ndarray], reference: dict[str, np.ndarray] | 
             slope = np.polyfit(np.arange(len(half)), np.log(np.maximum(half, 1e-9)), 1)[0] * 10
             if abs(slope) > limit:
                 flags.append((key, f"{key} still trending {slope:+.0%} a decade"))
+    for key, limit in TRENDS_ABSOLUTE.items():
+        half = mean[key][years // 2 :]
+        if len(half) >= 6:
+            slope = np.polyfit(np.arange(len(half)), half, 1)[0] * 10
+            if abs(slope) > limit:
+                flags.append((key, f"{key} still trending {slope:+.2f} a decade"))
     return flags
 
 

@@ -15,7 +15,7 @@ from econ_sim.world import ActiveEvent, World
 
 EFFECTS = (
     "production_mult", "health_delta", "mortality_mult", "fertility_mult", "granary_loss", "heating_mult", "debt_cancel",
-    "requisition", "debase",
+    "requisition", "debase", "woods_burned",
 )
 PERSON_EFFECTS = ("health_delta",)
 
@@ -34,13 +34,14 @@ class Modifiers:
     debt_cancel: np.ndarray
     requisition: np.ndarray
     debase: np.ndarray
+    woods_burned: np.ndarray
 
     @classmethod
     def neutral(cls, n_locations: int, n_businesses: int = 1) -> Modifiers:
         ones, zeros = np.ones(n_locations), np.zeros(n_locations)
         return cls(
             np.ones((n_locations, n_businesses)), zeros.copy(), ones.copy(), ones.copy(), zeros.copy(), ones.copy(),
-            zeros.copy(), zeros.copy(), zeros.copy(),
+            zeros.copy(), zeros.copy(), zeros.copy(), zeros.copy(),
         )
 
 
@@ -55,6 +56,8 @@ def validate(specs: tuple[EventSpec, ...]) -> None:
                 raise ValueError(f"{spec.name}: effect {effect!r} not allowed for {spec.scope} events")
         if not 0.0 <= spec.chance <= 1.0:
             raise ValueError(f"{spec.name}: chance must be between 0 and 1")
+        if spec.repeat_chance is not None and not (0.0 <= spec.repeat_chance <= 1.0 and spec.chance < 1.0):
+            raise ValueError(f"{spec.name}: repeat_chance must be between 0 and 1, with chance below 1")
         if spec.scope == "person" and spec.duration != 1:
             raise ValueError(f"{spec.name}: person events last one month")
         if spec.group:
@@ -62,6 +65,25 @@ def validate(specs: tuple[EventSpec, ...]) -> None:
     for group, total in group_chance.items():
         if total > 1.0:
             raise ValueError(f"event group {group!r}: chances add up to more than 1")
+    # After a year with one of a group's events, its repeat chance replaces its usual one.
+    for spec in specs:
+        if spec.group and spec.repeat_chance is not None:
+            others = group_chance[spec.group] - spec.chance
+            if others + spec.repeat_chance > 1.0:
+                raise ValueError(f"event group {spec.group!r}: chances add up to more than 1 after {spec.name}")
+
+
+def chance_now(spec: EventSpec, repeated: bool) -> float:
+    """An event's chance this month: its `repeat_chance` if it started in the
+    last 12 months, otherwise a chance lowered so that it still starts in
+    `chance` of eligible months in the long run."""
+    if spec.repeat_chance is None:
+        return spec.chance
+    if repeated:
+        return spec.repeat_chance
+    # Long-run share p = q / (1 - r + q), for a chance q after a year without it.
+    p, r = spec.chance, spec.repeat_chance
+    return p * (1.0 - r) / (1.0 - p)
 
 
 def validate_schedule(
@@ -115,7 +137,8 @@ def start_location_events(
                 continue
             threshold = 0.0
             for spec in members:
-                threshold += spec.chance
+                last = world.last_started.get((spec.name, location))
+                threshold += chance_now(spec, last is not None and world.month - last <= 12)
                 if roll < threshold:
                     started.append(_start(world, spec, location, rng))
                     break
@@ -156,6 +179,7 @@ def _start(world: World, spec: EventSpec, location: int, rng: np.random.Generato
         effects={k: _draw(v, rng) for k, v in spec.effects.items()},
     )
     world.active_events.append(event)
+    world.last_started[(spec.name, location)] = world.month
     return event
 
 
@@ -206,7 +230,7 @@ def modifiers(world: World, businesses: tuple[str, ...] = ("farming",)) -> Modif
                         mods.production_mult[loc, b] *= value
             elif effect == "health_delta":
                 mods.health_delta[loc] += value
-            elif effect in ("granary_loss", "debt_cancel", "requisition", "debase"):
+            elif effect in ("granary_loss", "debt_cancel", "requisition", "debase", "woods_burned"):
                 share = getattr(mods, effect)
                 share[loc] = 1.0 - (1.0 - share[loc]) * (1.0 - value)
             else:

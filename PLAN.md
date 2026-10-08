@@ -464,10 +464,12 @@ births run about 30 and deaths about 25 per 1,000 in ordinary years with
 crisis years far higher, people marry around 21 and later when times are
 hard, and healers save few lives. Ancient villages were often harsher
 still (life expectancy 20–30), which the life table can be set to.
+(Phase 2b's step 2 then made it a high-pressure demography: births and
+deaths near 45 per 1,000, life expectancy about 25.)
 
 ### What to build next
 
-Being built as Phase 2b, below. Two of these change near-term what-ifs the most and fit together:
+Built as Phase 2b, below. Two of these change near-term what-ifs the most and fit together:
 **peasant households that farm their own plots** (with land held by
 households, seed kept back, and the landless working for wages) and
 **debt and distress sales** (grain loans, then selling animals and land).
@@ -478,7 +480,7 @@ England has the best data (prices and wages, manorial accounts, parish
 registers), Roman Egypt has census returns and contracts, Old Babylonian
 Mesopotamia has loan and land contracts.
 
-## Phase 2b: a peasant village (in progress)
+## Phase 2b: a peasant village (built)
 
 The gaps above, built into the Phase 2 village one branch at a time, each
 tested, sanity-checked and stress-tested:
@@ -491,7 +493,7 @@ tested, sanity-checked and stress-tested:
 | 4 | `claude/lord-and-state` | a lord's land and rent in kind, taxes in coin, the lord's granary, armies and raiders (built) |
 | 5 | `claude/regional-market` | a town grain price with a transport cost; coins that flow with trade; people leave and arrive (built) |
 | 6 | `claude/household-work` | everyone at harvest, women's spinning and weaving at home, kin who help (built) |
-| 7 | `claude/environment` | woods that shrink when cut, soil that tires, droughts that come in runs |
+| 7 | `claude/environment` | woods that shrink when cut, soil that tires, droughts that come in runs (built) |
 
 ### 1. Families hold land and grain (built)
 
@@ -773,15 +775,62 @@ coin taxes and the lord's sales and nothing brings them back: prices sink
 to a twentieth over 40 years, the logic of metal money in a closed
 village. The sanity check's 733 runs pass.
 
+### 7. Woods, soil and weather with a memory (built)
 
-3. **Phase 2b** above, then individual firms instead of one business per
-   trade.
-4. **Many villages → a country.** Regions, trade between them, migration;
+- **Droughts come in runs.** A drought (or a good year) makes another the
+  next April likelier: 30% instead of about 8% (or 12% for a good year).
+  In the long run they are no more frequent than before (10% and 15% of
+  years), but they cluster, as dry spells and wet spells do. A forced
+  drought in a what-if raises the chance of another in the year after.
+- **Cold years.** About once in two centuries (`cold_years`) a great eruption
+  veils the sun: two cold summers with harvests 30% short and more
+  firewood needed, as in 536 or 1816.
+- **Woods** are a stock of standing wood that regrows logistically, 15% a
+  year at its fastest (coppice is cut every 10-20 years); untouched they
+  would hold 40 years of the village's firewood. A village starts with its
+  woods in balance with its cutting and gathering, and they can bear about
+  half again as much for good. Beyond that they thin, and as they thin a
+  day's work cutting or gathering wood goes less far (with the square root
+  of the wood standing). Forest fires burn a few percent of the woods a
+  month while they last, which takes years to grow back. Half of what
+  families gather isn't wood (dung, straw, furze), so it doesn't depend on
+  the woods.
+- **Soil** fertility heads toward 1 - 0.2 x (crowding - 1), where crowding
+  is people per plot against the default village's 2.9, between 0.6 and
+  1.1, closing a tenth of the gap a year. Crowded land is cropped without
+  enough fallow and tires; land left to rest after a famine recovers.
+  Plough animals still add their 30% at once; soil is the slow part.
+- **New measures:** woods (against the start), wood burned, soil fertility.
+
+**What it changes.** Little in three years: the woods and soil move over
+decades, so a near-term what-if is changed mostly by droughts that now
+come in runs (after a forced April drought, 30% of runs have another the
+next April, against 10%) and by the rare cold years. Two cold years cost
+a quarter of the village within a decade (its rested soil then yields 3%
+more), and 40 years later it is still smaller than it was. Over decades
+the woods and soil put limits on growth that weren't there: a village
+with land enough to double in 40 years cuts its woods to under two-fifths
+of what they were, still falling; a village on crowded land loses 3-5% of
+its harvests to tired soil. In the default village the woods stay within
+a few percent of where they started, and the soil within 2%.
+
+**Checks.** The stress test's 65 scenarios (three new: no woods or soil
+limits, droughts without runs, two cold years) show no drift beyond what
+each is meant to do. The landless share's trend is now checked in points
+a decade, since it is often small: it falls after deaths free up holdings
+and rises again as the village grows. The sanity check's 733 runs pass;
+its 10-run settings now allow a single disaster, which is a 10% share by
+luck alone.
+
+## Roadmap after Phase 2
+
+1. **Individual firms** instead of one business per trade.
+2. **Many villages → a country.** Regions, trade between them, migration;
    people batched into groups (`count` > 1) with split and merge; national
    money and inflation.
-5. **Calibration and starting state.** Start from realistic data (age
+3. **Calibration and starting state.** Start from realistic data (age
    structure, stores, prices) so near-term forecasts mean something.
-6. **Interactive dashboard** to pick events and compare scenarios.
+4. **Interactive dashboard** to pick events and compare scenarios.
 
 ## Open questions
 

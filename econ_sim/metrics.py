@@ -102,6 +102,9 @@ class MonthRecord:
     homespun: float  # garments women spun and wove at home
     harvest_help: float  # workers' worth of help in the fields from outside farming
     kin_help: float  # rations kin gave families who couldn't afford their food
+    woods: float  # wood standing in the woods, as a share of what they held at the start
+    woods_burned: float  # firewood's worth of woods burned this month
+    soil: float  # soil fertility, 1 = normal (averaged over villages by land)
     job_changes: int  # workers who moved to a better-paid trade
     prices: dict[str, float]  # coins per unit of each product
     jobs: dict[str, int]  # workers in each business

@@ -217,9 +217,11 @@ def main() -> int:
                 examples.setdefault(name, f"seed {seed}, month {month}")
         notes = []
         for name, n in sorted(counts.items(), key=lambda item: -item[1]):
-            share = n / setting.seeds
             if name in DISASTERS:
-                bad = share > (setting.disasters_allowed or 0.0)
+                # With few runs, one disaster is more than the share allows
+                # by luck alone: allow at least one.
+                allowed = setting.disasters_allowed or 0.0
+                bad = n > (max(allowed * setting.seeds, 1) if allowed > 0 else 0)
                 kind = "disaster"
             else:
                 bad, kind = True, "impossible" if name in IMPOSSIBLE else "nonsense"

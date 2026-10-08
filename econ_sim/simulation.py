@@ -7,7 +7,8 @@ import calendar
 import numpy as np
 
 from econ_sim import (
-    council, credit, economy, events, farms, healthcare, households, livestock, lords, market, metrics, migration,
+    council, credit, economy, environment, events, farms, healthcare, households, livestock, lords, market, metrics,
+    migration,
     rules, town, work,
 )
 from econ_sim.config import Config
@@ -88,6 +89,10 @@ class Simulation:
         killed, eaten_animals = livestock.slaughter_in_hunger(hh, hungry_need, world.food_price, config)
         culled, meat = culled + killed, meat + eaten_animals
 
+        # Wood takes longer to cut and gather where the woods have thinned.
+        wood_trade = economy.seller_of(config)[config.product_for("heating")]
+        mods.production_mult[:, wood_trade] *= environment.woods_reach(world.woods, world.woods_normal, config)
+
         # 2. Businesses make goods, using up supplies and wearing out tools.
         # Other than farms, they work less when unsold goods pile up. Farms
         # grow more with plough animals, and only as much as was sown.
@@ -101,10 +106,11 @@ class Simulation:
         effort[:, farm] += helping.farm
         herd = market.by_village(hh.animals, hh.location, n)
         animal_factor = livestock.farm_factor(herd, world.land, config)
+        farm_mult = animal_factor * world.soil  # plough animals, and how fertile the soil is
         farm_output = config.businesses[farm].output * economy.tool_factor(world.tools, workers, config)[:, farm]
-        farmed = economy.land_in_use(world.land, workers[:, farm], config, 12.0 * farm_output * animal_factor)
+        farmed = economy.land_in_use(world.land, workers[:, farm], config, 12.0 * farm_output * farm_mult)
         possible = economy.capacity(
-            effort, world.tools, workers, world.land, mods.production_mult, config, animal_factor, world.sown
+            effort, world.tools, workers, world.land, mods.production_mult, config, farm_mult, world.sown
         )
         possible[:, farm] *= rules.season_factors(config)[world.month_of_year - 1]
         target = config.trade.stock_target_months * world.orders[:, product_of]
@@ -125,7 +131,7 @@ class Simulation:
 
         # Prices: what each product fairly costs to make in a normal year
         # (a poor sowing or harvest shows in the grain mark-up), times its mark-up.
-        per_worker = economy.productivity(pop, world.tools, workers, world.land, config, animal_factor)
+        per_worker = economy.productivity(pop, world.tools, workers, world.land, config, farm_mult)
         world.prices = economy.fair_prices(world.wage_level, per_worker, world.prices, config) * world.markup
 
         # 3. How well the village's stores and coming harvests cover the year
@@ -134,7 +140,7 @@ class Simulation:
         need = rules.by_location(need_rows, pop, n)
         full_strength = economy.labor(pop, n, config, at_full_health=True)
         no_events = np.ones_like(mods.production_mult)
-        normal_gross = economy.capacity(full_strength, world.tools, workers, world.land, no_events, config, animal_factor)[:, farm]
+        normal_gross = economy.capacity(full_strength, world.tools, workers, world.land, no_events, config, farm_mult)[:, farm]
         months_ahead = max(config.food.planning_months - 1, 0)
         ahead = events.production_outlook(world, months_ahead, names[farm])
         ahead = ahead * farms.sown_outlook(world.sown, world.month_of_year, ahead.shape[1], config)
@@ -349,9 +355,16 @@ class Simulation:
         family_eaten = fed + foraged
         family_share = np.divide(family_eaten, family_food, out=np.ones_like(family_food), where=family_food > 0)
         # Families who couldn't buy all their firewood gather some from the
-        # commons, unless the woods have burned.
-        can_gather = config.needs.gathering * family_fuel * mods.production_mult[hh.location, wood]
+        # commons: dung, straw and furze, and wood unless the woods have
+        # burned or thinned.
+        other = config.needs.other_fuels
+        can_gather = config.needs.gathering * family_fuel * (other + (1.0 - other) * mods.production_mult[hh.location, wood])
         gathered = np.clip(family_fuel - bought[fuel], 0.0, can_gather)
+        # The woods regrow, less what was cut and gathered, and what burned;
+        # the soil tires on crowded land and recovers on land left to rest.
+        cut = made[:, wood] + market.by_village(gathered * (1.0 - other), hh.location, n)
+        woods_burned = environment.grow_woods(world.woods, world.woods_capacity, cut, mods.woods_burned, config)
+        environment.tire_soil(world.soil, people_here, world.land, config)
         warmth = np.divide(bought[fuel] + gathered, family_fuel, out=np.ones_like(family_fuel), where=family_fuel > 0)
         eaten = market.by_village(family_eaten, hh.location, n)
         share = np.divide(eaten, need, out=np.ones_like(need), where=need > 0)
@@ -603,6 +616,9 @@ class Simulation:
             homespun=float(homespun.sum()),
             harvest_help=float(helping.farm.sum()),
             kin_help=float(np.maximum(from_kin, 0.0).sum()),
+            woods=float(world.woods.sum() / max(world.woods_normal.sum(), 1e-9)),
+            woods_burned=float(woods_burned.sum()),
+            soil=float((world.soil * world.land).sum() / max(world.land.sum(), 1e-9)),
             job_changes=switched,
             prices={p.name: float(world.prices[:, i].mean()) for i, p in enumerate(config.products)},
             jobs={b.name: int(round(jobs[i])) for i, b in enumerate(config.businesses)},

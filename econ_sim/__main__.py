@@ -269,8 +269,11 @@ def _print_events(config: Config) -> None:
         when = ", ".join(calendar.month_abbr[m] for m in spec.months) if spec.months else "any month"
         lasts = "-".join(map(str, spec.duration)) if isinstance(spec.duration, tuple) else str(spec.duration)
         effects = ", ".join(f"{k} {v}" for k, v in spec.effects.items())
+        if spec.repeat_chance is not None:
+            effects += f"; {spec.repeat_chance:.0%} the year after one"
         print(f"{spec.name:<14} {spec.scope:<9} {spec.chance:>8.1%}  {when:<14} {lasts + ' mo':<8} {effects}")
-    print("\nForce a village event with --event NAME@MONTH, e.g. --event drought@4")
+    print("\nChance: per eligible month, in the long run.")
+    print("Force a village event with --event NAME@MONTH, e.g. --event drought@4")
 
 
 if __name__ == "__main__":

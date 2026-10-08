@@ -217,7 +217,10 @@ class NeedsConfig:
     spare_spending: float = 0.3
     # Families who can't buy all the firewood they need gather up to this
     # share of it themselves: wood, furze, dung and peat from the commons.
+    # `other_fuels` of what they can gather isn't wood, so burned or thinned
+    # woods cut only the rest.
     gathering: float = 0.8
+    other_fuels: float = 0.5
 
 
 @dataclass(frozen=True)
@@ -435,6 +438,33 @@ class TownConfig:
 
 
 @dataclass(frozen=True)
+class EnvironmentConfig:
+    """Woods that shrink when overcut, and soil that tires when the land
+    is crowded. (Droughts that come in runs are in the events: see
+    `EventSpec.repeat_chance`.)"""
+
+    enabled: bool = True
+    # Untouched, a village's woods would hold `woods_years` of its starting
+    # firewood need; they regrow logistically, `regrowth` a year at their
+    # fastest (coppice is cut again every 10-20 years). A village starts
+    # with its woods in balance with its cutting and gathering; they can
+    # bear about half again as much for good. As woods thin, wood takes
+    # longer to cut and gather: a day's work goes as far as the wood
+    # standing (against the start) to the power `reach_exponent`.
+    woods_years: float = 40.0
+    regrowth: float = 0.15
+    reach_exponent: float = 0.5
+    # Soil fertility (1 = normal) heads toward 1 - `overcropping` x (people
+    # per plot / `people_per_plot` - 1), between `fertility_range`: crowded
+    # land is cropped without enough fallow and tires; land left to rest
+    # after a famine recovers. It closes `soil_recovery` of the gap a year.
+    people_per_plot: float = 2.9
+    overcropping: float = 0.2
+    fertility_range: tuple[float, float] = (0.6, 1.1)
+    soil_recovery: float = 0.1
+
+
+@dataclass(frozen=True)
 class WorkConfig:
     """Work beyond people's trades: everyone at harvest, spinning and
     weaving at home, and kin who help each other."""
@@ -541,6 +571,7 @@ class EventSpec:
       debt_cancel      share of debts cancelled by decree
       requisition      share of stored grain and animals taken by soldiers or raiders
       debase           the coinage loses this share of its worth: the town asks more coins for grain
+      woods_burned     share of the village's woods burned each month
 
     Location events hit everyone in a village. Person events hit each person
     independently, last one month and support only health_delta for now.
@@ -553,6 +584,11 @@ class EventSpec:
     duration: int | tuple[int, int] = 1  # months; a range is drawn at start
     months: tuple[int, ...] | None = None  # calendar months (1-12) it can start in
     group: str | None = None  # at most one event per group at a time per village
+    # Chance (in an eligible month) when the same event started in the last
+    # 12 months (last year's season included): droughts come in runs. `chance` stays the long-run share of
+    # eligible months it starts in; the chance after a year without it is
+    # lowered to match.
+    repeat_chance: float | None = None
     businesses: tuple[str, ...] | None = None  # production_mult hits only these
     message: str = ""
 
@@ -567,6 +603,7 @@ DEFAULT_EVENTS: tuple[EventSpec, ...] = (
         group="weather",
         businesses=("farming",),
         effects={"production_mult": 1.25},
+        repeat_chance=0.3,
         message="Good weather: a rich growing season ahead",
     ),
     EventSpec(
@@ -578,7 +615,22 @@ DEFAULT_EVENTS: tuple[EventSpec, ...] = (
         group="weather",
         businesses=("farming",),
         effects={"production_mult": 0.6},
+        repeat_chance=0.3,
         message="Drought: harvests will be poor this season",
+    ),
+    EventSpec(
+        # A great volcanic eruption veils the sun: cold, wet summers and
+        # failed harvests for two seasons (as in 536, 1601 or 1816), once in
+        # a couple of centuries.
+        name="cold_years",
+        scope="location",
+        chance=0.005,
+        months=(4,),
+        duration=18,
+        group="weather",
+        effects={"production_mult": 0.7, "heating_mult": 1.2},
+        businesses=("farming",),
+        message="The sun is veiled: cold summers and failed harvests for two years",
     ),
     EventSpec(
         name="harsh_winter",
@@ -596,8 +648,8 @@ DEFAULT_EVENTS: tuple[EventSpec, ...] = (
         months=(6, 7, 8),
         duration=(2, 3),
         businesses=("woodcutting",),
-        effects={"production_mult": 0.4},
-        message="Forest fire: little wood can be cut",
+        effects={"production_mult": 0.4, "woods_burned": (0.01, 0.04)},
+        message="Forest fire: little wood can be cut, and part of the woods is lost",
     ),
     EventSpec(
         name="disease",
@@ -696,6 +748,7 @@ class Config:
     town: TownConfig = field(default_factory=TownConfig)
     migration: MigrationConfig = field(default_factory=MigrationConfig)
     work: WorkConfig = field(default_factory=WorkConfig)
+    environment: EnvironmentConfig = field(default_factory=EnvironmentConfig)
     council: CouncilConfig = field(default_factory=CouncilConfig)
     healthcare: HealthcareConfig = field(default_factory=HealthcareConfig)
     products: tuple[ProductSpec, ...] = DEFAULT_PRODUCTS

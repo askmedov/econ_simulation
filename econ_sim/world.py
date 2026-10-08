@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from econ_sim import council, economy, livestock, lords, rules
+from econ_sim import council, economy, environment, livestock, lords, rules
 from econ_sim.council import Councils
 from econ_sim.config import Config, EventSpec
 from econ_sim.households import Households, assign_land, form_households, link_kin
@@ -49,6 +49,11 @@ class World:
     lord: Lords | None = None  # the lord's demesne, barn and purse, and the state's purse
     town: Town | None = None  # the regional grain market, and coins gone to it or lost
     sown: np.ndarray | None = None  # share of the needed seed sown at the last sowing, per village
+    last_started: dict[tuple[str, int], int] = field(default_factory=dict)  # (event, village) -> month it last started
+    woods: np.ndarray | None = None  # wood standing in each village's woods, in units of firewood
+    woods_capacity: np.ndarray | None = None  # what the woods would hold untouched
+    woods_normal: np.ndarray | None = None  # what they held at the start (in balance with the village's use)
+    soil: np.ndarray | None = None  # soil fertility per village, 1 = normal
 
     def __post_init__(self) -> None:
         n = len(self.names)
@@ -60,6 +65,12 @@ class World:
             self.town = Town.at(1.0)
         if self.sown is None:
             self.sown = np.ones(n)
+        if self.soil is None:
+            self.soil = np.ones(n)
+        if self.woods is None:  # untouched woods too big to thin (create_world sizes them)
+            self.woods_capacity = np.full(n, 1e15)
+            self.woods = self.woods_capacity.copy()
+            self.woods_normal = self.woods_capacity.copy()
 
     @property
     def farm_grain(self) -> np.ndarray:
@@ -186,6 +197,8 @@ def create_world(config: Config, streams: RandomStreams) -> World:
         councils.treasury = np.where(councils.formed, cc.treasury_months * officials * cc.official_pay * wage, 0.0)
         councils.reserve = np.where(councils.formed, cc.reserve_months * food_need, 0.0)
         councils.months_ready = np.where(councils.formed, cc.forms_after_months, 0)
+    # The woods are in balance with the village's use of them at the start.
+    woods_capacity, woods = environment.size_woods(np.array([v.population for v in config.villages], dtype=np.float64), config)
     return World(
         month=config.start_month - 1,
         population=population,
@@ -207,6 +220,9 @@ def create_world(config: Config, streams: RandomStreams) -> World:
         # The town pays just enough to carry the village's grain there: the
         # village sells a little grain each month to pay its taxes in coin.
         town=Town.at(float(prices[:, food].mean()) / (1.0 - config.town.transport)),
+        woods=woods,
+        woods_capacity=woods_capacity,
+        woods_normal=woods.copy(),
     )
 
 
