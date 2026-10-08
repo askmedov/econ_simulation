@@ -344,11 +344,149 @@ This growth matters for what-ifs too: the baseline village grows about 4%
 over 5 years, so an event's effect should always be read against the
 paired baseline, as the CLI does.
 
+## What a real village of 1,000 had that this one doesn't
+
+Villages of this size have existed for some 9,000 years: a Neolithic
+farming village in the Levant, a Mesopotamian or Egyptian village, a
+Roman-era or Han Chinese village, a medieval English manor. Next to any of
+them ours is a small modern market town in costume: everyone works for a
+business for wages and buys everything with coins.
+
+The big miss is structural. A real village was a set of farming households
+inside a larger political economy. What decided how a bad year played out
+over the next few years was **who held what** (land, seed, animals, grain,
+debts) and **who took what** (rent, tax, tribute), more than prices. The
+gaps below are ranked by how much they would change a 12–60 month what-if.
+
+### 1. Families farmed their own land and ate their own grain
+
+Most output never reached a market. A peasant family farmed its own (or
+rented) plot with its own labour, kept its grain in its own store, spun
+and wove its own cloth and gathered its own fuel; perhaps a tenth to a
+third of output was sold. Markets mattered for the landless, the
+craftsmen and the surplus.
+
+Why it matters for a what-if: it decides **who goes hungry**. In a drought
+a smallholder eats less of their own harvest whatever the price; the
+landless labourer and the craftsman are hit twice, as grain gets dear and
+demand for their work falls (Sen's "entitlement failure": the 1943 Bengal
+famine happened with food in the region). In our model everyone meets a
+drought through prices, so the vulnerable are simply the poorest in coins.
+The stress test shows where a pure wage economy leads: without a council
+or neighbours' help, families with many children and few earners starve
+next to full granaries, and the village shrinks by 40% in 40 years.
+
+### 2. Land: who holds it, who inherits it, who rents it
+
+Land was the main asset, held by families, lords, temples or the
+community (open fields; periodic redistribution in the Russian commune).
+Rents or shares (a third to a half of the harvest for sharecroppers),
+inheritance rules (one heir or split between sons), and "no holding, no
+marriage" decided how many households there could be. Our land is one
+number per village, and our marriage brake is a wage threshold standing
+in for "a couple needs a holding".
+
+### 3. Most of the surplus left the village
+
+Tribute, rent, tithes, taxes in kind and labour service (corvée) to a
+lord, temple, palace or state commonly took a fifth to half of the
+harvest, and it left: to a town, an army, a court. Our council is a benign
+local body taking 10% of wages and 5% of the grain and spending it all at
+home. The real levers in a crisis were outside the village: rent
+remission, tax postponement, a lord or temple opening its granary, or not.
+
+### 4. Seed grain and livestock make shocks last
+
+In rain-fed Europe yields were 3–6 grains harvested per grain sown, so a
+fifth to a third of every harvest had to be kept as seed (irrigated
+Mesopotamia did far better). A hungry family that eats its seed, or sells
+its oxen, shrinks next year's harvest: one reason famines often ran two
+or three years. Livestock were also the plough team, the manure that
+kept fields fertile, and the family's savings account. Our harvest does
+not depend on last year's choices, so recovery is too quick.
+
+### 5. Debt, distress sales and bondage
+
+In a bad year families borrowed grain (at a third interest, the legal
+limit in Hammurabi's laws), then sold animals, then land, then labour, and
+sometimes themselves or their children into debt bondage. Kings
+periodically cancelled debts (Hammurabi's edicts, Solon's
+"shaking off of burdens"). This is the main way a one-year shock turns
+into lasting inequality. We have no borrowing; neighbours simply give.
+
+### 6. The village was never alone
+
+Metal, salt and pottery came from outside; surplus grain went to a town
+market; prices were regional. A local drought raises prices less if grain
+can come in, and more if roads are bad or soldiers requisition it. Young
+people left to serve in other households or move to town; raids, wars and
+disease came in from outside. Our villages trade with nobody and nobody
+migrates.
+
+### 7. The year had a shape, and so did the family's work
+
+Harvest needed every hand, women and children included; winter was for
+crafts, repairs and building. Women's work (spinning, weaving, brewing,
+food processing, childcare) was as large as men's and almost entirely
+unpaid. Children worked from about seven. Our people hold one job all
+year, children don't work and men and women are interchangeable. One
+result: when land gets crowded every worker goes to farming and our
+village stops making cloth altogether, where a real one kept spinning and
+weaving at home.
+
+### 8. Insurance was social, not financial
+
+Kin networks, reciprocity between neighbours, patrons, temple or church
+charity, scattered strips of land in several fields (so hail never
+ruined one family completely) and household grain stores of a year or
+more. We have a community granary run by "the farming business",
+neighbourly gifts in coin, and a council.
+
+### 9. Money was scarce and came from outside
+
+Many ancient villages used little coin: barley or silver by weight as the
+unit of account, payments in kind, tallies of credit. Coin came in when
+surplus was sold to a town and left as taxes; a tax demanded in coin
+forced peasants to sell grain at harvest when it was cheapest. Our money
+is a fixed, closed stock: prices now adjust to it, but coin never arrives
+by selling grain to a town or leaves as taxes.
+
+### 10. Environment
+
+Soil fertility and fallow, irrigation and salt (Mesopotamia), woods that
+shrink when cut (ours regrow without limit), multi-year droughts and
+volcanic winters (our weather has no memory).
+
+### Already closer than before
+
+The stress test pushed the demography toward a pre-industrial one: a fifth
+of babies die in their first year, life expectancy at birth is about 35,
+births run about 30 and deaths about 25 per 1,000 in ordinary years with
+crisis years far higher, people marry around 21 and later when times are
+hard, and healers save few lives. Ancient villages were often harsher
+still (life expectancy 20–30), which the life table can be set to.
+
+### What to build next
+
+Two of these change near-term what-ifs the most and fit together:
+**peasant households that farm their own plots** (with land held by
+households, seed kept back, and the landless working for wages) and
+**debt and distress sales** (grain loans, then selling animals and land).
+Then a **lord or state** that takes rent and tax out of the village, and
+**a regional market** for grain with a transport cost. Choosing a time and
+place would let parameters come from records: medieval or early modern
+England has the best data (prices and wages, manorial accounts, parish
+registers), Roman Egypt has census returns and contracts, Old Babylonian
+Mesopotamia has loan and land contracts.
+
 ## Roadmap after Phase 2
 
-3. **Land, credit and firms.** Land ownership and rents, lending and debt
-   (who borrows or sells land in a bad year), individual firms instead of
-   one business per trade.
+3. **A peasant village** (from the section above). Households hold plots
+   and farm them with family labour, eat their own grain, keep seed and
+   animals; the landless work for wages. Grain loans, then sales of
+   animals and land, in bad years. A lord or state takes rent and tax out
+   of the village. A regional grain market with a transport cost.
+   Individual firms instead of one business per trade.
 4. **Many villages → a country.** Regions, trade between them, migration;
    people batched into groups (`count` > 1) with split and merge; national
    money and inflation.
@@ -360,3 +498,6 @@ paired baseline, as the CLI does.
 
 - Which events and outcomes matter most for the near-term questions?
 - At what point should the starting state come from real data?
+- Which time and place should the village stand for? Medieval or early
+  modern England has the richest records; Roman Egypt and Old Babylonian
+  Mesopotamia are the best-documented ancient cases.
