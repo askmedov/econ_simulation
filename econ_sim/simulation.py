@@ -7,7 +7,8 @@ import calendar
 import numpy as np
 
 from econ_sim import (
-    council, credit, economy, events, farms, healthcare, households, livestock, lords, market, metrics, rules,
+    council, credit, economy, events, farms, healthcare, households, livestock, lords, market, metrics, migration,
+    rules, town,
 )
 from econ_sim.config import Config
 from econ_sim.metrics import MonthRecord
@@ -65,6 +66,12 @@ class Simulation:
         cancelled = credit.cancel_debts(hh, mods.debt_cancel)
         # Soldiers or raiders take grain and animals.
         requisitioned, taken_from_lord = lords.requisition(hh, world.lord, world.farm_grain, mods.requisition)
+        # The region's grain price swings; a ruler may debase the coinage;
+        # some coins are lost or buried.
+        town.drift(world.town, config, streams["town"])
+        if mods.debase.max() > 0:
+            world.town.level /= 1.0 - mods.debase.max()
+        coins_lost = town.lose_coins(hh.money, world.town, config)
         # Fire or pests strike stored grain: families' stores and the farms'.
         lost_by_family = hh.grain * mods.granary_loss[hh.location]
         hh.grain -= lost_by_family
@@ -126,10 +133,14 @@ class Simulation:
         months_ahead = max(config.food.planning_months - 1, 0)
         ahead = events.production_outlook(world, months_ahead, names[farm])
         ahead = ahead * farms.sown_outlook(world.sown, world.month_of_year, ahead.shape[1], config)
-        # Food to come: the harvests expected, less the seed picked from them.
+        # Food to come: the harvests expected, less the seed picked from them,
+        # plus what merchants bring from the town (or less what they carry off).
         harvests = rules.harvest_outlook(normal_gross, ahead, world.month_of_year, config)
         seed_ahead = farms.seed_outlook(farms.seed_needed(farmed, config), world.month_of_year, ahead.shape[1], config)
         outlook = harvests - np.minimum(seed_ahead, config.food.max_seed_share * harvests)
+        town_price = town.price(world.town, world.month_of_year, mods.production_mult[:, farm], config)
+        carts = town.merchants(world.food_price, town_price, need, config)
+        outlook = np.maximum(outlook + (carts.imports - carts.exports)[:, None], 0.0)
         supply_cover = rules.plan_ration_realistically(world.granary, need, outlook, config, most=2.0)
         famine = supply_cover < 1.0
 
@@ -176,7 +187,7 @@ class Simulation:
         coin_target = uncovered * world.prices[hh.location, food] + months * family_fuel * world.prices[hh.location, fuel]
         offer = world.stock.copy()
         lord_offer = lords.offer(world.lord, config)
-        offer[:, food] = market.by_village(plan.spare, hh.location, n) + world.farm_grain + lord_offer
+        offer[:, food] = market.by_village(plan.spare, hh.location, n) + world.farm_grain + lord_offer + carts.imports
         stock_before = world.stock.copy()
         shared = market.share_with_neighbours(hh.money, essentials, hh.location, n, config)
         # The council helps families who still can't afford them.
@@ -269,19 +280,27 @@ class Simulation:
                 return np.maximum(possible * per_unit - world.supplies[:, :, product], 0.0)
             return None
 
-        # Grain: families short of it buy from families with grain to spare
-        # and from the farms' store, all at the village price.
+        # Grain: families short of it buy from the farms' store, merchants'
+        # grain from the town, and families and the lord with grain to spare,
+        # all at the village price. Then merchants buy what is left, if the
+        # village is cheap enough to carry grain to the town.
         sale = market.buy(hh.money, plan.want, world.food_price, offer[:, food], hh.location)
-        demand[:, food], sold[:, food] = sale.demand, sale.sold
+        demand[:, food] = sale.demand
         bought[food] = sale.bought
-        sold_by_family, sold_by_farms, sold_by_lord = farms.sellers_share(
-            sale.sold, plan.spare, world.farm_grain, hh.location, lord_offer
+        # (merchants never bring grain and carry it off in the same month)
+        exported = np.minimum(carts.exports, np.maximum(offer[:, food] - sale.sold, 0.0))
+        sellers = farms.sellers_share(
+            sale.sold + exported, plan.spare, world.farm_grain, hh.location, lord_offer, carts.imports
         )
+        sold[:, food] = sale.sold + exported
+        sold_by_family, sold_by_lord = sellers.families, sellers.lord
         lords.sold(world.lord, sold_by_lord, world.food_price)
         grain_receipts = sold_by_family * world.food_price[hh.location]
-        world.cash[:, farm] += sold_by_farms * world.food_price
-        world.farm_grain[:] -= sold_by_farms
+        world.cash[:, farm] += sellers.farms * world.food_price
+        world.farm_grain[:] -= sellers.farms
         hh.grain -= plan.own + sold_by_family
+        imported = sellers.imports
+        world.town.purse += float(((imported - exported) * world.food_price).sum())
 
         for product, spec in enumerate(config.products):
             if spec.use == "food":
@@ -307,6 +326,7 @@ class Simulation:
         lord_relief = lords.charity(
             world.lord, np.maximum(family_food - plan.own - bought[food] - relief, 0.0), hh.location, famine, config
         )
+        council_relief = relief
         relief = relief + lord_relief
         fed = plan.own + bought[food] + relief
         foraged = np.clip(family_food - fed, 0.0, family_food * can_find[hh.location])
@@ -359,6 +379,7 @@ class Simulation:
         # Borrowers pay part of their income toward their debts; debts that
         # outgrow a family's animals and land cost them those.
         repaid = credit.repay(hh, income + staff_income + healer_income, config)
+        repaid_in_grain = credit.repay_in_grain(hh, family_food, world.food_price, config)
         foreclosed = credit.foreclose(hh, plot_price, worth, config)
         # Once a year, after harvest, the state collects its tax in coin
         # (or seizes grain from families without the coins).
@@ -406,7 +427,16 @@ class Simulation:
         # short. Farms aim to grow a little more than the village eats.
         died = rules.deaths(pop, mods.mortality_mult, config, streams["deaths"], n, care)
         cover = rules.wage_cover(average_pay, world.food_price, need, all_workers)
-        willing = rules.marriage_factor(cover, config)
+        # How well a family can live here: by its wage, or by what the land
+        # yields per person after seed and the lord's share (a village
+        # thinned by famine has land to spare, and marries and draws people).
+        lord_part = np.divide(world.lord.land, world.land, out=np.zeros(n), where=world.land > 0)
+        land_cover = np.divide(
+            (normal_gross - seed_needed / 12.0) * (1.0 - (1.0 - config.food.labor_share) * lord_part), need,
+            out=np.zeros(n), where=need > 0,
+        )
+        prospects = np.maximum(cover, land_cover)
+        willing = rules.marriage_factor(prospects, config)
         born = rules.births(pop, mods.fertility_mult, config, streams["births"], n)
         rules.grow_older(pop)
         people = rules.by_location(pop.count.astype(np.float64), pop, n)
@@ -437,6 +467,11 @@ class Simulation:
         landless_ration = float(family_eaten[no_land].sum() / landless_need) if landless_need > 0 else 1.0
         wealth = hh.money + hh.grain * world.food_price[hh.location]
         poorest = metrics.poorest_fifth_ration(wealth, households.sizes(pop, n_hh), family_eaten, family_food)
+        # Young people leave for the town (and starving families flee); when
+        # hands are short, young people come from the region.
+        moves = migration.leave(pop, hh, cover, family_share, config, streams["migration"])
+        world.town.purse += moves.coins
+        moves.arrived = migration.arrive(pop, hh, prospects, config, streams["migration"])
         weddings = households.marry(pop, hh, config, streams["marriage"], willing)
         size = households.sizes(pop, len(hh))
         credit.write_off(hh, size == 0)
@@ -499,6 +534,7 @@ class Simulation:
             interest=float(interest.sum()),
             borrowed=float(borrowed.sum()),
             repaid=float(repaid.sum()),
+            repaid_in_grain=float(repaid_in_grain.sum()),
             debts_cancelled=float(cancelled.sum()),
             debts_written_off=float(written_off.sum()),
             land_sold=float(land_sales.plots.sum()),
@@ -515,6 +551,14 @@ class Simulation:
             tax_grain=float(state_tax.grain.sum()),
             state_purse=float(world.lord.state_purse.sum()),
             food_requisitioned=float(requisitioned.sum()),
+            town_price=float(town_price.mean()),
+            grain_exported=float(exported.sum()),
+            grain_imported=float(imported.sum()),
+            town_purse=float(world.town.purse),
+            coins_lost=float(world.town.coins_lost),
+            emigrants=int(moves.left.sum()),
+            immigrants=int(moves.arrived.sum()),
+            food_emigrated=float(moves.grain),
             food_stock=float(world.granary.sum()),
             food_margin=float((normal_gross - seed_needed / 12.0).sum() / need.sum()) if need.sum() > 0 else 0.0,
             food_cover=float(np.average(supply_cover, weights=np.maximum(need, 1e-9))),
@@ -529,7 +573,7 @@ class Simulation:
             officials=int(round(officials.sum())),
             taxes=float(taxes.sum()),
             food_reserve=float(world.council.reserve.sum()),
-            relief=float(relief.sum()),
+            relief=float(council_relief.sum()),
             healers=int(round(healers.sum())),
             treated=int(round(treated.sum())),
             cash_relief=float(cash_relief.sum()),

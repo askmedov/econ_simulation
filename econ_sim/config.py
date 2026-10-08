@@ -192,8 +192,9 @@ DEFAULT_PRODUCTS: tuple[ProductSpec, ...] = (
 
 DEFAULT_BUSINESSES: tuple[BusinessSpec, ...] = (
     # Farming output is gross of seed and before plough animals: with a full
-    # set of tools and animals and after seed it is about 1.8 rations a farmer.
-    BusinessSpec("farming", "food", output=1.67, tool_boost=0.25, uses_land=True, initial_share=0.80),
+    # set of tools and animals, after seed, it is about 2 rations a farmer,
+    # enough to feed the village and its lord.
+    BusinessSpec("farming", "food", output=1.85, tool_boost=0.25, uses_land=True, initial_share=0.80),
     BusinessSpec("woodcutting", "firewood", output=6.0, tool_boost=0.3, initial_share=0.10),
     BusinessSpec("weaving", "clothing", output=2.0, initial_share=0.07),
     BusinessSpec("smithing", "tools", output=1.0, inputs=(("firewood", 2.0),), initial_share=0.03),
@@ -298,9 +299,10 @@ class LandConfig:
     # them, plus this many months of their need; they sell the rest.
     keep_months: float = 1.0
     # A younger son or daughter setting up a household of their own takes a
-    # share of the family's land (partible inheritance) or none (the heir
-    # keeps it all).
-    partible: bool = False
+    # share of the family's land and animals (partible inheritance, as in
+    # most of the old world: Roman, Chinese, Islamic and Frankish law), or
+    # none (the heir keeps it all, as in England).
+    partible: bool = True
 
 
 @dataclass(frozen=True)
@@ -339,8 +341,8 @@ class CreditConfig:
 
     enabled: bool = True
     # A year's interest: grain loans in Hammurabi's Babylon were capped at a
-    # third; medieval rates ran from a tenth to a half.
-    interest: float = 0.3
+    # third; medieval rates ran from a tenth to a half, secured loans lower.
+    interest: float = 0.2
     # Families with coins beyond their savings target lend up to this share
     # of the excess to families who can't afford their food.
     lend_share: float = 0.5
@@ -349,12 +351,15 @@ class CreditConfig:
     loan_to_value: float = 0.5
     personal_months: float = 2.0
     # Borrowers pay this share of each month's coin income toward their
-    # debts (and sell the grain they would otherwise keep as a margin).
+    # debts (and sell the grain they would otherwise keep as a margin), and
+    # `grain_repay_share` of any grain beyond `grain_kept_months` of their
+    # need in kind (mostly after harvest: borrow in spring, repay at harvest).
     repay_share: float = 0.5
+    grain_repay_share: float = 0.5
+    grain_kept_months: float = 2.0
     # When a debt passes this share of what a family's animals and land are
-    # worth, the lenders take them (animals first) until it is back to
-    # `loan_to_value` of what is left.
-    foreclose_at: float = 0.8
+    # worth, the lenders take them (animals first) to settle it.
+    foreclose_at: float = 0.9
     # Debt beyond this many times a family's credit limit can never be
     # repaid: the lenders write it off.
     default_at: float = 2.0
@@ -401,6 +406,54 @@ class StateConfig:
     land_tax: float = 0.1
     # A what-if lever: no tax in a famine year.
     remit_in_famine: bool = False
+
+
+@dataclass(frozen=True)
+class TownConfig:
+    """The regional grain market in the town, and the coins that flow
+    to and from it."""
+
+    enabled: bool = True
+    # Carting grain to or from the town costs this share of its price, and
+    # merchants carry at most `capacity` of the village's monthly need a
+    # month either way (a cartload or two).
+    transport: float = 0.3
+    capacity: float = 0.15
+    # The town's price is dearest in `dearest_month` (before the harvest),
+    # by `seasonal` either way; it swings at random (a monthly log step of
+    # `swing_sd`, keeping `swing_memory` of the last swing), and rises
+    # `regional_share` as much as a village's own harvest shortfall would
+    # suggest (a drought there is a dearth in the region too).
+    seasonal: float = 0.1
+    dearest_month: int = 6
+    swing_sd: float = 0.03
+    swing_memory: float = 0.97
+    regional_share: float = 0.4
+    # Coins are metal: this share is lost, worn away or buried each year.
+    coins_lost_a_year: float = 0.005
+
+
+@dataclass(frozen=True)
+class MigrationConfig:
+    """People leave for the town and come from the region."""
+
+    enabled: bool = True
+    # Young single people leave each year with this chance, more (by `push`
+    # times the shortfall) when a wage buys less than `content_cover` of a
+    # family's food.
+    young_ages: tuple[int, int] = (15, 29)
+    leave_chance: float = 0.02
+    push: float = 3.0
+    content_cover: float = 1.2
+    # In a famine, families eating less than `flee_below` of their need leave
+    # together with this chance a month.
+    flee_below: float = 0.5
+    flee_chance: float = 0.05
+    # When a wage buys more than `welcome_cover` of a family's food, about
+    # `arrive_rate` young people a month per 1,000 villagers per unit of cover
+    # above it come from the region, as servants of landholding families.
+    welcome_cover: float = 1.3
+    arrive_rate: float = 5.0
 
 
 @dataclass(frozen=True)
@@ -459,6 +512,7 @@ class EventSpec:
       granary_loss     share of stored food destroyed
       debt_cancel      share of debts cancelled by decree
       requisition      share of stored grain and animals taken by soldiers or raiders
+      debase           the coinage loses this share of its worth: the town asks more coins for grain
 
     Location events hit everyone in a village. Person events hit each person
     independently, last one month and support only health_delta for now.
@@ -554,6 +608,13 @@ DEFAULT_EVENTS: tuple[EventSpec, ...] = (
         message="Raiders strike: grain and animals taken, people killed",
     ),
     EventSpec(
+        name="debasement",
+        scope="location",
+        chance=0.0,  # only when scheduled: a what-if lever
+        effects={"debase": 0.25},
+        message="The ruler debases the coinage: coins are worth less",
+    ),
+    EventSpec(
         name="debt_jubilee",
         scope="location",
         chance=0.0,  # only when scheduled: a what-if lever
@@ -604,6 +665,8 @@ class Config:
     credit: CreditConfig = field(default_factory=CreditConfig)
     lord: LordConfig = field(default_factory=LordConfig)
     state: StateConfig = field(default_factory=StateConfig)
+    town: TownConfig = field(default_factory=TownConfig)
+    migration: MigrationConfig = field(default_factory=MigrationConfig)
     council: CouncilConfig = field(default_factory=CouncilConfig)
     healthcare: HealthcareConfig = field(default_factory=HealthcareConfig)
     products: tuple[ProductSpec, ...] = DEFAULT_PRODUCTS

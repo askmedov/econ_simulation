@@ -3,7 +3,7 @@ from dataclasses import asdict, replace
 import numpy as np
 import pytest
 
-from econ_sim.config import Config, VillageConfig
+from econ_sim.config import Config, MigrationConfig, VillageConfig
 from econ_sim.metrics import write_csv
 from econ_sim.population import Population
 from econ_sim.simulation import Simulation
@@ -33,9 +33,12 @@ def test_food_is_accounted_for():
     stock = sim.world.granary.sum()
     for _ in range(240):
         r = sim.step()
-        # Families eat what they buy plus relief from the council's reserve.
-        stock += (r.food_produced + r.meat - (r.food_eaten - r.relief - r.foraged - r.lord_sold) - r.food_spoiled
-                  - r.food_lost - r.food_levied - r.food_to_seed - r.food_rent - r.tax_grain - r.food_requisitioned)
+        # Families eat what they buy plus relief from the council's reserve
+        # and the lord's barn.
+        stock += (r.food_produced + r.meat
+                  - (r.food_eaten - r.relief - r.lord_relief - r.foraged - r.lord_sold - r.grain_imported)
+                  - r.food_spoiled - r.food_lost - r.food_levied - r.food_to_seed - r.food_rent - r.tax_grain
+                  - r.food_requisitioned - r.grain_exported - r.food_emigrated)
         assert np.isclose(stock, r.food_stock)
 
 
@@ -44,7 +47,7 @@ def test_population_matches_births_and_deaths():
     people = sim.world.population.size
     for _ in range(240):
         r = sim.step()
-        people += r.births - r.deaths
+        people += r.births - r.deaths - r.emigrants + r.immigrants
         assert people == r.population == r.children + r.workers + r.elderly
 
 
@@ -71,7 +74,9 @@ def test_villages_are_independent_without_trade():
 
 def test_grouped_population_runs_and_keeps_totals_consistent():
     # The same rules must work when each row stands for many people.
-    sim = Simulation(Config(seed=6, months=120, villages=(VillageConfig(population=10_000, land=5_000.0),)))
+    # (one household of 10,000 people: no migration, or it would flee as one)
+    sim = Simulation(Config(seed=6, months=120, villages=(VillageConfig(population=10_000, land=5_000.0),),
+                            migration=MigrationConfig(enabled=False)))
     pop = sim.world.population
     grouped = Population(
         count=np.full(100, 100),
@@ -86,7 +91,7 @@ def test_grouped_population_runs_and_keeps_totals_consistent():
     people = grouped.size
     for _ in range(120):
         r = sim.step()
-        people += r.births - r.deaths
+        people += r.births - r.deaths - r.emigrants + r.immigrants
         assert people == r.population == sim.world.population.size
     assert sim.world.population.count.max() > 1
 

@@ -132,7 +132,7 @@ def test_money_is_never_created_or_destroyed():
     total = sim.world.money
     for _ in range(36):
         r = sim.step()
-        assert np.isclose(r.savings + r.business_cash + r.treasury + r.lord_purse + r.state_purse, total)
+        assert np.isclose(r.savings + r.business_cash + r.treasury + r.lord_purse + r.state_purse + r.town_purse + r.coins_lost, total)
 
 
 def test_drought_raises_food_price_and_hits_the_poorest_hardest():

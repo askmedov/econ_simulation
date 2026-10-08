@@ -37,6 +37,10 @@ def main(argv: list[str] | None = None) -> None:
             established_at_start=not args.council_forms_later,
         ),
         healthcare=replace(defaults.healthcare, enabled=not args.no_healthcare),
+        lord=replace(defaults.lord, enabled=not args.no_lord, charity_in_famine=args.lord_charity),
+        state=replace(defaults.state, enabled=not args.no_state_tax, remit_in_famine=args.remit_tax),
+        town=replace(defaults.town, enabled=not args.no_town),
+        migration=replace(defaults.migration, enabled=not args.no_migration),
     )
     forced = tuple(_parse_event(text) for text in args.event)
     # Check the forced events before running anything.
@@ -99,6 +103,12 @@ def _parser() -> argparse.ArgumentParser:
         "--council-forms-later", action="store_true",
         help="no council at the start; one forms once the village has had 500 people for 6 months",
     )
+    parser.add_argument("--no-lord", action="store_true", help="no lord: no demesne, labour services or barn")
+    parser.add_argument("--lord-charity", action="store_true", help="the lord opens his barn to the hungry in a famine")
+    parser.add_argument("--no-state-tax", action="store_true", help="the state takes no tax")
+    parser.add_argument("--remit-tax", action="store_true", help="the state remits its tax in a famine year")
+    parser.add_argument("--no-town", action="store_true", help="no merchants: grain neither leaves for nor comes from the town")
+    parser.add_argument("--no-migration", action="store_true", help="nobody leaves the village or comes to it")
     parser.add_argument("--population", type=int, default=village.population, help="villagers at the start (default %(default)s)")
     parser.add_argument("--land", type=float, default=village.land, help="farmland in plots (default %(default)s)")
     parser.add_argument("--food-months", type=float, default=village.initial_food_months, help="months of food in store at the start (default %(default)s)")
@@ -234,6 +244,8 @@ def _print_effect(result: Effect, forced: tuple[ScheduledEvent, ...], runs: int,
     print(f"  {'Lowest average health':<28}{result.lowest_health[0]:.0f} without, {result.lowest_health[1]:.0f} with")
     if result.relief[1] > 0 or result.relief[0] > 0:
         print(f"  {'Council relief (rations)':<28}{result.relief[0]:.0f} without, {result.relief[1]:.0f} with")
+    if result.lord_relief[1] > 0 or result.lord_relief[0] > 0:
+        print(f"  {'Lord relief (rations)':<28}{result.lord_relief[0]:.0f} without, {result.lord_relief[1]:.0f} with")
     if result.treated[1] > 0 or result.treated[0] > 0:
         print(f"  {'People treated by healers':<28}{result.treated[0]:.0f} without, {result.treated[1]:.0f} with")
 

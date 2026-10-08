@@ -108,6 +108,30 @@ def repay(households: Households, income: np.ndarray, config: Config) -> np.ndar
     return repaid
 
 
+def repay_in_grain(
+    households: Households, need: np.ndarray, food_price: np.ndarray, config: Config
+) -> np.ndarray:
+    """Debtors pay in grain too: `grain_repay_share` of whatever grain they
+    hold beyond `grain_kept_months` of their `need` (mostly after harvest),
+    valued at the village price; the lenders get the grain by their claims.
+    Returns rations paid per village."""
+    cfg = config.credit
+    n = len(food_price)
+    loc = households.location
+    beyond = np.maximum(households.grain - cfg.grain_kept_months * need, 0.0)
+    owed = np.divide(households.debt, food_price[loc], out=np.zeros_like(need), where=food_price[loc] > 0)
+    paying = np.where(households.debt > 0, np.minimum(cfg.grain_repay_share * beyond, owed), 0.0)
+    households.grain -= paying
+    households.debt -= paying * food_price[loc]
+    rations = by_village(paying, loc, n)
+    value = rations * food_price
+    received = _pro_rata(households.lent.copy(), value, loc)
+    households.lent -= received
+    households.grain += np.divide(received, food_price[loc], out=np.zeros_like(need), where=food_price[loc] > 0)
+    np.maximum(households.debt, 0.0, out=households.debt)
+    return rations
+
+
 @dataclass
 class Foreclosures:
     animals: np.ndarray  # taken, per village
@@ -120,18 +144,14 @@ def foreclose(
 ) -> Foreclosures:
     """Debts beyond `foreclose_at` of what a borrower's animals and land are
     worth are settled by taking them: animals first, then land, at their
-    price, until the debt is back to `loan_to_value` of what is left. The
-    lenders get them (and the debt is cleared from their claims) by their
-    claims."""
+    price, as far as they cover the debt (what they don't cover stays owed).
+    The biggest creditors get them, and the debt is cleared from their claims."""
     cfg = config.credit
     n = len(plot_price)
     loc = households.location
     worth = collateral(households, plot_price, animal_price)
     over = households.debt > cfg.foreclose_at * worth
-    # Taking x coins' worth leaves debt - x against worth - x: settle until
-    # debt - x = ltv * (worth - x).
-    take = np.where(over, (households.debt - cfg.loan_to_value * worth) / (1.0 - cfg.loan_to_value), 0.0)
-    take = np.clip(take, 0.0, np.minimum(worth, households.debt))
+    take = np.where(over, np.minimum(worth, households.debt), 0.0)
     animal_value = households.animals * animal_price[loc]
     from_animals = np.minimum(take, animal_value)
     from_land = take - from_animals

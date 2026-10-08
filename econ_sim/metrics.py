@@ -49,6 +49,7 @@ class MonthRecord:
     interest: float  # coins of interest added to debts this month
     borrowed: float  # coins lent to families who couldn't afford their food
     repaid: float  # coins paid back
+    repaid_in_grain: float  # rations paid back in kind
     debts_cancelled: float  # coins of debt cancelled by decree
     debts_written_off: float  # coins of debt that could never be repaid, lost to the lenders
     land_sold: float  # plots sold by families who couldn't afford their food
@@ -65,6 +66,14 @@ class MonthRecord:
     tax_grain: float  # rations seized from families who couldn't pay the state's tax
     state_purse: float  # coins the state has taken out of the village
     food_requisitioned: float  # rations soldiers or raiders took from families and farms
+    town_price: float  # coins per ration in the town's grain market
+    grain_exported: float  # rations merchants carried to the town
+    grain_imported: float  # rations merchants brought from the town and sold
+    town_purse: float  # coins the villages have paid the town, net (negative: received)
+    coins_lost: float  # coins lost, worn away or buried since the start
+    emigrants: int  # people who left for the town
+    immigrants: int  # people who came from the region
+    food_emigrated: float  # rations leavers took with them
     food_stock: float  # at the end of the month
     food_margin: float  # normal harvest over need; below ~1.05 the land is crowded
     food_cover: float  # stores plus expected harvests, as a share of the coming year's need
@@ -79,7 +88,7 @@ class MonthRecord:
     officials: int  # council officials
     taxes: float  # coins collected in tax this month
     food_reserve: float  # rations held by councils for famine relief
-    relief: float  # rations given free to families who couldn't buy enough
+    relief: float  # rations the council gave free to families who couldn't buy enough
     cash_relief: float  # coins the council gave families who couldn't afford food and firewood
     healers: int  # healers employed by the council
     treated: int  # people healers saw this month

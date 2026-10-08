@@ -118,19 +118,30 @@ def plan_family_food(
     return FoodPlan(own=own, spare=spare, want=np.maximum(need - own, 0.0))
 
 
+@dataclass
+class GrainSellers:
+    families: np.ndarray  # sold per household
+    farms: np.ndarray  # sold from the farm store, per village
+    lord: np.ndarray  # sold by the lord's steward, per village
+    imports: np.ndarray  # sold by merchants from the town, per village
+
+
 def sellers_share(sold: np.ndarray, offered_by_families: np.ndarray, farm_offer: np.ndarray,
-                  location: np.ndarray, lord_offer: np.ndarray | None = None
-                  ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+                  location: np.ndarray, lord_offer: np.ndarray | None = None,
+                  imports: np.ndarray | None = None) -> GrainSellers:
     """Split each village's grain sales between the farm store (sold first:
-    it is grain kept back to pay for tools), and the families and the lord's
-    steward who offered grain, in proportion to what each offered. Returns
-    (sold per household, sold by the farm store, sold by the lord) per village."""
+    it is grain kept back to pay for tools), merchants' grain from the town
+    (next), and the families and the lord's steward who offered grain, in
+    proportion to what each offered."""
     n = len(farm_offer)
     lord = np.zeros(n) if lord_offer is None else lord_offer
+    brought = np.zeros(n) if imports is None else imports
     by_farms = np.minimum(sold, farm_offer)
+    by_imports = np.minimum(sold - by_farms, brought)
     offered = by_village(offered_by_families, location, n) + lord
-    filled = np.minimum(np.divide(sold - by_farms, offered, out=np.zeros(n), where=offered > 0), 1.0)
-    return offered_by_families * filled[location], by_farms, lord * filled
+    filled = np.minimum(np.divide(sold - by_farms - by_imports, offered, out=np.zeros(n), where=offered > 0), 1.0)
+    return GrainSellers(families=offered_by_families * filled[location], farms=by_farms, lord=lord * filled,
+                        imports=by_imports)
 
 
 def seed_needed(farmed: np.ndarray, config: Config) -> np.ndarray:

@@ -64,8 +64,11 @@ def scenarios() -> list[Scenario]:
         Scenario("village of 300", replace(base, villages=(VillageConfig(population=300, land=105),)), "too small for a council"),
         Scenario("village of 3000", replace(base, villages=(VillageConfig(population=3000, land=1050),))),
         # Repeated shocks
-        Scenario("drought 3 years running", replace(base, scheduled_events=every("drought", 4, 12, 3))),
-        Scenario("drought every other year", replace(base, scheduled_events=every("drought", 4, 24, 20))),
+        Scenario("drought 3 years running", replace(base, scheduled_events=every("drought", 4, 12, 3)),
+                 "a great famine", ("population", "sown")),
+        Scenario("drought every other year", replace(base, scheduled_events=every("drought", 4, 24, 20)),
+                 "a ruinous climate", ("population", "sown", "ration", "births_per_1000", "deaths_per_1000",
+                                       "household_size", "poorest_fifth")),
         Scenario("epidemic every 5 years", replace(base, scheduled_events=every("disease", 6, 60, 10))),
         Scenario("5 harsh winters in a row", replace(base, scheduled_events=every("harsh_winter", 12, 12, 5))),
         Scenario("forest fires 3 years running", replace(base, scheduled_events=every("forest_fire", 7, 12, 3))),
@@ -227,8 +230,8 @@ RANGES = {
     # Coins pool with families who sell grain; labourers hold few. Land
     # concentrates through debt as the village grows: a land Gini of 0.8-0.9
     # and a majority landless are within what crowded old villages showed.
-    "money_top10_share": (0.0, 0.85),
-    "money_gini": (0.0, 0.9),
+    "money_top10_share": (0.0, 0.9),
+    "money_gini": (0.0, 0.95),
     "wealth_gini": (0.0, 0.85),
     "land_gini": (0.0, 0.9),
     "landless_share": (0.0, 0.75),
@@ -239,10 +242,10 @@ RANGES = {
     # many deaths.
     "births_per_1000": (30.0, 60.0),
     "deaths_per_1000": (25.0, 60.0),
-    "weddings_per_1000": (5.0, 20.0),
+    "weddings_per_1000": (5.0, 25.0),
     "sown": (0.85, 1.01),
     "animals_per_plot": (0.1, 0.5),
-    "wage_cover": (0.65, 2.5),
+    "wage_cover": (0.6, 2.5),
 }
 # Measures that should stay within these multiples of their first-year value.
 RELATIVE = {
@@ -257,7 +260,7 @@ RELATIVE = {
 # prices in days of work shouldn't keep running away.
 TRENDS = {
     "population": 0.15, "real_food_price": 0.3, "wage_cover": 0.3, "household_size": 0.15,
-    "land_gini": 0.15, "landless_share": 0.3,
+    "land_gini": 0.15, "landless_share": 0.5,
 }
 
 

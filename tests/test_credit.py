@@ -46,15 +46,18 @@ def test_repayments_go_to_the_lenders():
 
 def test_debts_beyond_what_a_family_owns_cost_it_its_animals_then_land():
     hh = Households(np.zeros(3), land=np.array([10.0, 0.0, 0.0]), animals=np.array([2.0, 0.0, 0.0]),
-                    debt=np.array([120.0, 0.0, 0.0]), lent=np.array([0.0, 110.0, 10.0]))
-    plot, animal = np.array([10.0]), np.array([20.0])
+                    debt=np.array([130.0, 0.0, 0.0]), lent=np.array([0.0, 120.0, 10.0]))
+    plot, animal = np.array([10.0]), np.array([20.0])  # worth 140
     done = credit.foreclose(hh, plot, animal, CONFIG)
-    assert hh.animals[0] == 0.0 and 0 < hh.land[0] < 10.0
-    worth_left = hh.land[0] * 10.0
-    assert np.isclose(hh.debt[0], CFG.loan_to_value * worth_left)
-    assert hh.land[1] > 0 and hh.land[2] == 0  # the biggest creditor takes it
+    # The debt is settled with both animals (40) and 9 of the 10 plots (90).
+    assert hh.animals[0] == 0.0 and np.isclose(hh.land[0], 1.0) and np.isclose(hh.debt[0], 0.0)
+    assert hh.land[1] > 10 * hh.land[2]  # the biggest creditor takes most, up to its claim
     assert np.isclose(hh.land.sum(), 10.0) and np.isclose(hh.animals.sum(), 2.0) and balanced(hh)
-    assert np.isclose(done.value[0], 120.0 - hh.debt[0])
+    assert np.isclose(done.value[0], 130.0)
+    # Below the threshold nothing happens.
+    hh = Households(np.zeros(1), land=np.array([10.0]), debt=np.array([50.0]))
+    credit.foreclose(hh, plot, animal, CONFIG)
+    assert hh.land[0] == 10.0
 
 
 def test_unpayable_debt_is_written_off():

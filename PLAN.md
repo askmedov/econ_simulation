@@ -488,8 +488,8 @@ tested, sanity-checked and stress-tested:
 | 1 | `claude/peasant-farms` | families hold land and grain; the harvest is shared out in kind; a grain market among families (built) |
 | 2 | `claude/seed-and-livestock` | seed kept back from each harvest; plough animals, herds and their losses; a high-pressure demography (built) |
 | 3 | `claude/debt-and-distress` | loans, foreclosure, distress land sales, a debt jubilee (built) |
-| 4 | `claude/lord-and-state` | a lord's land and rent in kind, taxes in coin, the lord's granary |
-| 5 | `claude/regional-market` | a town grain price with a transport cost; people leave and arrive |
+| 4 | `claude/lord-and-state` | a lord's land and rent in kind, taxes in coin, the lord's granary, armies and raiders (built) |
+| 5 | `claude/regional-market` | a town grain price with a transport cost; coins that flow with trade; people leave and arrive (built) |
 | 6 | `claude/household-work` | everyone at harvest, women's spinning and weaving at home, kin who help |
 | 7 | `claude/environment` | woods that shrink when cut, soil that tires, droughts that come in runs |
 
@@ -590,15 +590,16 @@ last person. Each was a rule no farmer would follow.
   borrows, then sells land. Firewood is gathered (up to 80% of the need)
   rather than borrowed for.
 - **Loans** come from families with coins to spare (half of their spare),
-  at 30% a year, up to half of what the borrower's land and animals are
-  worth plus two months' wages on its word. Loans are pooled in each
-  village: every borrower owes the village's lenders, who share
-  repayments by their claims. Borrowers pay half their coin income toward
-  their debts, and sell the grain they would otherwise keep as a margin.
-- **Foreclosure.** A debt that passes 80% of what a family's animals and
-  land are worth costs it animals, then land, until it is back to half of
-  what is left; the biggest creditors take them. Debt beyond twice what a
-  family could ever borrow is written off, a loss to the lenders.
+  at 20% a year, up to half of what the borrower's land and animals are
+  worth plus two months' wages on its word, and only for food. Loans are
+  pooled in each village: every borrower owes the village's lenders, who
+  share repayments by their claims. Borrowers pay half their coin income
+  toward their debts, and half of any grain beyond two months' food in
+  kind (borrow in spring, repay at harvest).
+- **Foreclosure.** A debt that passes 90% of what a family's animals and
+  land are worth is settled by taking them, animals first; the biggest
+  creditors take them. Debt beyond twice what a family could ever borrow
+  is written off, a loss to the lenders.
 - **Land sales.** Families still short sell land to the families with the
   most coins to spare; land is worth 15 years of its rent at the usual
   grain price, and when many must sell at once its price falls, to 30% of
@@ -619,15 +620,114 @@ debt cancellations were meant to stop. A three-year what-if is mostly
 unchanged by credit: in a drought, without a council, about 18 extra
 deaths and landless families at 54% of their need in the worst month.
 
-### Money is metal, not paper
+### 4. A lord and the state (built)
 
-Coins here are silver (or shells, or barley by weight): nobody prints
-them. The village's coins are a fixed stock and prices adjust to it (the
-customary wage drifts with how many months of earnings families hold).
-Still to come with the state and the regional market: coins flow in when
-the village sells grain to the town and out with imports and taxes in
-coin; some are lost or buried each year; and a ruler can debase the
-coinage.
+- **The lord's demesne.** A lord holds a quarter of the land. Its land
+  share of each harvest goes to his barn, and tenants owe him labour days:
+  a tenth of the labour share goes to him too. A fifth of the barn is
+  carted to his hall each month; his steward offers 30% of the rest on the
+  village market, and the coins go into his purse, outside the village.
+  His household spends a little of the purse (5% a month) on the
+  village's cloth, the only way his coins come back.
+- **The state's tax** is collected in coin each November: a hearth tax of
+  half a month's customary wage on every household and a land tax of a
+  tenth of a year's rent on every plot families hold. Families without the
+  coins have grain seized at the market price; what they still can't pay
+  is let go.
+- **Armies and raiders** (`army`, `raid`) take a fifth to two-fifths
+  (raiders a tenth to three-tenths, and lives) of all grain and animals,
+  the families', the farms' and the lord's.
+- **Levers:** `--lord-charity` (the lord opens his barn to the hungry in a
+  famine), `--remit-tax` (the state remits its tax in a famine year),
+  `--no-lord`, `--no-state-tax`.
+- **New measures:** grain to the lord (rent), carted away and sold by his
+  steward, his barn and purse; the state's tax in coin and grain seized;
+  grain requisitioned.
+
+**What it changes.** About a ninth of the gross harvest (an eighth after
+seed) goes to the lord, three-fifths of it carted out of the village; the
+state takes a few weeks of each household's coin earnings a year. The
+village needs a better harvest per farmer to carry that (farming output
+was raised by a tenth, as estates bring the fields up to what can feed
+the lord too). And both drain coins: before the regional market, prices
+deflated for decades as coins left with taxes and the lord's sales and
+nothing brought them back.
+
+### 5. A regional market, migration and money that is metal (built)
+
+- **The town's grain price.** In a normal year it sits where the
+  village's grain is just worth carting there (the town price less 30%
+  transport). It is dearest in June (10% above the year's average,
+  cheapest after harvest), swings at random (a slow drift of a few
+  percent), and rises with the region's harvest: a drought in the village
+  is a dearth in the region too, at 40% of the local shortfall.
+- **Merchants** buy the village's grain when it is cheaper than the town
+  price less transport, and bring grain when the village price is above
+  the town price plus transport, at most 15% of the village's monthly
+  need a month either way (a cartload or two). Imports sell first on the
+  village market after the farm store; exports are bought after families.
+- **Money is metal.** Coins here are silver (or shells, or barley by
+  weight): nobody prints them. They come in when the village sells grain
+  to the town and leave when it buys grain there, pays its tax in coin or
+  buys from its lord; half a percent of them is lost or buried each year.
+  A `debasement` event (`--event debasement@MONTH`) cuts the coinage's
+  worth by a quarter: the town asks a third more coins for its grain, and
+  the village's coins buy less outside it. Prices in the village follow
+  the coins it holds (the customary wage drifts with how many months of
+  earnings families hold), not a printing press. Every coin is accounted
+  for: the village's, the lord's and state's purses, the town's net
+  purse, and coins lost.
+- **Migration.** Young single people leave for the town (about 2% a year,
+  up to three times that when a wage can't feed a family); in a famine
+  whole families eating less than half their need leave together (5% a
+  month), taking their coins and grain and leaving their land and debts.
+  When hands are short (a wage buys more than 1.3 times a family's food,
+  or land is plentiful), young people come from the region and join
+  landholding families as servants. Young people marry sooner when land
+  or wages can feed a family.
+- **Levers:** `--no-town`, `--no-migration`.
+- **New measures:** the town's price, grain exported and imported, the
+  town's net purse, coins lost, emigrants and immigrants, grain they took.
+
+**Recalibration.** With the lord, the state and the town all taking a
+share, the village was rebalanced to stay near its size over a century:
+farming output (above), partible inheritance by default (younger children
+take a share of land and animals, as in Roman, Chinese, Islamic and
+Frankish law; England's single heir is `LandConfig(partible=False)`),
+interest at 20% a year on loans that are repaid partly in grain at
+harvest, and a foreclosure that settles the debt.
+
+**What it changes.** In an ordinary decade about 5% of the harvest is
+carted to the town, coins flow in to pay for the lord's and the state's
+take, and prices stay level instead of deflating. A few people leave and
+arrive each year (about 3 and 2 per 1,000). In a famine the village price
+rises until merchants bring grain, but only a cartload or two a month, so
+a drought is still a famine; and families flee it. Births and deaths run
+about 47 per 1,000 in ordinary years.
+
+An April drought, 200 paired runs over three years:
+
+| | With the council | Without |
+|---|---|---|
+| Extra deaths | 12 (80% of runs: -10 to +22) | 16 (-10 to +61) |
+| Fewer births | 6 | 9 |
+| Village smaller at the end (deaths, fewer births, people gone) | 37 | 47 |
+| Highest grain price (normal year about 1.7) | 2.7 | 2.5 |
+| Worst month, village | 90% of need | 86% |
+| Worst month, landless families | 86% | 71% |
+
+A third to a half of the loss is people leaving rather than dying: young
+people go to the town when a wage no longer feeds a family, and the
+hungriest families flee. Grain from the town tops the village up when its
+price is high, so the drought costs fewer lives than in step 3, but the
+village is smaller for years.
+
+**Checks.** None of the stress test's 55 scenarios drifts over 40 years
+(the village grows about a sixth in 40 years, with births and deaths
+both near 47 per 1,000; three droughts in a row cost a fifth of it, and a
+drought every other year halves it, as expected). The sanity check's 733
+runs pass; a hamlet of 20 starving out or being abandoned in a famine now
+counts as a rare disaster, as many did, rather than nonsense.
 
 ## Roadmap after Phase 2
 

@@ -41,7 +41,13 @@ IMPOSSIBLE = {
     "money created or destroyed",
     "price not positive",
 }
-DISASTERS = {"starvation rations (below 50%)", "deaths above 30% in a year"}
+DISASTERS = {
+    "starvation rations (below 50%)",
+    "deaths above 30% in a year",
+    # A hamlet of a few families can starve out or be abandoned in a famine,
+    # as many were; a village of hundreds dying out is nonsense.
+    "hamlet died out or was abandoned",
+}
 
 
 def problems(sim: Simulation, extreme: bool = False) -> list[tuple[str, int]]:
@@ -59,7 +65,7 @@ def problems(sim: Simulation, extreme: bool = False) -> list[tuple[str, int]]:
         found.append((name, month))
 
     def coins(r) -> float:
-        return r.savings + r.business_cash + r.treasury + r.lord_purse + r.state_purse
+        return r.savings + r.business_cash + r.treasury + r.lord_purse + r.state_purse + r.town_purse + r.coins_lost
 
     money = coins(records[0]) if records else 0.0
     start_prices = dict(records[0].prices) if records else {}
@@ -103,7 +109,8 @@ def problems(sim: Simulation, extreme: bool = False) -> list[tuple[str, int]]:
         return found
 
     if records and records[-1].population == 0:
-        flag("village died out", next(r.month_number for r in records if r.population == 0))
+        died = next(r.month_number for r in records if r.population == 0)
+        flag("hamlet died out or was abandoned" if start_pop < 50 else "village died out", died)
 
     # Yearly rates, over full years only.
     for start in range(0, len(records) - 11, 12):

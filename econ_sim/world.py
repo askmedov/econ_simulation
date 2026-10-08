@@ -11,6 +11,7 @@ from econ_sim.council import Councils
 from econ_sim.config import Config, EventSpec
 from econ_sim.households import Households, assign_land, form_households
 from econ_sim.lords import Lords
+from econ_sim.town import Town
 from econ_sim.population import Population
 from econ_sim.rng import RandomStreams
 
@@ -46,6 +47,7 @@ class World:
     coin_earnings: np.ndarray | None = None  # running average of families' monthly coin income, per village
     seed: np.ndarray | None = None  # grain kept back to sow at the next sowing, per village (set in the first month)
     lord: Lords | None = None  # the lord's demesne, barn and purse, and the state's purse
+    town: Town | None = None  # the regional grain market, and coins gone to it or lost
     sown: np.ndarray | None = None  # share of the needed seed sown at the last sowing, per village
 
     def __post_init__(self) -> None:
@@ -54,6 +56,8 @@ class World:
             self.council_costs = np.zeros(n)
         if self.lord is None:
             self.lord = Lords.none(n)
+        if self.town is None:
+            self.town = Town.at(1.0)
         if self.sown is None:
             self.sown = np.ones(n)
 
@@ -98,8 +102,10 @@ class World:
 
     @property
     def money(self) -> float:
-        """All coins, including those the lord and the state took away; never changes."""
-        return self.village_money + float(self.lord.purse.sum() + self.lord.state_purse.sum())
+        """Every coin there was at the start: in the villages, taken by the
+        lord and the state, gone to the town (net), or lost. Never changes."""
+        outside = self.lord.purse.sum() + self.lord.state_purse.sum() + self.town.purse + self.town.coins_lost
+        return self.village_money + float(outside)
 
 
 def create_world(config: Config, streams: RandomStreams) -> World:
@@ -197,6 +203,9 @@ def create_world(config: Config, streams: RandomStreams) -> World:
         council=councils,
         names=tuple(v.name for v in config.villages),
         lord=Lords(land=demesne, barn=np.zeros(n), purse=np.zeros(n), state_purse=np.zeros(n)),
+        # The town pays just enough to carry the village's grain there: the
+        # village sells a little grain each month to pay its taxes in coin.
+        town=Town.at(float(prices[:, food].mean()) / (1.0 - config.town.transport)),
     )
 
 

@@ -142,6 +142,12 @@ def assign_land(
     weight[rng.random(n) < cfg.landless_share] = 0.0
     weight[size == 0] = 0.0
     total = np.bincount(households.location, weights=weight, minlength=len(village_land))
+    # Every village has someone holding its land: the family with most adults.
+    for village in np.flatnonzero(total <= 0):
+        here = np.flatnonzero((households.location == village) & (size > 0))
+        if len(here):
+            weight[here[np.argmax(adults[here])]] = 1.0
+    total = np.bincount(households.location, weights=weight, minlength=len(village_land))
     households.land = np.divide(
         weight * village_land[households.location], total[households.location],
         out=np.zeros(n), where=total[households.location] > 0,

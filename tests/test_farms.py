@@ -83,10 +83,13 @@ def test_families_eat_from_their_store_sell_their_spare_and_buy_what_they_lack()
 
 
 def test_the_farm_store_sells_first_then_families_by_what_they_offered():
-    sold_by_family, by_farms, by_lord = farms.sellers_share(
-        np.array([50.0]), np.array([30.0, 90.0]), np.array([20.0]), np.zeros(2, dtype=np.int32), np.array([30.0])
+    sold = farms.sellers_share(
+        np.array([60.0]), np.array([30.0, 90.0]), np.array([20.0]), np.zeros(2, dtype=np.int32), np.array([30.0]),
+        imports=np.array([10.0]),
     )
-    assert by_farms[0] == 20.0 and np.allclose(sold_by_family, [6.0, 18.0]) and np.isclose(by_lord[0], 6.0)
+    # The farm store first, then the merchants' grain, then the rest pro rata.
+    assert sold.farms[0] == 20.0 and sold.imports[0] == 10.0
+    assert np.allclose(sold.families, [6.0, 18.0]) and np.isclose(sold.lord[0], 6.0)
 
 
 def test_land_is_spread_with_some_families_landless():

@@ -126,7 +126,7 @@ def test_money_is_conserved_with_a_council():
     total = sim.world.money
     for _ in range(36):
         r = sim.step()
-        assert np.isclose(r.savings + r.business_cash + r.treasury + r.lord_purse + r.state_purse, total)
+        assert np.isclose(r.savings + r.business_cash + r.treasury + r.lord_purse + r.state_purse + r.town_purse + r.coins_lost, total)
 
 
 def test_council_relief_softens_a_drought():
