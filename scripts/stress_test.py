@@ -70,7 +70,7 @@ def scenarios() -> list[Scenario]:
         Scenario("village of 3000", replace(base, villages=(VillageConfig(population=3000, land=1050),))),
         # Repeated shocks
         Scenario("drought 3 years running", replace(base, scheduled_events=every("drought", 4, 12, 3)),
-                 "a great famine", ("population", "sown")),
+                 "a great famine; survivors take up the land of the dead", ("population", "sown", "landless_share")),
         Scenario("drought every other year", replace(base, scheduled_events=every("drought", 4, 24, 20)),
                  "a ruinous climate", ("population", "sown", "ration", "births_per_1000", "deaths_per_1000",
                                        "household_size", "poorest_fifth")),
@@ -148,7 +148,10 @@ def scenarios() -> list[Scenario]:
     ]
     for label, make, values in perturb:
         for value in values:
-            out.append(Scenario(f"{label} {value:g}", make(value)))
+            if label == "birth chance" and value > demo.annual_birth_chance:
+                out.append(Scenario(f"{label} {value:g}", make(value), "fertility at its natural limit", ("births_per_1000",)))
+            else:
+                out.append(Scenario(f"{label} {value:g}", make(value)))
     return out
 
 

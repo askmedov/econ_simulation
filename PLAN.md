@@ -753,6 +753,26 @@ counts as a rare disaster, as many did, rather than nonsense.
 - **New measures:** homespun cloth, harvest help, grain given by kin;
   cloth worn per person now counts homespun.
 
+**What it changes.** Help at harvest adds about 80-90 workers' worth to
+the fields from July to October; craftsmen's families now earn grain at
+harvest, and families with children of 10-14 earn more. Homespun is about
+a sixth of the cloth worn, so the village keeps a weaver or two fewer. Kin
+pass on about 250 rations a year in an ordinary decade, much of it to
+young couples and old parents. In a village-wide drought kin help little,
+since they are short at the same time: without a council, about 17 extra
+deaths with it and 18 without, and 5.6 against 6.7 months on short
+rations. Kin matter most for a family's own misfortune (a dead
+breadwinner, a burned store), which a village-wide what-if doesn't show.
+With the council, an April drought now costs about 11 extra deaths.
+
+**Checks.** The stress test's 62 scenarios (seven new: no kin help, no
+household work, no lord, no state tax, a charitable lord with tax
+remitted, no town, no migration) show no drift beyond what each scenario
+is meant to do. Without the town, the village's coins drain away with its
+coin taxes and the lord's sales and nothing brings them back: prices sink
+to a twentieth over 40 years, the logic of metal money in a closed
+village. The sanity check's 733 runs pass.
+
 
 3. **Phase 2b** above, then individual firms instead of one business per
    trade.
