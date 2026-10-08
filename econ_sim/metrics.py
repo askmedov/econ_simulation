@@ -98,7 +98,10 @@ class MonthRecord:
     landless_ration: float  # share of food need met for people in landless families
     poorest_fifth_ration: float  # share of food need met for the poorest fifth of people
     warmth: float  # share of the firewood families needed that they got
-    clothing: float  # garments bought per person this month
+    clothing: float  # garments worn per person this month: bought, and homespun
+    homespun: float  # garments women spun and wove at home
+    harvest_help: float  # workers' worth of help in the fields from outside farming
+    kin_help: float  # rations kin gave families who couldn't afford their food
     job_changes: int  # workers who moved to a better-paid trade
     prices: dict[str, float]  # coins per unit of each product
     jobs: dict[str, int]  # workers in each business

@@ -191,10 +191,11 @@ DEFAULT_PRODUCTS: tuple[ProductSpec, ...] = (
 )
 
 DEFAULT_BUSINESSES: tuple[BusinessSpec, ...] = (
-    # Farming output is gross of seed and before plough animals: with a full
-    # set of tools and animals, after seed, it is about 2 rations a farmer,
-    # enough to feed the village and its lord.
-    BusinessSpec("farming", "food", output=1.85, tool_boost=0.25, uses_land=True, initial_share=0.80),
+    # Farming output is gross of seed and before plough animals and the help
+    # of everyone at harvest: with a full set of tools and animals, all that
+    # help, and after seed, it is about 2 rations a farmer, enough to feed the
+    # village and its lord.
+    BusinessSpec("farming", "food", output=1.72, tool_boost=0.25, uses_land=True, initial_share=0.80),
     BusinessSpec("woodcutting", "firewood", output=6.0, tool_boost=0.3, initial_share=0.10),
     BusinessSpec("weaving", "clothing", output=2.0, initial_share=0.07),
     BusinessSpec("smithing", "tools", output=1.0, inputs=(("firewood", 2.0),), initial_share=0.03),
@@ -434,6 +435,33 @@ class TownConfig:
 
 
 @dataclass(frozen=True)
+class WorkConfig:
+    """Work beyond people's trades: everyone at harvest, spinning and
+    weaving at home, and kin who help each other."""
+
+    enabled: bool = True
+    # In the harvest months everyone who can helps in the fields: people in
+    # other trades give `craft_help` of their time (their trades make that
+    # much less), and children of `helper_ages` and the old up to
+    # `old_helper_age` work at `helper_effort` of a full worker.
+    harvest_months: tuple[int, ...] = (7, 8, 9, 10)
+    craft_help: float = 0.3
+    helper_ages: tuple[int, int] = (10, 14)
+    old_helper_age: int = 69
+    helper_effort: float = 0.3
+    # The rest of the year, women of working age spin and weave at home in
+    # the evenings and the slack months: `home_cloth` of cloth a month each
+    # (a twentieth of a weaver's output), worn by their families in place of
+    # cloth they would buy.
+    home_cloth: float = 0.1
+    # Kin (a family and the families its sons and daughters founded) help
+    # each other first: up to `kin_share` of the grain a family could spare
+    # goes to kin who can't afford their food, before neighbours' gifts and
+    # loans. At the start, families are linked to a family a generation older.
+    kin_share: float = 0.5
+
+
+@dataclass(frozen=True)
 class MigrationConfig:
     """People leave for the town and come from the region."""
 
@@ -667,6 +695,7 @@ class Config:
     state: StateConfig = field(default_factory=StateConfig)
     town: TownConfig = field(default_factory=TownConfig)
     migration: MigrationConfig = field(default_factory=MigrationConfig)
+    work: WorkConfig = field(default_factory=WorkConfig)
     council: CouncilConfig = field(default_factory=CouncilConfig)
     healthcare: HealthcareConfig = field(default_factory=HealthcareConfig)
     products: tuple[ProductSpec, ...] = DEFAULT_PRODUCTS

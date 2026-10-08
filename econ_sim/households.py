@@ -31,12 +31,15 @@ class Households:
     animals: np.ndarray | None = None  # livestock units
     debt: np.ndarray | None = None  # coins owed to the village's lenders
     lent: np.ndarray | None = None  # coins the family is owed (its claim on the village's borrowers)
+    kin: np.ndarray | None = None  # the family this one came from (-1: none known)
 
     def __post_init__(self) -> None:
         self.location = np.asarray(self.location, dtype=np.int32)
         for name in ("money", "land", "grain", "animals", "debt", "lent"):
             value = getattr(self, name)
             setattr(self, name, np.zeros(len(self.location)) if value is None else np.asarray(value, dtype=np.float64))
+        n = len(self.location)
+        self.kin = np.full(n, -1, dtype=np.int64) if self.kin is None else np.asarray(self.kin, dtype=np.int64)
 
     def __len__(self) -> int:
         return len(self.location)
@@ -47,6 +50,7 @@ class Households:
         self.location = np.concatenate([self.location, np.asarray(location, dtype=np.int32)])
         for name in ("money", "land", "grain", "animals", "debt", "lent"):
             setattr(self, name, np.concatenate([getattr(self, name), np.zeros(len(location))]))
+        self.kin = np.concatenate([self.kin, np.full(len(location), -1, dtype=np.int64)])
         return first + np.arange(len(location))
 
 
@@ -123,6 +127,22 @@ def _form_village(
     rest = rows[household[rows] < 0]
     household[rest] = rng.choice(ids, size=len(rest))
     return len(heads)
+
+
+def link_kin(households: Households, population: Population, rng: np.random.Generator) -> None:
+    """At the start, link each family to a family of its village a
+    generation older (its oldest member 18 to 45 years older), if there is
+    one: the family it came from."""
+    n = len(households)
+    oldest = np.full(n, -1, dtype=np.int64)
+    np.maximum.at(oldest, population.household, population.age_years.astype(np.int64))
+    for household in range(n):
+        if oldest[household] < 0:
+            continue
+        gap = oldest - oldest[household]
+        older = np.flatnonzero((households.location == households.location[household]) & (gap >= 18) & (gap <= 45))
+        if len(older):
+            households.kin[household] = rng.choice(older)
 
 
 def assign_land(
@@ -248,7 +268,7 @@ def marry(
     the bride's if that has none, else in a new household. Whoever moves takes their share of their family's savings
     and grain (savings / family size), and of its land and animals if land
     is split among children (`LandConfig.partible`); otherwise the heir
-    keeps them all.
+    keeps them all. A new household's kin is the groom's family.
     """
     demo = config.demography
     n = len(households)
@@ -311,7 +331,8 @@ def marry(
     size = sizes(population, n).astype(np.float64)
     leaving = np.concatenate([bride[~at_bride], groom[~at_groom]])
     left = population.household[leaving]
-    households.add(where[new])
+    founded = households.add(where[new])
+    households.kin[founded] = family_g[new]
     going_to = np.concatenate([home[~at_bride], home[~at_groom]])
     for name in ("money", "grain", "land", "animals") if config.land.partible else ("money", "grain"):
         held = getattr(households, name)

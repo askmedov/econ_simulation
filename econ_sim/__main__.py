@@ -41,6 +41,7 @@ def main(argv: list[str] | None = None) -> None:
         state=replace(defaults.state, enabled=not args.no_state_tax, remit_in_famine=args.remit_tax),
         town=replace(defaults.town, enabled=not args.no_town),
         migration=replace(defaults.migration, enabled=not args.no_migration),
+        work=replace(defaults.work, kin_share=0.0 if args.no_kin_help else defaults.work.kin_share),
     )
     forced = tuple(_parse_event(text) for text in args.event)
     # Check the forced events before running anything.
@@ -109,6 +110,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--remit-tax", action="store_true", help="the state remits its tax in a famine year")
     parser.add_argument("--no-town", action="store_true", help="no merchants: grain neither leaves for nor comes from the town")
     parser.add_argument("--no-migration", action="store_true", help="nobody leaves the village or comes to it")
+    parser.add_argument("--no-kin-help", action="store_true", help="kin don't give each other grain")
     parser.add_argument("--population", type=int, default=village.population, help="villagers at the start (default %(default)s)")
     parser.add_argument("--land", type=float, default=village.land, help="farmland in plots (default %(default)s)")
     parser.add_argument("--food-months", type=float, default=village.initial_food_months, help="months of food in store at the start (default %(default)s)")

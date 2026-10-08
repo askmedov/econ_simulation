@@ -8,7 +8,7 @@ import numpy as np
 
 from econ_sim import (
     council, credit, economy, events, farms, healthcare, households, livestock, lords, market, metrics, migration,
-    rules, town,
+    rules, town, work,
 )
 from econ_sim.config import Config
 from econ_sim.metrics import MonthRecord
@@ -94,6 +94,11 @@ class Simulation:
         product_of = economy.product_of(config)
         workers = economy.headcount(pop, n, config)
         effort = economy.labor(pop, n, config, rng=streams["production"])
+        # At harvest everyone helps in the fields: the trades lose part of
+        # their days, and children and the old glean, bind and carry.
+        helping = work.harvest_help(pop, n, len(hh), world.month_of_year, config)
+        effort = effort * helping.kept
+        effort[:, farm] += helping.farm
         herd = market.by_village(hh.animals, hh.location, n)
         animal_factor = livestock.farm_factor(herd, world.land, config)
         farm_output = config.businesses[farm].output * economy.tool_factor(world.tools, workers, config)[:, farm]
@@ -133,6 +138,10 @@ class Simulation:
         months_ahead = max(config.food.planning_months - 1, 0)
         ahead = events.production_outlook(world, months_ahead, names[farm])
         ahead = ahead * farms.sown_outlook(world.sown, world.month_of_year, ahead.shape[1], config)
+        if config.work.enabled:  # harvests gathered with everyone's help
+            at_harvest = work.harvest_help(pop, n, len(hh), config.work.harvest_months[0], config).farm
+            boost = work.harvest_boost(full_strength[:, farm], at_harvest, config)
+            ahead = ahead * work.outlook_boost(boost, world.month_of_year, ahead.shape[1], config)
         # Food to come: the harvests expected, less the seed picked from them,
         # plus what merchants bring from the town (or less what they carry off).
         harvests = rules.harvest_outlook(normal_gross, ahead, world.month_of_year, config)
@@ -159,7 +168,7 @@ class Simulation:
         tools_value = config.trade.tool_wear * workers[:, farm] * world.prices[:, tool]
         keep_for_tools = np.divide(tools_value, world.food_price, out=np.zeros(n), where=world.food_price > 0)
         shares, to_lord = farms.income_shares(
-            pop, hh, world.land, config, livestock.owners_part(animal_factor), world.lord.land
+            pop, hh, world.land, config, livestock.owners_part(animal_factor), world.lord.land, helping.households
         )
         harvest_share, rent = farms.share_harvest(hh, world.farm_grain, keep_for_tools, shares, to_lord)
         share_out = market.by_village(harvest_share, hh.location, n) + rent
@@ -176,6 +185,11 @@ class Simulation:
         family_food = market.by_household(need_rows, pop, n_hh)
         levy_rate = np.where(world.council.formed, config.council.grain_levy, 0.0)
         plan = farms.plan_family_food(hh, family_food, outlook, shares, 1.0 - levy_rate, config, world.markup[:, food])
+        # Kin with grain to spare help families who can't afford their food.
+        affordable = np.divide(hh.money, world.food_price[hh.location], out=np.zeros(n_hh), where=world.food_price[hh.location] > 0)
+        from_kin = work.kin_help(hh, members > 0, plan.want - affordable, plan.spare, config)
+        if from_kin.any():
+            plan = farms.plan_family_food(hh, family_food, outlook, shares, 1.0 - levy_rate, config, world.markup[:, food])
         firewood_need = heating[world.month_of_year - 1]
         family_fuel = members * firewood_need * mods.heating_mult[hh.location]
         essentials = plan.want * world.prices[hh.location, food] + family_fuel * world.prices[hh.location, fuel]
@@ -302,6 +316,7 @@ class Simulation:
         imported = sellers.imports
         world.town.purse += float(((imported - exported) * world.food_price).sum())
 
+        homespun = work.home_cloth(pop, n_hh, world.month_of_year, config)
         for product, spec in enumerate(config.products):
             if spec.use == "food":
                 continue
@@ -309,8 +324,9 @@ class Simulation:
                 trade(product, family_fuel, hh.money, business_want(product))
             elif spec.use == "comfort":
                 spare = np.maximum(0.0, hh.money - coin_target)
-                spend = config.needs.spare_spending * spare
                 price = world.prices[hh.location, product]
+                # Families wear their homespun first and buy less cloth.
+                spend = np.maximum(config.needs.spare_spending * spare - homespun * price, 0.0)
                 want = np.divide(spend, price, out=np.zeros_like(spend), where=(spend > 0) & (price > 0))
                 # The lord's household buys the village's cloth too.
                 trade(product, want, spend, business_want(product), lords.local_spending(world.lord, config))
@@ -583,7 +599,10 @@ class Simulation:
             landless_ration=landless_ration,
             poorest_fifth_ration=poorest,
             warmth=float((bought[fuel] + gathered).sum() / family_fuel.sum()) if family_fuel.sum() > 0 else 1.0,
-            clothing=float(bought[config.product_for("comfort")].sum() / max(pop.size, 1)),
+            clothing=float((bought[config.product_for("comfort")] + homespun).sum() / max(pop.size, 1)),
+            homespun=float(homespun.sum()),
+            harvest_help=float(helping.farm.sum()),
+            kin_help=float(np.maximum(from_kin, 0.0).sum()),
             job_changes=switched,
             prices={p.name: float(world.prices[:, i].mean()) for i, p in enumerate(config.products)},
             jobs={b.name: int(round(jobs[i])) for i, b in enumerate(config.businesses)},

@@ -31,8 +31,13 @@ from econ_sim.config import (  # noqa: E402
     CouncilConfig,
     FoodConfig,
     HealthcareConfig,
+    LordConfig,
+    MigrationConfig,
     ScheduledEvent,
+    StateConfig,
+    TownConfig,
     VillageConfig,
+    WorkConfig,
 )
 from econ_sim.simulation import Simulation  # noqa: E402
 
@@ -91,10 +96,19 @@ def scenarios() -> list[Scenario]:
         ),
         Scenario(
             "no council, no help",
-            replace(base, council=CouncilConfig(enabled=False), money=replace(money, sharing_rate=0.0)),
+            replace(base, council=CouncilConfig(enabled=False), money=replace(money, sharing_rate=0.0),
+                    work=WorkConfig(kin_share=0.0)),
             "no safety net at all: families with many children and few earners go hungry",
             ("poorest_fifth", "deaths_per_1000", "population", "share_farming", "landless_share"),
         ),
+        Scenario("no kin help", replace(base, work=WorkConfig(kin_share=0.0))),
+        Scenario("no household work", replace(base, work=WorkConfig(enabled=False))),
+        Scenario("no lord", replace(base, lord=LordConfig(enabled=False))),
+        Scenario("no state tax", replace(base, state=StateConfig(enabled=False))),
+        Scenario("lord's charity, tax remitted", replace(
+            base, lord=LordConfig(charity_in_famine=True), state=StateConfig(remit_in_famine=True))),
+        Scenario("no town", replace(base, town=TownConfig(enabled=False))),
+        Scenario("no migration", replace(base, migration=MigrationConfig(enabled=False))),
         Scenario("tax 0%", replace(base, council=CouncilConfig(tax_rate=0.0))),
         Scenario("tax 30%", replace(base, council=CouncilConfig(tax_rate=0.3))),
         Scenario("12-month reserve", replace(base, council=CouncilConfig(reserve_months=12.0))),

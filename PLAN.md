@@ -490,7 +490,7 @@ tested, sanity-checked and stress-tested:
 | 3 | `claude/debt-and-distress` | loans, foreclosure, distress land sales, a debt jubilee (built) |
 | 4 | `claude/lord-and-state` | a lord's land and rent in kind, taxes in coin, the lord's granary, armies and raiders (built) |
 | 5 | `claude/regional-market` | a town grain price with a transport cost; coins that flow with trade; people leave and arrive (built) |
-| 6 | `claude/household-work` | everyone at harvest, women's spinning and weaving at home, kin who help |
+| 6 | `claude/household-work` | everyone at harvest, women's spinning and weaving at home, kin who help (built) |
 | 7 | `claude/environment` | woods that shrink when cut, soil that tires, droughts that come in runs |
 
 ### 1. Families hold land and grain (built)
@@ -729,7 +729,30 @@ drought every other year halves it, as expected). The sanity check's 733
 runs pass; a hamlet of 20 starving out or being abandoned in a famine now
 counts as a rare disaster, as many did, rather than nonsense.
 
-## Roadmap after Phase 2
+### 6. Everyone at harvest, cloth made at home, kin who help (built)
+
+- **All hands at harvest.** From July to October smiths, weavers and
+  woodcutters spend 30% of their days in the fields (their trades make
+  that much less), and children of 10 to 14 and people of 60 to 69 glean,
+  bind and carry at 30% of a worker. Their families earn a share of the
+  harvest for it. Help adds about a fifth to the labour in the fields at
+  harvest; farming output per farmer was lowered (to 1.72) so the village
+  grows as much food as before, from more hands.
+- **Homespun.** The rest of the year women of working age spin and weave
+  at home in the evenings and slack months, a twentieth of a weaver's
+  output each. Families wear their homespun first and spend that much
+  less on bought cloth, so a poor family is clothed even when it can buy
+  nothing, and the village needs fewer weavers.
+- **Kin.** Each family is linked to the family it came from (the groom's,
+  for a new household; at the start, a family of the village a
+  generation older). Before turning to the neighbours or to a lender, a
+  family that can't afford its food gets grain from its kin, both ways
+  along the link: parents help their married sons, and sons their old
+  parents, each giving up to half of the grain they could spare.
+- **Levers:** `--no-kin-help`; `WorkConfig(enabled=False)` turns all of it off.
+- **New measures:** homespun cloth, harvest help, grain given by kin;
+  cloth worn per person now counts homespun.
+
 
 3. **Phase 2b** above, then individual firms instead of one business per
    trade.

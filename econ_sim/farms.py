@@ -28,6 +28,7 @@ def by_village(values: np.ndarray, location: np.ndarray, n_locations: int) -> np
 def income_shares(
     population: Population, households: Households, village_land: np.ndarray, config: Config,
     animals_part: np.ndarray | None = None, lord_land: np.ndarray | None = None,
+    extra_effort: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Each household's share of its village's harvest (after deductions),
     and the lord's share per village.
@@ -36,13 +37,16 @@ def income_shares(
     their animals; of the rest, the labour share goes to families by their
     farm work (less the labour days owed to the lord, `labour_service`) and
     the land share to the holders of the land by their plots, the lord's
-    demesne (`lord_land`) included.
+    demesne (`lord_land`) included. `extra_effort` (per household) is
+    work in the fields by people outside farming (harvest help).
     """
     n, n_households = len(village_land), len(households)
     loc = households.location
     a = config.food.labor_share
     lord = np.zeros(n) if lord_land is None else lord_land
     effort = economy.household_effort(population, config.farming, n_households, config)
+    if extra_effort is not None:
+        effort = effort + extra_effort
     total_effort = by_village(effort, loc, n)
     all_land = by_village(households.land, loc, n) + lord
     work = np.divide(effort, total_effort[loc], out=np.zeros(n_households), where=total_effort[loc] > 0)

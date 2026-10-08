@@ -9,7 +9,7 @@ import numpy as np
 from econ_sim import council, economy, livestock, lords, rules
 from econ_sim.council import Councils
 from econ_sim.config import Config, EventSpec
-from econ_sim.households import Households, assign_land, form_households
+from econ_sim.households import Households, assign_land, form_households, link_kin
 from econ_sim.lords import Lords
 from econ_sim.town import Town
 from econ_sim.population import Population
@@ -117,6 +117,7 @@ def create_world(config: Config, streams: RandomStreams) -> World:
     n, n_business, n_products = len(config.villages), len(config.businesses), len(config.products)
     yearly_marriage = 1.0 - (1.0 - config.demography.marriage_chance) ** 12
     households = form_households(population, n, rng, yearly_marriage)
+    link_kin(households, population, streams["kin"])
     economy.assign_starting_jobs(population, config, rng)
     land = np.array([v.land for v in config.villages], dtype=np.float64)
     food = config.product_for("food")
