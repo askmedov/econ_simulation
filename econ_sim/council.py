@@ -58,16 +58,21 @@ def staff(
     n = len(councils.formed)
     people = np.bincount(population.location, weights=population.count, minlength=n)
     wanted = np.where(councils.formed, np.round(per_1000 * people / 1000.0), 0.0)
-    for location in range(n):
-        here = population.location == location
-        current = np.flatnonzero(here & (population.job == job))
-        have = int(population.count[current].sum())
-        if have > wanted[location]:
-            extra = rng.permutation(current)[: int(have - wanted[location])]
+    in_job = population.job == job
+    have = np.bincount(population.location, weights=population.count * in_job, minlength=n)
+    # Rows grouped by village (in their original order within it).
+    order = np.argsort(population.location, kind="stable")
+    bounds = np.searchsorted(population.location[order], np.arange(n + 1))
+    can_hire = in_business(population, config) & (population.count == 1)
+    for location in np.flatnonzero(have != wanted):
+        rows = order[bounds[location]:bounds[location + 1]]
+        if have[location] > wanted[location]:
+            current = rows[in_job[rows]]
+            extra = rng.permutation(current)[: int(have[location] - wanted[location])]
             population.job[extra] = NO_JOB  # they rejoin a trade next month
-        elif have < wanted[location]:
-            pool = np.flatnonzero(here & in_business(population, config) & (population.count == 1))
-            hired = rng.permutation(pool)[: int(wanted[location] - have)]
+        else:
+            pool = rows[can_hire[rows]]
+            hired = rng.permutation(pool)[: int(wanted[location] - have[location])]
             population.job[hired] = job
 
 

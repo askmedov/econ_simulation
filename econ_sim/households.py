@@ -116,10 +116,11 @@ def _form_village(
     population.married[single] = False
 
     # Children and the single young join a woman old enough to be their mother.
-    head_ages = population.age_years[heads]
+    ages = population.age_years
+    head_ages = ages[heads]
     young = rows[(age < ADULT_AGE)]
     for child in np.concatenate([young, single]):
-        gap = head_ages - population.age_years[child]
+        gap = head_ages - ages[child]
         mothers = ids[(gap >= MOTHER_AGE_GAP[0]) & (gap <= MOTHER_AGE_GAP[1])]
         household[child] = rng.choice(mothers if len(mothers) else ids)
 
@@ -136,13 +137,16 @@ def link_kin(households: Households, population: Population, rng: np.random.Gene
     n = len(households)
     oldest = np.full(n, -1, dtype=np.int64)
     np.maximum.at(oldest, population.household, population.age_years.astype(np.int64))
-    for household in range(n):
-        if oldest[household] < 0:
-            continue
-        gap = oldest - oldest[household]
-        older = np.flatnonzero((households.location == households.location[household]) & (gap >= 18) & (gap <= 45))
-        if len(older):
-            households.kin[household] = rng.choice(older)
+    # Families in order of village, then of their oldest member's age: each
+    # family's possible kin are one run of that order.
+    key = households.location.astype(np.int64) * 1000 + oldest
+    order = np.argsort(key, kind="stable")
+    ordered = key[order]
+    low = np.searchsorted(ordered, key + 18, side="left")
+    high = np.searchsorted(ordered, key + 45, side="right")
+    found = (oldest >= 0) & (high > low)
+    pick = low + np.floor(rng.random(n) * (high - low)).astype(np.int64)
+    households.kin = np.where(found, order[np.minimum(pick, n - 1)], -1)
 
 
 def assign_land(

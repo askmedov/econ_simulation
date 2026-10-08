@@ -78,8 +78,9 @@ def arrive(
     expected = cfg.arrive_rate * people / 1000.0 * np.maximum(cover - cfg.welcome_cover, 0.0)
     count = rng.poisson(expected)
     rows = []
+    hosting = (households.land > 0) & (sizes(population, len(households)) > 0)
     for village in np.flatnonzero(count):
-        hosts = np.flatnonzero((households.location == village) & (households.land > 0) & (sizes(population, len(households)) > 0))
+        hosts = np.flatnonzero((households.location == village) & hosting)
         if not len(hosts):
             continue
         home = rng.choice(hosts, size=count[village])
@@ -95,6 +96,9 @@ def arrive(
             job=np.full(k, NO_JOB),
         ))
         arrived[village] = k
-    for new in rows:
-        population.append(new)
+    if rows:
+        newcomers = rows[0]
+        for new in rows[1:]:
+            newcomers.append(new)
+        population.append(newcomers)
     return arrived

@@ -31,11 +31,17 @@ def treat(
         return np.ones(len(population)), treated
     capacity = healers * cfg.patients_per_healer
     take = np.zeros(len(population), dtype=np.int64)
-    for location in np.flatnonzero(capacity > 0):
-        patients = np.flatnonzero((population.location == location) & (risk >= cfg.min_risk))
-        patients = patients[np.argsort(-risk[patients], kind="stable")]
-        before = np.cumsum(population.count[patients]) - population.count[patients]
-        take[patients] = np.clip(capacity[location] - before, 0, population.count[patients]).astype(np.int64)
+    # Patients by village, the most at risk first; each village's healers see
+    # them in that order until their time runs out.
+    patients = np.flatnonzero((capacity[population.location] > 0) & (risk >= cfg.min_risk))
+    patients = patients[np.lexsort((-risk[patients], population.location[patients]))]
+    counts = population.count[patients]
+    where = population.location[patients]
+    seen = np.cumsum(counts)
+    first = np.r_[True, where[1:] != where[:-1]]
+    village_start = np.maximum.accumulate(np.where(first, seen - counts, 0))
+    before = seen - counts - village_start
+    take[patients] = np.clip(capacity[where] - before, 0, counts).astype(np.int64)
     rows = population.split(take)
     care = np.ones(len(population))
     if len(rows):

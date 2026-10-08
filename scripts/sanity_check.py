@@ -28,6 +28,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from econ_sim.checks import broken_invariants  # noqa: E402
 from econ_sim.config import Config, CouncilConfig, HealthcareConfig, ScheduledEvent, VillageConfig  # noqa: E402
 from econ_sim.metrics import flat  # noqa: E402
 from econ_sim.simulation import Simulation  # noqa: E402
@@ -105,6 +106,9 @@ def problems(sim: Simulation, extreme: bool = False) -> list[tuple[str, int]]:
         hungry_amid_plenty = hungry_amid_plenty + 1 if plenty and r.underfed > r.population / 6 else 0
         if hungry_amid_plenty == 6:
             flag("many go hungry for months while the granary is full", r.month_number)
+    # The state at the end: land, debts, households and couples consistent.
+    for name in broken_invariants(sim.world):
+        flag(f"broken invariant: {name}", len(records))
     if extreme:
         return found
 
@@ -224,7 +228,8 @@ def main() -> int:
                 bad = n > (max(allowed * setting.seeds, 1) if allowed > 0 else 0)
                 kind = "disaster"
             else:
-                bad, kind = True, "impossible" if name in IMPOSSIBLE else "nonsense"
+                impossible = name in IMPOSSIBLE or name.startswith("broken invariant")
+                bad, kind = True, "impossible" if impossible else "nonsense"
             notes.append(f"{'FAIL' if bad else 'ok  '} {kind}: {name} in {n} of {setting.seeds} runs (e.g. {examples[name]})")
             if bad:
                 failures.append(setting.label)
