@@ -92,19 +92,22 @@ class TaxTake:
 
 def collect_state_tax(
     households: Households, lords: Lords, wage: np.ndarray, rent_per_plot: np.ndarray, food_price: np.ndarray,
-    famine: np.ndarray, config: Config,
+    famine: np.ndarray, config: Config, living: np.ndarray | None = None,
 ) -> TaxTake:
     """The state's yearly tax: `hearth_tax_months` of the customary wage on
     every living household and `land_tax` of a year's rent on every plot
     families hold. Paid in coins; from families without enough, the
     collector seizes grain at the market price; what they still can't pay
-    is let go. In a famine it is remitted if `remit_in_famine`."""
+    is let go. In a famine it is remitted if `remit_in_famine`. Households
+    with nobody left (`living` False) pay nothing."""
     cfg = config.state
     n = len(wage)
     loc = households.location
     if not cfg.enabled:
         return TaxTake(coins=np.zeros(n), grain=np.zeros(n))
     due = cfg.hearth_tax_months * wage[loc] + cfg.land_tax * households.land * rent_per_plot[loc]
+    if living is not None:
+        due = np.where(living, due, 0.0)
     if cfg.remit_in_famine:
         due = np.where(famine[loc], 0.0, due)
     paid = np.minimum(due, np.maximum(households.money, 0.0))

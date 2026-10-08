@@ -23,6 +23,8 @@ class Simulation:
         events.validate_schedule(config.scheduled_events, config.events, len(config.villages))
         if not 1 <= config.start_month <= 12:
             raise ValueError("start_month must be between 1 and 12")
+        if any(v.population < 1 for v in config.villages):
+            raise ValueError("every village needs at least one person at the start")
         self.config = config
         self.streams = RandomStreams(config.seed)
         self.world: World = create_world(config, self.streams)
@@ -156,7 +158,12 @@ class Simulation:
         town_price = town.price(world.town, world.month_of_year, mods.production_mult[:, farm], config)
         carts = town.merchants(world.food_price, town_price, need, config)
         outlook = np.maximum(outlook + (carts.imports - carts.exports)[:, None], 0.0)
-        supply_cover = rules.plan_ration_realistically(world.granary, need, outlook, config, most=2.0)
+        # This month's seed is about to be picked from the harvest: not food.
+        seed_needed = farms.seed_needed(farmed, config)
+        if world.seed is None:  # the first month: seed already picked this season
+            world.seed = seed_needed * farms.seed_gathered(world.month_of_year, config)
+        seed_now = farms.seed_due(world.farm_grain, world.seed, seed_needed, produced, world.month_of_year, config)
+        supply_cover = rules.plan_ration_realistically(world.granary - seed_now, need, outlook, config, most=2.0)
         famine = supply_cover < 1.0
 
         # The harvest is shared out in kind. The council's levy comes off the
@@ -166,9 +173,6 @@ class Simulation:
         # hold them.
         n_hh = len(hh)
         levied = council.levy_grain(world.council, produced, world.farm_grain, need, famine, config)
-        seed_needed = farms.seed_needed(farmed, config)
-        if world.seed is None:  # the first month: seed already picked this season
-            world.seed = seed_needed * farms.seed_gathered(world.month_of_year, config)
         seed_kept = farms.keep_seed(world.farm_grain, world.seed, seed_needed, produced, world.month_of_year, config)
         tool = config.product_for("tool")
         tools_value = config.trade.tool_wear * workers[:, farm] * world.prices[:, tool]
@@ -194,8 +198,10 @@ class Simulation:
         # Kin with grain to spare help families who can't afford their food.
         affordable = np.divide(hh.money, world.food_price[hh.location], out=np.zeros(n_hh), where=world.food_price[hh.location] > 0)
         from_kin = work.kin_help(hh, members > 0, plan.want - affordable, plan.spare, config)
-        if from_kin.any():
-            plan = farms.plan_family_food(hh, family_food, outlook, shares, 1.0 - levy_rate, config, world.markup[:, food])
+        # It goes to this month's food; the givers have that much less to sell.
+        plan.own += np.maximum(from_kin, 0.0)
+        plan.want = np.maximum(plan.want - np.maximum(from_kin, 0.0), 0.0)
+        plan.spare = np.maximum(plan.spare + np.minimum(from_kin, 0.0), 0.0)
         firewood_need = heating[world.month_of_year - 1]
         family_fuel = members * firewood_need * mods.heating_mult[hh.location]
         essentials = plan.want * world.prices[hh.location, food] + family_fuel * world.prices[hh.location, fuel]
@@ -407,7 +413,7 @@ class Simulation:
         world.council_costs = running_costs
         # Borrowers pay part of their income toward their debts; debts that
         # outgrow a family's animals and land cost them those.
-        repaid = credit.repay(hh, income + staff_income + healer_income, config)
+        repaid = credit.repay(hh, income + staff_income + healer_income, config, spare=hh.money - coin_target)
         repaid_in_grain = credit.repay_in_grain(hh, family_food, world.food_price, config)
         foreclosed = credit.foreclose(hh, plot_price, worth, config)
         # Once a year, after harvest, the state collects its tax in coin
@@ -415,7 +421,7 @@ class Simulation:
         state_tax = lords.TaxTake(coins=np.zeros(n), grain=np.zeros(n))
         if world.month_of_year == config.state.collection_month:
             state_tax = lords.collect_state_tax(
-                hh, world.lord, world.wage_level, rent_per_plot, world.food_price, famine, config
+                hh, world.lord, world.wage_level, rent_per_plot, world.food_price, famine, config, members > 0
             )
         limit = config.credit.loan_to_value * credit.collateral(hh, plot_price, worth)
         written_off = credit.default(hh, limit + config.credit.personal_months * world.wage_level[hh.location], config)

@@ -175,21 +175,33 @@ def keep_seed(
     before it is shared out: this month's part of what is `needed`, plus
     anything a past seed month fell short, but never more than
     `max_seed_share` of the harvest. Changes both; returns grain kept."""
+    kept = seed_due(farm_grain, seed, needed, harvest, month_of_year, config)
+    farm_grain -= kept
+    seed += kept
+    return kept
+
+
+def seed_due(
+    farm_grain: np.ndarray, seed: np.ndarray, needed: np.ndarray, harvest: np.ndarray, month_of_year: int,
+    config: Config,
+) -> np.ndarray:
+    """Seed to be picked from this month's harvest (see `keep_seed`), without
+    picking it."""
     share = seed_plan(month_of_year, config)
     if share <= 0:
         return np.zeros_like(seed)
     months = config.food.seed_months
     done = sum(seed_plan(m, config) for m in months if m < month_of_year)
     wanted = np.maximum(needed * (done + share) - seed, 0.0)
-    kept = np.minimum(np.minimum(wanted, config.food.max_seed_share * harvest), farm_grain)
-    farm_grain -= kept
-    seed += kept
-    return kept
+    return np.minimum(np.minimum(wanted, config.food.max_seed_share * harvest), farm_grain)
 
 
 def seed_gathered(month_of_year: int, config: Config) -> float:
     """Share of the year's seed picked by the start of this calendar month
-    (for a run that starts in the middle of the seed months)."""
+    (for a run that starts in the middle of the seed months; none once it is
+    sown)."""
+    if month_of_year > sowing_month(config):
+        return 0.0
     return sum(seed_plan(m, config) for m in config.food.seed_months if m < month_of_year)
 
 

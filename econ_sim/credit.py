@@ -91,13 +91,19 @@ def borrow(
     return lent
 
 
-def repay(households: Households, income: np.ndarray, config: Config) -> np.ndarray:
-    """Borrowers pay `repay_share` of this month's income toward their debts
-    (more if they have coins to spare beyond `income`); lenders get it by
-    their claims. Changes the households; returns coins repaid per village."""
+def repay(
+    households: Households, income: np.ndarray, config: Config, spare: np.ndarray | None = None
+) -> np.ndarray:
+    """Borrowers pay `repay_share` of this month's income toward their debts,
+    plus any coins they have to `spare` (beyond what they keep); lenders get
+    it by their claims. Changes the households; returns coins repaid per
+    village."""
     n = int(households.location.max()) + 1 if len(households) else 0
     loc = households.location
-    paying = np.minimum(households.debt, np.minimum(config.credit.repay_share * np.maximum(income, 0.0), households.money))
+    offered = config.credit.repay_share * np.maximum(income, 0.0)
+    if spare is not None:
+        offered = offered + np.maximum(spare, 0.0)
+    paying = np.minimum(households.debt, np.minimum(offered, households.money))
     paying = np.maximum(paying, 0.0)
     repaid = by_village(paying, loc, n)
     households.money -= paying

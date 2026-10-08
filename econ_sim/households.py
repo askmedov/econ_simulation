@@ -235,7 +235,7 @@ def pass_on_savings(
     gone = (size == 0) & (households.money > 0)
     if not gone.any():
         return
-    n = int(households.location.max()) + 1
+    n = len(treasury) if treasury is not None else int(households.location.max()) + 1
     if council is not None and council.any():
         to_council = gone & council[households.location]
         treasury += np.bincount(households.location[to_council], weights=households.money[to_council], minlength=n)
@@ -343,6 +343,21 @@ def marry(
         portion = held[left] / size[left]
         np.subtract.at(held, left, portion)
         np.add.at(held, going_to, portion)
+    # A family whose last members married out lives on in their new home:
+    # all it holds and owes goes with them, and its kin are theirs.
+    emptied = np.flatnonzero((size > 0) & (size - np.bincount(left, minlength=n) <= 0))
+    if len(emptied):
+        target = np.full(n, -1, dtype=np.int64)
+        target[left] = going_to
+        for name in ("money", "grain", "land", "animals", "debt", "lent"):
+            held = getattr(households, name)
+            np.add.at(held, target[emptied], held[emptied])
+            held[emptied] = 0.0
+        remap = np.arange(len(households))
+        remap[emptied] = target[emptied]
+        linked = households.kin >= 0
+        households.kin[linked] = remap[households.kin[linked]]
+        households.kin[households.kin == np.arange(len(households))] = -1
 
     population.household[bride] = home
     population.household[groom] = home
