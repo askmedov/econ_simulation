@@ -909,20 +909,209 @@ the Black Death), and three droughts in a row cost about two-thirds of
 the village (a third flee, the rest die), where the Great Famine of
 1315-17 killed perhaps 10-15%: Phase 3's calibration step addresses these.
 
-## Roadmap after Phase 2
+## Phase 3: from a village to a region, then a country (planned)
 
-1. **Individual firms** instead of one business per trade.
-2. **Many villages → a country.** Regions, trade between them, migration;
-   people batched into groups (`count` > 1) with split and merge; national
-   money and inflation.
-3. **Calibration and starting state.** Start from realistic data (age
-   structure, stores, prices) so near-term forecasts mean something.
-4. **Interactive dashboard** to pick events and compare scenarios.
+Phase 2 built one village of about 1,000 people in rich detail. The
+questions worth asking next are regional: a drought over half a province,
+plague coming up the roads from a port, a tax demanded in coin in a bad
+year, an army marching through, a ban on grain exports. Answering them
+needs many villages and their market towns, linked by roads, trade,
+migration and a state, at 10,000 to 1,000,000 people first, and up to
+10 million later. The horizon stays 12–60 months, and every step stays
+paired, tested, sanity-checked and stress-tested.
 
-## Open questions
+### Where we start (measured)
 
-- Which events and outcomes matter most for the near-term questions?
-- At what point should the starting state come from real data?
-- Which time and place should the village stand for? Medieval or early
-  modern England has the richest records; Roman Egypt and Old Babylonian
-  Mesopotamia are the best-documented ancient cases.
+One month of simulation, on one core:
+
+| People | Villages | Per month | Setup | Memory |
+|---|---|---|---|---|
+| 1,000 | 1 | 0.01 s | 0.1 s | |
+| 20,000 | 1 | 0.03 s | 0.4 s | |
+| 50,000 | 50 | 0.07 s | 1 s | |
+| 200,000 | 200 | 0.4 s | 2 s | |
+| 1,000,000 | 1,000 | 1.7 s | 19 s | 300 MB |
+
+So a paired three-year what-if takes about 15 seconds at 100,000 people
+and two minutes at a million; 100 paired runs (for the average effect and
+its range) take about 25 minutes at 100,000 people and three and a half
+hours at a million on one core (a quarter of that on four). At 10 million a single run would take about 10 minutes, which is
+too slow, and the per-person detail (couples, heirs, kin) assumes one person
+per row.
+
+**Targets.** Region (~100,000 people, ~100 villages, a few towns): 100
+paired three-year runs in under 10 minutes on 4 cores. Province (~1
+million): one paired run in under a minute, 20 runs in under 20 minutes.
+Country (~10 million): one paired run in under 5 minutes.
+
+**How.** First, remove what doesn't scale: the remaining loops over
+villages (event rolls, weddings, land and animals changing hands, holdings
+left vacant, arrivals) become group-by operations on rows sorted by place;
+rows are compacted once a month instead of each time someone dies, is born
+or leaves; setup is vectorised; seeds run in parallel. That should bring a
+million people under a second a month. For 10 million there are two ways,
+and the plan is to try the first:
+
+1. **A sample with weights.** Simulate one person in ten (or a hundred) and
+   let each stand for ten: every rule and every family detail keeps working,
+   and only totals are scaled. Check it against a full million: averages
+   and what-if effects should match within their noise. Small places need a
+   larger share sampled, or they behave like the 20-person hamlet.
+2. **Cohort rows.** Rows that each stand for many similar people (the
+   `count` column was built for this), with marriages, heirs and kin as
+   flows between groups. Faster, but a rewrite of the household rules.
+
+### What a region adds
+
+1. **A map.** Places with coordinates and terrain (arable plain, upland
+   pasture, river valley, forest, coast), linked by roads and rivers; moving
+   a cartload costs more by road than by river, and more uphill. Weather
+   falls on the map: a drought covers a region and fades with distance,
+   rather than hitting each village on its own.
+2. **Market towns and a city as places of their own.** Artisans, merchants,
+   a weekly market, a town council and its granary; towns die faster than
+   they are born and live on migrants. The town grain price is set by what
+   the villages bring and the town eats, not given from outside; only the
+   region's border or port faces an outside price.
+3. **Trade along the network.** Grain, animals, cloth, tools and wood move
+   between places where the price gap beats the cost of carriage, up to what
+   carts and boats can carry. Upland villages sell animals and wool and buy
+   grain; villages near towns sell grain; prices converge along good roads.
+4. **People move across the region:** young people to towns or to villages
+   with land, harvest labour in season, families fleeing famine to towns
+   (where they die of fevers), settlers clearing new land.
+5. **Epidemics that travel.** Disease spreads within a place by contact and
+   between places along trade and migration (each place with its own sick,
+   recovered and dead). Plague arriving at a port reaches the hinterland in
+   months; quarantine and closing markets are levers.
+6. **The state.** Provinces and their tax quotas (fixed sums or shares,
+   which behave very differently in a bad year), a treasury, officials and
+   soldiers to pay; public granaries that buy cheap and sell dear; famine
+   policies as levers (tax remission, relief, export bans, price caps,
+   moving grain between provinces); armies raised from the villages, which
+   march along roads, eat and requisition as they go; debasement as policy.
+7. **Lords, the church and mills.** Lords with several manors and an
+   absentee lord's steward; the church's tithe (a tenth of the harvest) and
+   parish poor relief; mills owned by the lord where peasants must grind.
+8. **Money at the scale of a region.** One coin stock flowing between
+   places: coin gathers in towns and drains from the countryside at tax
+   time; merchants and town lenders lend to villages; prices differ by
+   place and season. Where coin runs short, people pay in kind: wages,
+   rents and debts in grain, barter between neighbours, so a place drained
+   of coin slows down instead of seizing up (the village check found a
+   place without coin dying of it).
+9. **Firms.** Individual workshops (a smithy, a mill, a weaver's shop) with
+   owners, capital and apprentices, that open, fail and pass to heirs,
+   instead of one business per trade per village.
+10. **Crops and land use.** Several crops (wheat, barley, rye or millet,
+    pulses) with their own seasons and yields; fallow and rotations
+    (two-field, three-field); pasture against arable; clearing woods for
+    new fields when land runs short.
+11. **Customs that differ by place.** Inheritance (partible here, one heir
+    there), age at marriage, dues to the lord: neighbouring villages under
+    different customs diverge, which a region makes visible.
+
+### How it fits together
+
+- **Places, not just villages.** The `location` index becomes a place
+  with a kind (village, market town, city, port), coordinates, terrain and
+  a province. Everything that is per village today is per place.
+- **A network, not all pairs.** Roads and rivers are edges with a cost of
+  carriage. Each village trades through its nearest market towns, and
+  towns with each other along the network (the central-place pattern), so
+  the work grows with the number of roads, not with the square of the
+  number of places.
+- **Markets clear by place.** Each place posts what it offers and wants;
+  merchants move goods along edges where the price gap beats the cost, up
+  to what an edge can carry in a month; prices then adjust. One pass a
+  month, as today, with the town as the hub.
+- **Epidemics as counts per place:** the susceptible, sick and recovered
+  in each place, stepped within the month (plague moves in weeks), spread
+  between places in proportion to the people and goods that travel. The
+  sick are then drawn from the people table as today.
+- **Regions from a few settings or from a file.** A generator lays out
+  N villages around M towns on a map with terrain; a calibrated run reads
+  places, roads and starting holdings from a file.
+- **The month stays the step**, and the paired what-if stays the product:
+  the same luck in both runs until the event, now with effects reported
+  per place as well as in total.
+
+### Calibration: choose a time and place
+
+The village is plausible but not of anywhere. Checked against a
+high-pressure pre-industrial population, most of it fits; three things
+don't: seed is only a seventh of the harvest (a yield of 7 to 1, where
+medieval Europe managed 3 to 5), the lord, the state and the council take
+about 15% of the harvest (25-50% was usual, and there is no tithe yet),
+grain is only 4% dearer before the harvest than after (10-25% was usual),
+adults die a little fast (life expectancy at 5 is 37 years, against 40-45
+in model life tables with the same life expectancy at birth), after a
+plague food gets too cheap against wages (a wage briefly buys four or
+five families' food), and multi-year famines are far too deadly (three
+droughts in a row cost two-thirds of the village; the Great Famine, with
+harvests 40% short two years running, killed perhaps 10-15%). Phase 3
+fixes these by choosing a reference, most likely **England around 1300**
+(manorial accounts, prices and wages, the 1279 Hundred Rolls, the poll
+taxes, the Great Famine of 1315-17 and the Black Death as tests), and
+setting parameters and the starting state from it: age structure,
+holdings, yields, rents, prices and wages. The Great Famine and the Black
+Death then become validation runs: the model, started in 1314, should get
+the famine's toll and prices about right.
+
+### Build order
+
+Each step on its own branch, with tests, invariants, sanity and stress
+checks on region settings, and what-if numbers written up here:
+
+| Step | Branch | Adds |
+|---|---|---|
+| 1 | `claude/phase3-speed` | group-by instead of loops over villages, one compaction a month, parallel seeds, a benchmark script with the targets above |
+| 2 | `claude/region-map` | places, terrain, roads and rivers, costs of carriage, weather that falls on the map; regions generated from a few settings |
+| 3 | `claude/market-towns` | towns and a city as places; the town price set by supply and demand; an outside price at the border |
+| 4 | `claude/trade-network` | trade in grain, animals, cloth, tools and wood along the network; specialisation by terrain |
+| 5 | `claude/regional-migration` | moves between villages and towns; harvest labour; famine refugees |
+| 6 | `claude/epidemics-spread` | disease spreading within and between places; quarantine |
+| 7 | `claude/state-and-war` | provinces, tax quotas, a treasury, public granaries, famine policies, armies on the move |
+| 8 | `claude/church-and-manors` | the tithe and parish relief; lords with several manors; mills |
+| 9 | `claude/crops-and-fallow` | several crops, rotations, pasture, clearing woods |
+| 10 | `claude/firms` | individual workshops instead of one business per trade |
+| 11 | `claude/calibration` | England c. 1300 (or another reference); validation against the Great Famine |
+| 12 | `claude/ten-million` | a weighted sample (or cohorts) for 10 million people, checked against a full million |
+| 13 | `claude/region-dashboard` | maps and side-by-side what-ifs: prices, hunger, disease and migration by place |
+
+Steps 1-5 make a working region; 6-8 add the what-ifs people ask most
+(epidemics, wars, policy); 9-10 deepen the economy; 11-13 make it a
+calibrated, country-sized tool.
+
+### What-ifs Phase 3 should answer
+
+- A drought over the eastern half of a province: where grain flows, which
+  villages starve, whether an export ban or a public granary saves lives.
+- Plague landing at a port in spring: how fast it reaches each village,
+  how many die, what happens to wages and rents afterwards.
+- A tax quota fixed in coin in a bad year against one that falls with the
+  harvest; a debasement; a war.
+- A new road or bridge; a town's growth; a lord who enforces his mill.
+
+### Checks to add
+
+- **Invariants by place:** land, debts, coins and grain balance in every
+  place and in transit (carts on the road).
+- **Region sanity settings:** many sizes and shapes of region, a region with
+  no town, a region cut off, every place starting in famine.
+- **Stress scenarios:** a century of a region; spatial droughts; travelling
+  plague; war; policies switched on and off; the sample against the full
+  population.
+- **Plausibility:** the vital rates and shares above, now per place and
+  for towns (urban deaths above births, town share of the population),
+  price gaps along roads against distance.
+
+### Decisions to make early
+
+- **Reference time and place.** England c. 1300 has the best data; Song
+  China, Roman Egypt or Old Babylonian Mesopotamia are alternatives.
+- **10 million: sample or cohorts.** The plan tries a weighted sample
+  first.
+- **How open the region is.** A border or port with an outside price, or
+  a closed country (a closed one drains its coin through taxes, as the
+  village without a town showed).
