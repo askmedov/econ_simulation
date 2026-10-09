@@ -7,7 +7,8 @@ own grain stores, keep seed for next year, cut wood, weave and make tools,
 buy and sell with coins, borrow (and lose land to their creditors), marry and remarry, get sick, are born and die
 (at pre-modern rates), and leave or come by how good a place their
 village is to live (its livelihood, its remembered hunger and dangers, its
-size, its lord's take), so that small villages can empty out,
+size, its land to spare, its lord's take), so that small villages can
+empty out and villages thinned by famine fill up again,
 with random events like droughts (which come in runs), cold years after
 a volcanic eruption, plague, armies, raiders, forest fires and disease.
 Everyone helps at harvest, women spin and weave at home, and kin give each
