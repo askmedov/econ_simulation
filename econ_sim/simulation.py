@@ -505,11 +505,17 @@ class Simulation:
         landless_ration = float(family_eaten[no_land].sum() / landless_need) if landless_need > 0 else 1.0
         wealth = hh.money + hh.grain * world.food_price[hh.location]
         poorest = metrics.poorest_fifth_ration(wealth, households.sizes(pop, n_hh), family_eaten, family_food)
-        # Young people leave for the town (and starving families flee); when
-        # hands are short, young people come from the region.
-        moves = migration.leave(pop, hh, cover, family_share, config, streams["migration"])
+        # People leave a village, or come to it, by how good a place it is to
+        # live: what a living there is worth, what people remember of its
+        # hunger and dangers, its size and its lord's take.
+        people = rules.by_location(pop.count.astype(np.float64), pop, n)
+        migration.remember(world.memory, share, died, people, mods.requisition, config, mods.mortality_mult)
+        place = migration.appeal(prospects, world.memory, people, to_lord, config)
+        moves = migration.move(pop, hh, place, world.memory, family_share, config, streams["migration"])
         world.town.purse += moves.coins
-        moves.arrived = migration.arrive(pop, hh, prospects, config, streams["migration"])
+        room = world.land * config.environment.people_per_plot  # people the land would feed at a usual density
+        moves.arrived += migration.arrive(pop, hh, place, room, config, streams["migration"])
+        migration.remember_leaving(world.memory, moves.left, rules.by_location(pop.count.astype(np.float64), pop, n))
         weddings = households.marry(pop, hh, config, streams["marriage"], willing)
         size = households.sizes(pop, len(hh))
         credit.write_off(hh, size == 0)
@@ -597,6 +603,10 @@ class Simulation:
             coins_lost=float(world.town.coins_lost),
             emigrants=int(moves.left.sum()),
             immigrants=int(moves.arrived.sum()),
+            families_left=moves.families,
+            moved_within=moves.within,
+            appeal=float((place * people).sum() / max(people.sum(), 1e-9)),
+            empty_villages=int((rules.by_location(pop.count.astype(np.float64), pop, n) == 0).sum()),
             food_emigrated=float(moves.grain),
             food_stock=float(world.granary.sum()),
             food_margin=float((normal_gross - seed_needed / 12.0).sum() / need.sum()) if need.sum() > 0 else 0.0,

@@ -5,7 +5,9 @@ few years if this event hits?"** It simulates a village of 1,000 people in
 about 200 families who hold land and animals (or don't), live off their
 own grain stores, keep seed for next year, cut wood, weave and make tools,
 buy and sell with coins, borrow (and lose land to their creditors), marry and remarry, get sick, are born and die
-(at pre-modern rates), and leave for the town or come from the region,
+(at pre-modern rates), and leave or come by how good a place their
+village is to live (its livelihood, its remembered hunger and dangers, its
+size, its lord's take), so that small villages can empty out,
 with random events like droughts (which come in runs), cold years after
 a volcanic eruption, plague, armies, raiders, forest fires and disease.
 Everyone helps at harvest, women spin and weave at home, and kin give each
@@ -79,7 +81,7 @@ by chance. Use `--runs 100` or more to see the real effect and its range.
 
 | File | Contents |
 |---|---|
-| `run1.csv` | Every month of the first run: population, births, deaths, weddings, food produced, eaten (and how much from families' own stores), sold, spoiled and in store, people in landless families and how they ate, prices of every product, workers in every trade, wages, savings, how well the village and its poorest fifth ate, how warm families kept, the council's treasury, taxes, grain reserve and relief, healers and people treated, health, seed, animals, debts and land sales, the lord's rent and the state's tax, the town price and grain carried to and from it, coins lost, emigrants and immigrants, homespun cloth, harvest help, grain given by kin, the woods and the soil, active events |
+| `run1.csv` | Every month of the first run: population, births, deaths, weddings, food produced, eaten (and how much from families' own stores), sold, spoiled and in store, people in landless families and how they ate, prices of every product, workers in every trade, wages, savings, how well the village and its poorest fifth ate, how warm families kept, the council's treasury, taxes, grain reserve and relief, healers and people treated, health, seed, animals, debts and land sales, the lord's rent and the state's tax, the town price and grain carried to and from it, coins lost, emigrants and immigrants (whole families, moves between villages, how good a place each village is, empty villages), homespun cloth, harvest help, grain given by kin, the woods and the soil, active events |
 | `run1_with_event.csv` | The same run with the forced events |
 | `summary.csv` | Key measures' average and 10–90% range across runs (population, births, deaths, food stock and price, wage, how well the village and its poorest fifth ate, health, relief, people treated, treasury, grain reserve), for the baseline, with the events (`_event`), and the difference (`_diff`) |
 | `log.txt` | Notable happenings in the first run (events, food shortages, a council forming) |
@@ -111,7 +113,7 @@ All parameters are in [`econ_sim/config.py`](econ_sim/config.py).
 | `econ_sim/credit.py` | Loans between families, repayment, foreclosure, distress land sales, debt cancellation |
 | `econ_sim/lords.py` | The lord's demesne, barn and purse; the state's coin tax; requisitions by armies and raiders |
 | `econ_sim/town.py` | The town's grain price, merchants carrying grain in and out, coins lost and debased |
-| `econ_sim/migration.py` | Young people and starving families leaving; servants arriving when hands are short |
+| `econ_sim/migration.py` | How good a place each village is to live; who leaves (young people, families, the starving), where they go, and who comes |
 | `econ_sim/work.py` | Everyone at harvest, homespun cloth, kin who give each other grain |
 | `econ_sim/environment.py` | Woods that regrow and thin when overcut; soil that tires on crowded land |
 | `econ_sim/checks.py` | Invariants of the state (land, debts, households, couples, kin) for tests and the sanity check |

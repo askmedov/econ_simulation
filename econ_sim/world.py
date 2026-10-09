@@ -11,6 +11,7 @@ from econ_sim.council import Councils
 from econ_sim.config import Config, EventSpec
 from econ_sim.households import Households, assign_land, form_households, link_kin
 from econ_sim.lords import Lords
+from econ_sim.migration import Memory
 from econ_sim.town import Town
 from econ_sim.population import Population
 from econ_sim.rng import RandomStreams
@@ -48,6 +49,7 @@ class World:
     seed: np.ndarray | None = None  # grain kept back to sow at the next sowing, per village (set in the first month)
     lord: Lords | None = None  # the lord's demesne, barn and purse, and the state's purse
     town: Town | None = None  # the regional grain market, and coins gone to it or lost
+    memory: Memory | None = None  # what people remember of each village: hunger, danger, departures
     sown: np.ndarray | None = None  # share of the needed seed sown at the last sowing, per village
     last_started: dict[tuple[str, int], int] = field(default_factory=dict)  # (event, village) -> month it last started
     woods: np.ndarray | None = None  # wood standing in each village's woods, in units of firewood
@@ -61,6 +63,8 @@ class World:
             self.council_costs = np.zeros(n)
         if self.lord is None:
             self.lord = Lords.none(n)
+        if self.memory is None:
+            self.memory = Memory.calm(n)
         if self.town is None:
             self.town = Town.at(1.0)
         if self.sown is None:

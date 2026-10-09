@@ -1069,7 +1069,7 @@ checks on region settings, and what-if numbers written up here:
 | 2 | `claude/region-map` | places, terrain, roads and rivers, costs of carriage, weather that falls on the map; regions generated from a few settings |
 | 3 | `claude/market-towns` | towns and a city as places; the town price set by supply and demand; an outside price at the border |
 | 4 | `claude/trade-network` | trade in grain, animals, cloth, tools and wood along the network; specialisation by terrain |
-| 5 | `claude/regional-migration` | moves between villages and towns; harvest labour; famine refugees |
+| 5 | `claude/regional-migration` | builds on migration by how good a place is (below): distance, towns as destinations, harvest labour, famine refugees |
 | 6 | `claude/epidemics-spread` | disease spreading within and between places; quarantine |
 | 7 | `claude/state-and-war` | provinces, tax quotas, a treasury, public granaries, famine policies, armies on the move |
 | 8 | `claude/church-and-manors` | the tithe and parish relief; lords with several manors; mills |
@@ -1133,6 +1133,62 @@ village's.)
 A month at a million people is now a long tail of whole-table passes, none
 above a twentieth of the time; the next large step (10 million, step 12)
 needs the weighted sample, not more of this.
+
+### Migration by how good a place it is (built)
+
+Small villages do die out: a run of disasters or a poor living, and people
+simply move away, as from thousands of England's deserted villages after
+1350. Who leaves and who comes now follows how good a place to live a
+village is (1 = an ordinary one), `migration.appeal`:
+
+- **Livelihood:** what a wage or a share of the land feeds, against the
+  usual (about 1.1 families' food).
+- **Safety, as remembered** (over about two years): hunger (the share of
+  need not eaten), and danger: deaths beyond what the usual mortality and
+  chance would bring (plague, famine, raiders; one death more in a hamlet
+  is luck, not danger), a known epidemic even where few have died yet, and
+  grain plundered by soldiers.
+- **Size:** below 50 people a village is a poorer place (no plough team, no
+  church or market, nobody to marry), by the square root of its size.
+- **The lord's take**, against the usual 11% of the harvest.
+
+People leave more as the place is worse than ordinary: young singles (2.5%
+a year in an ordinary village), and now whole families (0.2% a year for the
+landless, a fifth of that for landholders), times one plus three times the
+shortfall; and people follow those who went before (one plus ten times the
+share of the village that left in the past year). In a famine the hungriest
+families still flee, and while plague or raiders are about families flee
+them (about 1% of families a month in a plague). With several villages, half of those who leave settle
+in another village that is a better place (chosen by its people times how
+much better), bringing their coins and grain; the rest go to the town or
+beyond. Young people come from beyond only to clearly better places (above
+1.2), and settlers take up holdings a famine or plague left empty (2% of the
+room on the land a year) where the place is safe enough. New measures: how
+good a place, families that left, people who moved within the region, empty
+villages; a what-if now reports the people who left.
+
+**What it changes** (24 runs each):
+
+| | 60 people | 100 | 300 | 1,000 |
+|---|---|---|---|---|
+| Ordinary luck, 20 years: size at the end (died out) | 46 (1 of 24) | 94 (0) | 296 (0) | 1,008 (0) |
+| Plague, drought and raid in the first two years: size after 5 years | 22 | 46 | 164 | 574 |
+| ... after 20 years (died out) | 13 (5 of 24) | 33 (1) | 197 (0) | 656 (0) |
+
+Large villages lose about a seventh of their people to departures in the
+five years after such a run of disasters (on top of the dead) and then
+recover, as settlers take up the empty holdings; small ones hollow out,
+since their young leave and their size and memory keep newcomers away. A
+village of 100 on crowded land under a harsh lord (40% demesne, a quarter
+of labour owed) empties in 9 of 24 runs within 40 years, where an ordinary
+one holds its size. In a region of ten villages of 60 to 1,000 people, about
+ten people a year move between villages, and in 2 of 8 runs a small one is
+empty after 40 years. Ordinary villages lose about 6 people per 1,000 a year
+and gain 1-2 from beyond: the countryside sends its surplus to the towns.
+
+Later: serfdom as a lever (a lord who can hold his tenants), distance and
+towns as destinations (step 5), and news that travels (people hear of a
+plague before it arrives).
 
 ### What-ifs Phase 3 should answer
 

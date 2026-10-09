@@ -71,8 +71,12 @@ class MonthRecord:
     grain_imported: float  # rations merchants brought from the town and sold
     town_purse: float  # coins the villages have paid the town, net (negative: received)
     coins_lost: float  # coins lost, worn away or buried since the start
-    emigrants: int  # people who left for the town
-    immigrants: int  # people who came from the region
+    emigrants: int  # people who left their village (for the town, beyond, or another village)
+    immigrants: int  # people who came to a village (from beyond, or another village)
+    families_left: int  # whole families that left their village
+    moved_within: int  # people who settled in another village of the run
+    appeal: float  # how good a place to live, 1 = an ordinary village (averaged over people)
+    empty_villages: int  # villages with nobody left
     food_emigrated: float  # rations leavers took with them
     food_stock: float  # at the end of the month
     food_margin: float  # normal harvest over need; below ~1.05 the land is crowded

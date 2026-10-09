@@ -47,9 +47,10 @@ IMPOSSIBLE = {
 DISASTERS = {
     "starvation rations (below 50%)",
     "deaths above 30% in a year",
-    # A hamlet of a few families can starve out or be abandoned in a famine,
-    # as many were; a village of hundreds dying out is nonsense.
-    "hamlet died out or was abandoned",
+    # A small village can starve out, or empty as its people move away after
+    # disasters or a bad living, as thousands of medieval villages did; a
+    # village of many hundreds dying out within a few years is nonsense.
+    "small village died out or was abandoned",
 }
 
 
@@ -116,7 +117,7 @@ def problems(sim: Simulation, extreme: bool = False) -> list[tuple[str, int]]:
 
     if records and records[-1].population == 0:
         died = next(r.month_number for r in records if r.population == 0)
-        flag("hamlet died out or was abandoned" if start_pop < 50 else "village died out", died)
+        flag("small village died out or was abandoned" if start_pop < 300 else "village died out", died)
 
     # Yearly rates, over full years only.
     for start in range(0, len(records) - 11, 12):

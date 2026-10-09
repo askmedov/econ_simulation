@@ -256,6 +256,7 @@ def _print_effect(result: Effect, forced: tuple[ScheduledEvent, ...], runs: int,
         f"{result.hungry_months[1]:{months_fmt}} with"
     )
     print(f"  {'Lowest average health':<28}{result.lowest_health[0]:.0f} without, {result.lowest_health[1]:.0f} with")
+    print(f"  {'People who left':<28}{result.left[0]:.0f} without, {result.left[1]:.0f} with")
     if result.relief[1] > 0 or result.relief[0] > 0:
         print(f"  {'Council relief (rations)':<28}{result.relief[0]:.0f} without, {result.relief[1]:.0f} with")
     if result.lord_relief[1] > 0 or result.lord_relief[0] > 0:

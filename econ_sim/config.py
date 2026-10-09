@@ -493,28 +493,69 @@ class WorkConfig:
 
 @dataclass(frozen=True)
 class MigrationConfig:
-    """People leave for the town and come from the region."""
+    """Who leaves a village and who comes to it, by how good a place it is
+    to live: its livelihood, its safety, its size and its lord's take."""
 
     enabled: bool = True
-    # Young single people leave each year with this chance, more (by `push`
-    # times the shortfall) when a wage buys less than `content_cover` of a
-    # family's food.
+    # How good a place to live (1 = an ordinary village): what a wage or a
+    # share of the land feeds, against `usual_prospects`; times
+    # exp(-hunger_weight x remembered hunger - danger_weight x remembered
+    # danger); times a small village's handicap below `small_village` people
+    # (fewer hands for the plough, no church or market, nobody to marry:
+    # to the power `size_exponent`); times the lord's share of the harvest
+    # against `usual_take` (to the power `burden_exponent`, kept within
+    # `burden_range`). Hunger (the share of need not eaten) and danger
+    # (deaths beyond `normal_mortality` a year, and grain plundered, a
+    # share of which counts as `plunder_weight` of people lost) are
+    # remembered over `memory_months`.
+    usual_prospects: float = 1.1
+    memory_months: float = 24.0
+    hunger_weight: float = 4.0
+    danger_weight: float = 6.0
+    normal_mortality: float = 0.045
+    plunder_weight: float = 0.25
+    small_village: float = 50.0
+    size_exponent: float = 0.5
+    usual_take: float = 0.11
+    burden_exponent: float = 0.5
+    burden_range: tuple[float, float] = (0.6, 1.25)
+    # Leaving. Young single people (`young_ages`) leave with `leave_chance` a
+    # year and families with `family_leave_chance` (landholders `rooted`
+    # times that), more as the place is worse than ordinary: times
+    # (1 + push x the shortfall); and times
+    # (1 + chain x the share of the village that left in the past year):
+    # people follow those who went before.
     young_ages: tuple[int, int] = (15, 29)
-    leave_chance: float = 0.02
+    leave_chance: float = 0.025
+    family_leave_chance: float = 0.002
+    rooted: float = 0.2
     push: float = 3.0
-    content_cover: float = 1.2
+    chain: float = 10.0
     # In a famine, families eating less than `flee_below` of their need leave
-    # together with this chance a month.
+    # together with this chance a month; while plague or raiders are about,
+    # families flee with `flee_danger` a month per unit of the yearly share
+    # of people the danger is taking (about 1% a month in a plague).
     flee_below: float = 0.5
     flee_chance: float = 0.05
-    # When a wage buys more than `welcome_cover` of a family's food, about
-    # `arrive_rate` young people a month per 1,000 villagers per unit of cover
-    # above it come from the region, as servants of landholding families; the
-    # pull stops growing `max_pull` above it (word travels, but only so many
-    # can come: at most about 6% of the village a year).
-    welcome_cover: float = 1.3
+    flee_danger: float = 0.03
+    # Where they go: with several villages, `stay_in_region` of those who
+    # leave settle in another of them that is a better place to live
+    # (chosen by its people times how much better it is), bringing their
+    # coins and grain; the rest go to the town or beyond.
+    stay_in_region: float = 0.5
+    # Coming from beyond: to a place better than `welcome`, about
+    # `arrive_rate` young people a month per 1,000 villagers per unit above
+    # it, up to `max_pull` above it (at most about 6% of the village a
+    # year), as servants of landholding families.
+    welcome: float = 1.2
     arrive_rate: float = 5.0
     max_pull: float = 1.0
+    # Settlers take up holdings a famine or plague left empty: each year
+    # `settle_rate` of the room on the land (people it would feed at the
+    # usual density, less those there), if the place is no worse than
+    # `settle_appeal` (all of it from `welcome` up).
+    settle_rate: float = 0.02
+    settle_appeal: float = 0.9
 
 
 @dataclass(frozen=True)

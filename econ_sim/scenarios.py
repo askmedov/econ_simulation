@@ -140,6 +140,7 @@ class Effect:
     hungry_months: tuple[float, float]  # months in which the village ate under 97% of its need
     highest_price: tuple[float, float]  # food price at its peak
     lowest_health: tuple[float, float]
+    left: tuple[float, float]  # people who left their village over the whole run
     relief: tuple[float, float]  # rations the council gave out over the whole run
     lord_relief: tuple[float, float]  # rations a charitable lord gave out over the whole run
     treated: tuple[float, float]  # people healers saw over the whole run
@@ -162,6 +163,7 @@ def effect(comparison: Comparison) -> Effect:
         hungry_months=pair(lambda sims: (series(sims, "ration") < 0.97).sum(axis=1)),
         highest_price=pair(lambda sims: series(sims, "food_price").max(axis=1)),
         lowest_health=pair(lambda sims: series(sims, "avg_health").min(axis=1)),
+        left=pair(lambda sims: series(sims, "emigrants").sum(axis=1)),
         relief=pair(lambda sims: series(sims, "relief").sum(axis=1)),
         lord_relief=pair(lambda sims: series(sims, "lord_relief").sum(axis=1)),
         treated=pair(lambda sims: series(sims, "treated").sum(axis=1)),
