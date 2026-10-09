@@ -1177,20 +1177,25 @@ villages; a what-if now reports the people who left.
 
 | | 60 people | 100 | 300 | 1,000 |
 |---|---|---|---|---|
-| Ordinary luck, 20 years: size at the end (died out) | 46 (1 of 24) | 94 (0) | 296 (0) | 1,008 (0) |
-| Plague, drought and raid in the first two years: size after 5 years | 22 | 46 | 164 | 574 |
-| ... after 20 years (died out) | 13 (5 of 24) | 33 (1) | 197 (0) | 656 (0) |
+| Ordinary luck, 20 years: size at the end (died out) | 48 (2 of 24) | 88 (0) | 282 (0) | 918 (0) |
+| Plague, drought and raid in the first two years: size after 5 years | 18 | 41 | 152 | 528 |
+| ... after 20 years (died out) | 6 (5 of 24) | 22 (4) | 205 (0) | 654 (0) |
 
-Large villages lose about a seventh of their people to departures in the
+Large villages lose about a quarter of their people to departures in the
 five years after such a run of disasters (on top of the dead) and then
 recover, as settlers take up the empty holdings; small ones hollow out,
 since their young leave and their size and memory keep newcomers away. A
 village of 100 on crowded land under a harsh lord (40% demesne, a quarter
-of labour owed) empties in 9 of 24 runs within 40 years, where an ordinary
-one holds its size. In a region of ten villages of 60 to 1,000 people, about
-ten people a year move between villages, and in 2 of 8 runs a small one is
-empty after 40 years. Ordinary villages lose about 6 people per 1,000 a year
-and gain 1-2 from beyond: the countryside sends its surplus to the towns.
+of labour owed) empties in 13 of 24 runs within 40 years, where an ordinary
+one empties in 2. In a region of ten villages of 60 to 1,000 people, about
+18 people a year move between villages; the smallest dwindles (60 to a
+median of 18 in 40 years), and in 1 of 8 runs two villages are empty. A
+village of 1,000 with ordinary luck loses about 9 people a year and gains
+3 from beyond (the countryside sends its surplus to the towns), and
+settles about a tenth below its starting size within ten years, where
+land to spare balances the pull of the towns. In a three-year what-if, a
+plague in month 4 kills 74 more of 1,000 and drives 47 more away (80 leave
+instead of 33); a drought kills 39 more and drives 57 more away.
 
 Later: serfdom as a lever (a lord who can hold his tenants), distance and
 towns as destinations (step 5), and news that travels (people hear of a
