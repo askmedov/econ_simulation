@@ -53,11 +53,15 @@ def main(argv: list[str] | None = None) -> None:
         events=tuple(replace(e, repeat_chance=None) for e in defaults.events) if args.no_drought_runs else defaults.events,
     )
     if args.region:
+        if args.land is not None:
+            raise SystemExit("--land sets one village's land; in a region each village has land for its size")
         settings = geography.RegionSettings(
             villages=args.region, towns=args.towns, seed=args.map_seed,
             mean_size=args.population or geography.RegionSettings.mean_size,
         )
-        config = geography.region(settings, config)
+        # Villages get land at the usual density for their size.
+        usual = replace(standard, initial_food_months=args.food_months)
+        config = geography.region(settings, replace(config, villages=(usual,)))
     forced = tuple(_parse_event(text) for text in args.event)
     # Check the forced events before running anything.
     Simulation(replace(config, months=0, scheduled_events=forced))

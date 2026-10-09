@@ -61,6 +61,15 @@ def test_a_region_what_if_is_reported_by_place(tmp_path, capsys):
     assert len(rows) == 9 and rows[0].startswith("village,terrain,x_km")
 
 
+def test_a_region_gives_each_village_land_for_its_size(capsys, tmp_path):
+    main(["--region", "6", "--population", "120", "--months", "1", "--workers", "1", "--out", str(tmp_path)])
+    capsys.readouterr()
+    rows = [line.split(",") for line in (tmp_path / "places.csv").read_text().splitlines()[1:]]
+    assert all(80 <= int(row[5]) <= 400 for row in rows)
+    with pytest.raises(SystemExit):
+        main(["--region", "6", "--land", "50", "--out", str(tmp_path)])
+
+
 @pytest.mark.parametrize("event", ["drought@4@1,2", "drought@4@east"])
 def test_badly_written_place_is_rejected(event, tmp_path):
     with pytest.raises(SystemExit):
