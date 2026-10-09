@@ -33,8 +33,14 @@ def calm(n=1):
     return Memory.calm(n)
 
 
+def usual_land(people):
+    return np.asarray(people, dtype=np.float64) / CONFIG.environment.people_per_plot
+
+
 def test_an_ordinary_village_is_an_ordinary_place_to_live():
-    place = migration.appeal(np.array([CFG.usual_prospects]), calm(), np.array([1000.0]), np.array([CFG.usual_take]), CONFIG)
+    people = np.array([1000.0])
+    place = migration.appeal(np.array([CFG.usual_prospects]), calm(), people, usual_land(people),
+                             np.array([CFG.usual_take]), CONFIG)
     assert np.isclose(place[0], 1.0)
 
 
@@ -45,14 +51,27 @@ def test_hunger_danger_smallness_and_a_harsh_lord_make_a_worse_place():
     memory.danger[2] = 0.1
     people = np.array([1000.0, 1000.0, 1000.0, 10.0, 1000.0])
     take = np.array([CFG.usual_take] * 4 + [2 * CFG.usual_take])
-    place = migration.appeal(np.full(n, CFG.usual_prospects), memory, people, take, CONFIG)
+    place = migration.appeal(np.full(n, CFG.usual_prospects), memory, people, usual_land(people), take, CONFIG)
     assert np.isclose(place[0], 1.0)
     assert np.isclose(place[1], np.exp(-CFG.hunger_weight * 0.2))
     assert np.isclose(place[2], np.exp(-CFG.danger_weight * 0.1))
     assert np.isclose(place[3], (10.0 / CFG.small_village) ** CFG.size_exponent)
     assert np.isclose(place[4], 0.5 ** CFG.burden_exponent)
-    better_living = migration.appeal(np.array([1.5 * CFG.usual_prospects]), calm(), people[:1], take[:1], CONFIG)
+    better_living = migration.appeal(np.array([1.5 * CFG.usual_prospects]), calm(), people[:1], usual_land(people[:1]),
+                                     take[:1], CONFIG)
     assert np.isclose(better_living[0], 1.5)
+
+
+def test_land_to_spare_draws_people_and_crowding_sends_them_away():
+    people = np.full(3, 1000.0)
+    land = usual_land(people) * np.array([1.0, 2.0, 0.5])  # usual, land to spare after a plague, crowded
+    place = migration.appeal(np.full(3, CFG.usual_prospects), calm(3), people, land, np.full(3, CFG.usual_take), CONFIG)
+    exponent = 1.0 - CONFIG.food.labor_share
+    assert np.isclose(place[0], 1.0)
+    assert np.isclose(place[1], 2.0 ** exponent) and np.isclose(place[2], 0.5 ** exponent)
+    emptied = migration.appeal(np.array([CFG.usual_prospects]), calm(), people[:1], 100 * usual_land(people[:1]),
+                               np.array([CFG.usual_take]), CONFIG)
+    assert np.isclose(emptied[0], CFG.land_range[1])  # only so much better
 
 
 def test_plague_and_plunder_are_remembered_but_ordinary_deaths_are_not():

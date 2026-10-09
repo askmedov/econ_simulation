@@ -1150,6 +1150,12 @@ village is (1 = an ordinary one), `migration.appeal`:
   grain plundered by soldiers.
 - **Size:** below 50 people a village is a poorer place (no plough team, no
   church or market, nobody to marry), by the square root of its size.
+- **Land to spare:** the land per person against the usual density, to the
+  power of the land's share of the harvest (0.3), within 0.7-1.5. A village
+  thinned by famine or plague has holdings going begging and draws people
+  (as lords after 1350 competed for tenants); a crowded one sends them
+  away. Without it a remnant of 150 on land for 1,000 kept losing its young
+  and its coins for decades instead of filling up again.
 - **The lord's take**, against the usual 11% of the harvest.
 
 People leave more as the place is worse than ordinary: young singles (2.5%

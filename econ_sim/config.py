@@ -502,7 +502,11 @@ class MigrationConfig:
     # exp(-hunger_weight x remembered hunger - danger_weight x remembered
     # danger); times a small village's handicap below `small_village` people
     # (fewer hands for the plough, no church or market, nobody to marry:
-    # to the power `size_exponent`); times the lord's share of the harvest
+    # to the power `size_exponent`); times the land per person against the
+    # usual density (EnvironmentConfig.people_per_plot), to the power of the
+    # land's share of the harvest (1 - FoodConfig.labor_share), kept within
+    # `land_range`: land to spare after a famine or plague draws people,
+    # crowding sends them away; times the lord's share of the harvest
     # against `usual_take` (to the power `burden_exponent`, kept within
     # `burden_range`). Hunger (the share of need not eaten) and danger
     # (deaths beyond `normal_mortality` a year, and grain plundered, a
@@ -516,6 +520,7 @@ class MigrationConfig:
     plunder_weight: float = 0.25
     small_village: float = 50.0
     size_exponent: float = 0.5
+    land_range: tuple[float, float] = (0.7, 1.5)
     usual_take: float = 0.11
     burden_exponent: float = 0.5
     burden_range: tuple[float, float] = (0.6, 1.25)

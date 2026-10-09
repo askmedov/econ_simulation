@@ -77,16 +77,21 @@ def remember_leaving(memory: Memory, left: np.ndarray, people: np.ndarray) -> No
 
 
 def appeal(
-    prospects: np.ndarray, memory: Memory, people: np.ndarray, lord_take: np.ndarray, config: Config
+    prospects: np.ndarray, memory: Memory, people: np.ndarray, land: np.ndarray, lord_take: np.ndarray, config: Config
 ) -> np.ndarray:
     """How good a place to live each village is, 1 being an ordinary one."""
     cfg = config.migration
     livelihood = prospects / cfg.usual_prospects
     safety = np.exp(-cfg.hunger_weight * memory.hunger - cfg.danger_weight * memory.danger)
     size = np.clip(people / cfg.small_village, 0.0, 1.0) ** cfg.size_exponent
+    # Land to spare draws people and crowding sends them away: what a
+    # family's share of the land would yield, against the usual density.
+    usual_land = people / config.environment.people_per_plot
+    spare = np.divide(land, usual_land, out=np.ones_like(land), where=usual_land > 0)
+    room = np.clip(spare ** (1.0 - config.food.labor_share), *cfg.land_range)
     lightness = np.divide(cfg.usual_take, lord_take, out=np.full_like(lord_take, np.inf), where=lord_take > 0)
     burden = np.clip(lightness ** cfg.burden_exponent, *cfg.burden_range)
-    return livelihood * safety * size * burden
+    return livelihood * safety * size * room * burden
 
 
 @dataclass

@@ -507,10 +507,11 @@ class Simulation:
         poorest = metrics.poorest_fifth_ration(wealth, households.sizes(pop, n_hh), family_eaten, family_food)
         # People leave a village, or come to it, by how good a place it is to
         # live: what a living there is worth, what people remember of its
-        # hunger and dangers, its size and its lord's take.
+        # hunger and dangers, its size, the land it has to spare and its
+        # lord's take.
         people = rules.by_location(pop.count.astype(np.float64), pop, n)
         migration.remember(world.memory, share, died, people, mods.requisition, config, mods.mortality_mult)
-        place = migration.appeal(prospects, world.memory, people, to_lord, config)
+        place = migration.appeal(prospects, world.memory, people, world.land, to_lord, config)
         moves = migration.move(pop, hh, place, world.memory, family_share, config, streams["migration"])
         world.town.purse += moves.coins
         room = world.land * config.environment.people_per_plot  # people the land would feed at a usual density
