@@ -1066,7 +1066,7 @@ checks on region settings, and what-if numbers written up here:
 | Step | Branch | Adds |
 |---|---|---|
 | 1 | `claude/phase3-speed` | group-by instead of loops over villages, one compaction a month, parallel seeds, a benchmark script with the targets above (built) |
-| 2 | `claude/region-map` | places, terrain, roads and rivers, costs of carriage, weather that falls on the map; regions generated from a few settings |
+| 2 | `claude/region-map` | places, terrain, roads and rivers, costs of carriage, weather that falls on the map; regions generated from a few settings (built) |
 | 3 | `claude/market-towns` | towns and a city as places; the town price set by supply and demand; an outside price at the border |
 | 4 | `claude/trade-network` | trade in grain, animals, cloth, tools and wood along the network; specialisation by terrain |
 | 5 | `claude/regional-migration` | builds on migration by how good a place is (below): distance, towns as destinations, harvest labour, famine refugees |
@@ -1200,6 +1200,94 @@ instead of 33); a drought kills 39 more and drives 57 more away.
 Later: serfdom as a lever (a lord who can hold his tenants), distance and
 towns as destinations (step 5), and news that travels (people hear of a
 plague before it arrives).
+
+### 2. A region on a map (built)
+
+Villages now lie on a map (`geography`), and `geography.region` lays a
+region out from a few settings: villages about 3 km apart on a rough grid,
+hills to the west, a river across it, woods, perhaps a coast; village sizes
+spread around a mean (bigger in the valley, smaller in hills and woods);
+market towns where the people are (one for every 25 villages, the first on
+the river); roads to each village's three nearest neighbours and from each
+town to its nearest villages, joined up so every place can be reached. A
+calibrated run can give its own places, roads and rivers instead
+(`VillageConfig.x`, `y`, `terrain`; `MapConfig.towns`, `roads`, `rivers`).
+Without a map (`MapConfig.enabled` False) everything is as before: the same
+results, number for number.
+
+- **Carriage.** Each village trades grain with the market town it can
+  reach most cheaply. Carting grain costs 15% of its price (loading, tolls,
+  dues, the merchant's margin) plus 1% a km by road, more across hills
+  (x1.6) and through woods (x1.3), and half that by river (overland
+  carriage cost about twice the river rate in 14th-century England); in a
+  generated region that comes to 17-31% (it was 30% for every village). A
+  remote village starts with cheaper grain and fewer coins, at the margin
+  where its grain is worth carting to town; one no road reaches never
+  trades.
+- **Weather falls on the map.** Each season's weather is a smooth random
+  field (random Fourier features, changing over about 250 km): every
+  village keeps its usual chance of a drought or a good year, but
+  neighbours share them, a drought never borders a good year, and a
+  province can have a dry east and a good west. Hard winters likewise; a
+  volcano's cold years strike everywhere at once. The town price follows
+  the whole region's harvest, not each village's own. Events have a
+  `reach` (village, weather, region); plague, fires, armies and disease
+  still strike village by village until steps 6-7.
+- **Terrain** changes what the country gives: hill pasture winters twice
+  the animals, river meadows 30% more; woods hold 2.5 times the usual
+  wood, hills 0.7; woods, coast and river give more famine foods (nuts,
+  game, fish), hills fewer. A plot is still what one worker farms, so hill
+  villages simply hold more acres to the plot.
+- **People who move go mostly nearby:** each 15 km farther makes a village
+  e times less likely to be chosen (an early piece of step 5).
+- **Events over part of the map:** `ScheduledEvent(near=(x, y, km))`, or
+  `--event drought@4@X,Y,KM` on the command line.
+- **Results by place:** each run keeps population, births, deaths, ration,
+  grain price and departures for every village, month by month; a region
+  what-if is reported where the events struck and elsewhere, by terrain and
+  by distance from market, and `places.csv` has a row per village.
+- **Speed:** no cost. A month of 1,000,000 people in 1,000 villages takes
+  1.4 s on a map (1.5 s without); laying out 1,000 villages takes 0.1 s,
+  5,000 about 5 s.
+
+**Weather on the map makes regional famines possible.** A region of 50
+villages (20,565 people), 40 years, 12 runs:
+
+| | Each village its own weather | Weather on the map |
+|---|---|---|
+| Deaths per 1,000 a year: usual / 1 year in 20 / worst | 47 / 55 / 65 | 45 / 56 / 250 |
+| Years the whole region ate under 95% of its need in some month | 2.3% | 12.3% |
+| ... under 85% | 0% | 5.2% |
+| Grain price peak against the year's average, 1 year in 20 | 1.09 | 1.36 |
+
+With its own weather, one village's drought was offset by its neighbours'
+good years, and the region as a whole never went hungry. On the map they
+suffer together, as southern and eastern England did in the droughts of
+the early 14th century. It also shows, now at the scale of a region, a
+flaw already noted under calibration: three droughts in a row (the runs
+make that about one year in a hundred) kill 15%, then 25%, then 13% of the
+region, where the Great Famine of 1315-17 killed perhaps 10-15%. Step 11
+must fix this.
+
+**A drought over part of the region** (50 villages, 40 paired runs over
+three years, a single drought in April, no runs of droughts):
+
+| | Extra deaths | Per 1,000 | Worst month (ration) | People who left | Highest grain price |
+|---|---|---|---|---|---|
+| Over the whole region | +520 | 25 | 98% -> 88% | 546 -> 1,118 | 1.50 -> 2.39 |
+| Over the west (19 villages, 7,351 people): there | +170 | 23 | 98% -> 88% | 198 -> 407 | |
+| ... elsewhere (31 villages, 13,214) | +7 | 0.5 | 98% -> 98% | 347 -> 353 | 1.50 -> 1.71 (region) |
+
+The struck villages suffer almost as much as in a region-wide drought:
+merchants carry at most 15% of a village's need a month, and the region
+has no grain trade of its own yet, so the east's harvest barely reaches the
+west; twice as many people leave. Distance from market hardly matters yet
+for the same reason (in the region-wide drought: 26, 27 and 24 extra
+deaths per 1,000 in the nearest, middle and farthest thirds). Terrain does
+a little: the valley's meadows and fish help (22 per 1,000), the hills,
+with fewer famine foods, fare worst (29). Market towns that set their own
+price (step 3) and trade along the roads (step 4) are what will let a
+region share a local dearth.
 
 ### What-ifs Phase 3 should answer
 

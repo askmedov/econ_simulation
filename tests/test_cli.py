@@ -49,3 +49,19 @@ def test_council_can_form_during_the_run(tmp_path, capsys):
 def test_drought_runs_can_be_switched_off(tmp_path, capsys):
     main(["--months", "6", "--no-drought-runs", "--out", str(tmp_path)])
     assert "Village of" in capsys.readouterr().out
+
+
+def test_a_region_what_if_is_reported_by_place(tmp_path, capsys):
+    main(["--region", "8", "--population", "120", "--months", "6", "--runs", "2", "--workers", "1",
+          "--event", "drought@2@3,3,4", "--out", str(tmp_path)])
+    out = capsys.readouterr().out
+    assert out.startswith("Region of 8 villages")
+    assert "By where the forced events struck" in out and "By terrain" in out
+    rows = (tmp_path / "places.csv").read_text().splitlines()
+    assert len(rows) == 9 and rows[0].startswith("village,terrain,x_km")
+
+
+@pytest.mark.parametrize("event", ["drought@4@1,2", "drought@4@east"])
+def test_badly_written_place_is_rejected(event, tmp_path):
+    with pytest.raises(SystemExit):
+        main(["--region", "4", "--event", event, "--out", str(tmp_path)])

@@ -708,6 +708,14 @@ class Simulation:
 
     def _active_event_names(self) -> str:
         world = self.world
+        if world.geo.on_map:  # one entry for each kind, with how many villages it is in
+            counts: dict[str, list[int]] = {}
+            for event in world.active_events:
+                counts.setdefault(event.spec.name, []).append(event.location)
+            return "+".join(
+                f"{world.names[where[0]]}:{name}" if len(where) == 1 else f"{name} ({len(where)} villages)"
+                for name, where in counts.items()
+            )
         names = []
         for event in world.active_events:
             prefix = f"{world.names[event.location]}:" if world.n_locations > 1 else ""

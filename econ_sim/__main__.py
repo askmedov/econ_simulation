@@ -83,7 +83,7 @@ def main(argv: list[str] | None = None) -> None:
     else:
         _print_effect(effect(Comparison(baseline, scenario)), forced, args.runs, config.months)
         if config.map.enabled:
-            _print_places(Comparison(baseline, scenario), config)
+            _print_places(Comparison(baseline, scenario), config, forced)
 
     out = Path(args.out)
     write_csv(baseline[0].records, out / "run1.csv")
@@ -201,6 +201,10 @@ def _print_header(config: Config, forced: tuple[ScheduledEvent, ...], runs: int)
     cc = config.council
     if not cc.enabled:
         print("No council")
+    elif len(config.villages) > 1:
+        big = sum(village.population >= cc.forms_at_population for village in config.villages)
+        start = f"{big} start with one" if cc.established_at_start else "none at the start"
+        print(f"Councils in villages of {cc.forms_at_population} people or more ({start})")
     elif v.population >= cc.forms_at_population and cc.established_at_start:
         care = f"{config.healthcare.healers_per_1000:g} healers per 1,000" if config.healthcare.enabled else "no healers"
         print(
@@ -319,16 +323,28 @@ def _print_effect(result: Effect, forced: tuple[ScheduledEvent, ...], runs: int,
         print(f"  {'People treated by healers':<28}{result.treated[0]:.0f} without, {result.treated[1]:.0f} with")
 
 
-def _print_places(comparison: Comparison, config: Config) -> None:
-    """The effect by terrain and by distance from market."""
+def _print_places(comparison: Comparison, config: Config, forced: tuple[ScheduledEvent, ...]) -> None:
+    """The effect where the forced events struck and elsewhere, by terrain
+    and by distance from market."""
     geo = geography.build(config)
     terrains = [t.name for t in config.map.terrains]
     cost = np.where(np.isfinite(geo.transport), geo.transport, 9.0)
     cuts = np.quantile(cost, [1 / 3, 2 / 3])
     thirds = np.searchsorted(cuts, cost, side="right")
-    by_cost = [f"nearest third (under {cuts[0]:.0%})", f"middle third", f"farthest third (over {cuts[1]:.0%})"]
+    by_cost = [f"nearest third (under {cuts[0]:.0%})", "middle third", f"farthest third (over {cuts[1]:.0%})"]
+    tables = [("terrain", geo.terrain, terrains), ("cost of carting grain to market", thirds, by_cost)]
+    struck = np.zeros(len(config.villages), dtype=bool)
+    for event in forced:
+        if event.near is not None:
+            struck |= geo.near(event.near)
+        elif event.village is not None:
+            struck[event.village] = True
+        else:
+            struck[:] = True
+    if not struck.all():
+        tables.insert(0, ("where the forced events struck", (~struck).astype(int), ["struck", "elsewhere"]))
     runs = len(comparison.baseline)
-    for title, groups, labels in (("terrain", geo.terrain, terrains), ("cost of carting grain to market", thirds, by_cost)):
+    for title, groups, labels in tables:
         print(f"\nBy {title}:")
         print(f"  {'':<34}{'Villages':>9}{'People':>9}{'Extra deaths':>14}{'per 1,000':>10}{'Worst month':>17}{'Left':>13}")
         for e in effect_by(comparison, groups, labels):

@@ -15,7 +15,10 @@ Everyone helps at harvest, women spin and weave at home, and kin give each
 other grain; the village's woods thin when overcut and its soil tires when
 the land is crowded. A lord takes part of the harvest and labour, the state taxes
 in coin, and merchants carry grain to and from a town market; coins are
-metal, flowing in and out with that trade. A village council taxes, keeps
+metal, flowing in and out with that trade. Villages can also make up a
+region on a map, with hills, woods and a river, market towns and roads:
+carting grain costs more the farther a village is from its town, and the
+weather falls on the map, so neighbouring villages share their droughts. A village council taxes, keeps
 a grain reserve, gives famine relief and pays healers. See [PLAN.md](PLAN.md) for the design and
 roadmap.
 
@@ -59,7 +62,17 @@ Python 3.11+. matplotlib is only needed for charts.
 
 # The events you can force
 .venv/bin/python -m econ_sim --list-events
+
+# A region of 50 villages on a map; a drought over all of it, or over its west
+.venv/bin/python -m econ_sim --region 50 --event drought@4 --runs 40
+.venv/bin/python -m econ_sim --region 50 --event drought@4@0,12,11 --runs 40
 ```
+
+With `--region`, `--population` is the size of an average village of the
+plain, `--towns` the number of market towns, and `--map-seed` lays out a
+different region; an event at `@X,Y,KM` strikes the villages within KM km
+of (X, Y) km on the map. A region what-if is also reported where the events
+struck and elsewhere, by terrain and by distance from market.
 
 Other options: `--months`, `--seed`, `--population`, `--land`,
 `--food-months`, `--out`, `--workers` (cores to run on; all by default), and the policy levers `--no-council`,
@@ -86,6 +99,7 @@ by chance. Use `--runs 100` or more to see the real effect and its range.
 | `run1_with_event.csv` | The same run with the forced events |
 | `summary.csv` | Key measures' average and 10–90% range across runs (population, births, deaths, food stock and price, wage, how well the village and its poorest fifth ate, health, relief, people treated, treasury, grain reserve), for the baseline, with the events (`_event`), and the difference (`_diff`) |
 | `log.txt` | Notable happenings in the first run (events, food shortages, a council forming) |
+| `places.csv` | In a region: each village's terrain, place on the map, cost of carting grain to market and size at the start, and, averaged over runs (with and without the events), its size at the end, deaths, departures, worst month and highest grain price |
 | `overview.png` | Food in store, food price, health, food need met for the village and its poorest fifth, and deaths over time (with `--plot`) |
 
 ## Using it from Python
@@ -96,6 +110,12 @@ from econ_sim.scenarios import compare, effect
 
 result = compare(Config(months=36), (ScheduledEvent("drought", month=4),), runs=200)
 print(effect(result).extra_deaths.mean)
+
+# A region of 50 villages, and a drought within 11 km of (0, 12) km
+from econ_sim.geography import RegionSettings, region
+
+config = region(RegionSettings(villages=50))
+result = compare(config, (ScheduledEvent("drought", month=4, near=(0.0, 12.0, 11.0)),), runs=40)
 ```
 
 All parameters are in [`econ_sim/config.py`](econ_sim/config.py).
@@ -115,6 +135,7 @@ All parameters are in [`econ_sim/config.py`](econ_sim/config.py).
 | `econ_sim/lords.py` | The lord's demesne, barn and purse; the state's coin tax; requisitions by armies and raiders |
 | `econ_sim/town.py` | The town's grain price, merchants carrying grain in and out, coins lost and debased |
 | `econ_sim/migration.py` | How good a place each village is to live; who leaves (young people, families, the starving), where they go, and who comes |
+| `econ_sim/geography.py` | The map: laying out a region, terrain, the cost of carting grain to market along roads and rivers, the weather over the map |
 | `econ_sim/work.py` | Everyone at harvest, homespun cloth, kin who give each other grain |
 | `econ_sim/environment.py` | Woods that regrow and thin when overcut; soil that tires on crowded land |
 | `econ_sim/checks.py` | Invariants of the state (land, debts, households, couples, kin) for tests and the sanity check |
