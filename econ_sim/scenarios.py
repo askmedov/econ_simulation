@@ -14,7 +14,7 @@ import multiprocessing
 import os
 import sys
 from concurrent.futures import ProcessPoolExecutor
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 import numpy as np
@@ -47,17 +47,19 @@ METRICS = (
 @dataclass
 class Run:
     """What a finished run leaves: its settings, monthly records and log
-    (not its world, which can be large)."""
+    (not its world, which can be large), and a few measures for each
+    village (see `simulation.PLACE_SERIES`), as (months x villages) arrays."""
 
     config: Config
     records: list[MonthRecord]
     log: list[str]
+    places: dict[str, np.ndarray] = field(default_factory=dict)
 
 
 def run_one(config: Config) -> Run:
     sim = Simulation(config)
     sim.run()
-    return Run(config=sim.config, records=sim.records, log=sim.log)
+    return Run(config=sim.config, records=sim.records, log=sim.log, places=sim.place_series())
 
 
 def default_workers() -> int:
@@ -168,6 +170,77 @@ def effect(comparison: Comparison) -> Effect:
         lord_relief=pair(lambda sims: series(sims, "lord_relief").sum(axis=1)),
         treated=pair(lambda sims: series(sims, "treated").sum(axis=1)),
     )
+
+
+def place_series(sims: list[Run], name: str) -> np.ndarray:
+    """A per-village measure as a (runs x months x villages) array."""
+    return np.array([sim.places[name] for sim in sims], dtype=np.float64)
+
+
+@dataclass
+class PlaceEffect:
+    """What the forced events did to one group of villages (by terrain, or
+    by distance from market), across runs."""
+
+    label: str
+    villages: int
+    people: float  # at the start
+    extra_deaths: Spread  # over the whole run
+    population_change: Spread  # at the end
+    lowest_ration: tuple[float, float]  # (baseline, scenario): the group's worst month, averaged over runs
+    left: tuple[float, float]  # people who left its villages over the whole run
+
+
+def effect_by(comparison: Comparison, groups: np.ndarray, labels: list[str]) -> list[PlaceEffect]:
+    """The forced events' effect on each group of villages (`groups` gives
+    each village's index into `labels`); empty groups are left out."""
+    sims = comparison.baseline, comparison.scenario
+    people = [place_series(s, "population") for s in sims]
+    start = np.array([v.population for v in comparison.baseline[0].config.villages], dtype=np.float64)
+    out = []
+    for g, label in enumerate(labels):
+        mine = groups == g
+        if not mine.any():
+            continue
+
+        def total(s: list[Run], name: str) -> np.ndarray:
+            return place_series(s, name)[:, :, mine].sum(axis=2)  # runs x months
+
+        def worst(s: list[Run], who: np.ndarray) -> float:
+            fed = place_series(s, "ration")[:, :, mine]
+            weights = np.maximum(who[:, :, mine], 1e-9)
+            return float(((fed * weights).sum(axis=2) / weights.sum(axis=2)).min(axis=1).mean())
+
+        out.append(PlaceEffect(
+            label=label, villages=int(mine.sum()), people=float(start[mine].sum()),
+            extra_deaths=spread((total(sims[1], "deaths") - total(sims[0], "deaths")).sum(axis=1)),
+            population_change=spread(total(sims[1], "population")[:, -1] - total(sims[0], "population")[:, -1]),
+            lowest_ration=(worst(sims[0], people[0]), worst(sims[1], people[1])),
+            left=(float(total(sims[0], "left").sum(axis=1).mean()), float(total(sims[1], "left").sum(axis=1).mean())),
+        ))
+    return out
+
+
+def write_places_csv(path: Path, names: tuple[str, ...], about: dict[str, np.ndarray], baseline: list[Run],
+                     scenario: list[Run] | None = None) -> None:
+    """One row per village: what it is (`about`: terrain, place on the map,
+    cost of carriage...) and how it fared, averaged over runs (and with the
+    forced events, if any)."""
+    arms = [("", baseline)] + ([("_event", scenario)] if scenario is not None else [])
+    columns: dict[str, list] = {"village": list(names), **{k: list(v) for k, v in about.items()}}
+    for suffix, sims in arms:
+        people = place_series(sims, "population")
+        columns[f"population_end{suffix}"] = people[:, -1].mean(axis=0)
+        columns[f"deaths{suffix}"] = place_series(sims, "deaths").sum(axis=1).mean(axis=0)
+        columns[f"left{suffix}"] = place_series(sims, "left").sum(axis=1).mean(axis=0)
+        columns[f"lowest_ration{suffix}"] = place_series(sims, "ration").min(axis=1).mean(axis=0)
+        columns[f"highest_price{suffix}"] = place_series(sims, "food_price").max(axis=1).mean(axis=0)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="") as f:
+        writer = csv.writer(f)
+        writer.writerow(columns)
+        for i in range(len(names)):
+            writer.writerow(v[i] if isinstance(v[i], str) else _fmt(v[i]) for v in columns.values())
 
 
 def write_summary_csv(

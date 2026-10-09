@@ -17,10 +17,16 @@ from econ_sim.rng import RandomStreams
 from econ_sim.world import World, create_world
 
 
+# Measures kept for each village, month by month (see `Simulation.place_series`).
+PLACE_SERIES = ("population", "births", "deaths", "ration", "food_price", "left")
+
+
 class Simulation:
     def __init__(self, config: Config) -> None:
         events.validate(config.events)
-        events.validate_schedule(config.scheduled_events, config.events, len(config.villages))
+        events.validate_schedule(config.scheduled_events, config.events, len(config.villages), config.map.enabled)
+        if config.map.enabled and not config.map.towns:
+            raise ValueError("a map needs at least one market town")
         if not 1 <= config.start_month <= 12:
             raise ValueError("start_month must be between 1 and 12")
         if any(v.population < 1 for v in config.villages):
@@ -31,6 +37,7 @@ class Simulation:
         self.records: list[MonthRecord] = []
         self.log: list[str] = []  # notable happenings, in order
         self._short_since: dict[int, int] = {}  # village -> month rationing began
+        self.places: dict[str, list[np.ndarray]] = {name: [] for name in PLACE_SERIES}  # per village, month by month
 
     @property
     def extinct(self) -> bool:
@@ -53,12 +60,11 @@ class Simulation:
         scheduled = events.start_scheduled_events(
             world, config.scheduled_events, config.events, month_number, streams["scheduled_events"]
         )
-        for event in scheduled:
-            self._note(event.location, f"{event.spec.message} (scheduled)")
+        self._note_events(scheduled, " (scheduled)")
         hits: dict[str, int] = {}
         if config.random_events:
-            for event in events.start_location_events(world, config.events, streams["events"]):
-                self._note(event.location, event.spec.message)
+            weather = events.Weather(world.geo, config.map.weather_km, streams["weather"]) if world.geo.on_map else None
+            self._note_events(events.start_location_events(world, config.events, streams["events"], weather))
             hits = events.apply_person_events(world, config.events, config.health, streams["person_events"])
         names = tuple(b.name for b in config.businesses)
         mods = events.modifiers(world, names)
@@ -85,7 +91,7 @@ class Simulation:
         animals_lost = livestock.grow_and_die(hh, mods.production_mult[:, farm], mods.heating_mult, config)
         culled, meat = np.zeros(n), np.zeros(n)
         if world.month_of_year == 11:
-            culled, meat = livestock.winter_cull(hh, world.land, config)
+            culled, meat = livestock.winter_cull(hh, world.land, config, world.geo.pasture)
         # Families with no food and no coins slaughter their animals.
         hungry_need = market.by_household(rules.food_need(pop, config), pop, len(hh))
         killed, eaten_animals = livestock.slaughter_in_hunger(hh, hungry_need, world.food_price, config)
@@ -156,8 +162,12 @@ class Simulation:
         harvests = rules.harvest_outlook(normal_gross, ahead, world.month_of_year, config)
         seed_ahead = farms.seed_outlook(farms.seed_needed(farmed, config), world.month_of_year, ahead.shape[1], config)
         outlook = harvests - np.minimum(seed_ahead, config.food.max_seed_share * harvests)
-        town_price = town.price(world.town, world.month_of_year, mods.production_mult[:, farm], config)
-        carts = town.merchants(world.food_price, town_price, need, config)
+        # On a map the town's price follows the whole region's harvest.
+        farm_weather = mods.production_mult[:, farm]
+        if world.geo.on_map:
+            farm_weather = np.full(n, np.average(farm_weather, weights=np.maximum(need, 1e-9)))
+        town_price = town.price(world.town, world.month_of_year, farm_weather, config)
+        carts = town.merchants(world.food_price, town_price, need, config, world.geo.transport)
         outlook = np.maximum(outlook + (carts.imports - carts.exports)[:, None], 0.0)
         # This month's seed is about to be picked from the harvest: not food.
         seed_needed = farms.seed_needed(farmed, config)
@@ -352,7 +362,7 @@ class Simulation:
         # Families still hungry find famine foods: roots, greens, nuts, fish
         # (more in summer and autumn; fewer in a drought).
         summer = 4 / 3 if 5 <= world.month_of_year <= 10 else 2 / 3
-        can_find = config.food.foraging * summer * np.minimum(mods.production_mult[:, farm], 1.0)
+        can_find = config.food.foraging * summer * np.minimum(mods.production_mult[:, farm], 1.0) * world.geo.forage
         lord_relief = lords.charity(
             world.lord, np.maximum(family_food - plan.own - bought[food] - relief, 0.0), hh.location, famine, config
         )
@@ -512,7 +522,7 @@ class Simulation:
         people = rules.by_location(pop.count.astype(np.float64), pop, n)
         migration.remember(world.memory, share, died, people, mods.requisition, config, mods.mortality_mult)
         place = migration.appeal(prospects, world.memory, people, world.land, to_lord, config)
-        moves = migration.move(pop, hh, place, world.memory, family_share, config, streams["migration"])
+        moves = migration.move(pop, hh, place, world.memory, family_share, config, streams["migration"], world.geo)
         world.town.purse += moves.coins
         room = world.land * config.environment.people_per_plot  # people the land would feed at a usual density
         moves.arrived += migration.arrive(pop, hh, place, room, config, streams["migration"])
@@ -649,10 +659,36 @@ class Simulation:
             events=self._active_event_names(),
         )
         self.records.append(record)
+        villagers = rules.by_location(pop.count.astype(np.float64), pop, n)
+        for name, values in (("population", villagers), ("births", born), ("deaths", died), ("ration", share),
+                             ("food_price", world.food_price), ("left", moves.left)):
+            self.places[name].append(np.asarray(values, dtype=np.float64).copy())
         if alive_at_start and self.extinct:
             self._note(None, "The last villager has died")
         world.month += 1
         return record
+
+    def place_series(self) -> dict[str, np.ndarray]:
+        """Each per-village measure as a (months x villages) array."""
+        n = self.world.n_locations
+        return {name: np.array(values).reshape(len(values), n) for name, values in self.places.items()}
+
+    def _note_events(self, started: list, suffix: str = "") -> None:
+        """Note each event that started; on a map, one line for each kind."""
+        if not self.world.geo.on_map:
+            for event in started:
+                self._note(event.location, event.spec.message + suffix)
+            return
+        n = self.world.n_locations
+        for name in dict.fromkeys(event.spec.name for event in started):
+            where = [event for event in started if event.spec.name == name]
+            message = where[0].spec.message + suffix
+            if len(where) == 1:
+                self._note(where[0].location, message)
+            elif len(where) <= 3:
+                self._note(None, f"{message} ({', '.join(self.world.names[e.location] for e in where)})")
+            else:
+                self._note(None, f"{message} (in {len(where)} of {n} villages)")
 
     def _note(self, location: int | None, message: str) -> None:
         world = self.world

@@ -12,8 +12,8 @@ worse than ordinary; families leave too, the landless more readily than
 those with land, and people follow those who went before, so a village that
 starts to empty can empty out. In a famine the hungriest families flee.
 While plague or raiders are about, families flee them too. With several
-villages, half of those who leave settle in another that is a better place,
-bringing their coins and grain; the rest go to the town or beyond, taking
+villages, half of those who leave settle in another that is a better place
+(on a map, most of them nearby), bringing their coins and grain; the rest go to the town or beyond, taking
 theirs. A family that leaves for good leaves its land behind
 (it goes to a landless family) and its debts unpaid. Young people from
 beyond come to a village that is clearly a better place than ordinary, as
@@ -28,6 +28,7 @@ import numpy as np
 
 from econ_sim import rules
 from econ_sim.config import Config
+from econ_sim.geography import Geography
 from econ_sim.households import Households, sizes
 from econ_sim.population import NO_JOB, Population
 
@@ -105,14 +106,17 @@ class Moves:
 
 
 def _destinations(origin: np.ndarray, place: np.ndarray, people: np.ndarray, config: Config,
-                  rng: np.random.Generator) -> np.ndarray:
+                  rng: np.random.Generator, geo: Geography | None = None) -> np.ndarray:
     """For each leaver from `origin`, another village that is a better place
-    (chosen by its people times how much better), or -1 for beyond."""
+    (chosen by its people times how much better, and on a map, the nearer
+    the likelier), or -1 for beyond."""
     dest = np.full(len(origin), -1, dtype=np.int64)
     if len(place) < 2 or not len(origin):
         return dest
     stays = rng.random(len(origin)) < config.migration.stay_in_region
     better = np.maximum(place[None, :] - place[origin][:, None], 0.0) * people[None, :]
+    if geo is not None and geo.on_map:
+        better *= np.exp(-geo.distances(origin) / config.migration.distance_km)
     better[np.arange(len(origin)), origin] = 0.0
     total = better.sum(axis=1)
     settle = np.flatnonzero(stays & (total > 0))
@@ -124,7 +128,7 @@ def _destinations(origin: np.ndarray, place: np.ndarray, people: np.ndarray, con
 
 def move(
     population: Population, households: Households, place: np.ndarray, memory: Memory, family_share: np.ndarray,
-    config: Config, rng: np.random.Generator,
+    config: Config, rng: np.random.Generator, geo: Geography | None = None,
 ) -> Moves:
     """This month's departures: young singles and whole families, by how
     good a place their village is (`place`), and the hungriest families in
@@ -162,8 +166,8 @@ def move(
     # Where they go.
     people = rules.by_location(population.count.astype(np.float64), population, n)
     singles, family_ids = np.flatnonzero(goes), np.flatnonzero(families)
-    to_single = _destinations(loc[singles], place, people, config, rng)
-    to_family = _destinations(households.location[family_ids], place, people, config, rng)
+    to_single = _destinations(loc[singles], place, people, config, rng, geo)
+    to_family = _destinations(households.location[family_ids], place, people, config, rng, geo)
     # A single person settles with a landholding family there, if any.
     hosts = np.flatnonzero((households.land > 0) & living)
     hosts = hosts[np.argsort(households.location[hosts], kind="stable")]

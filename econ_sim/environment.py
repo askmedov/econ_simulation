@@ -19,17 +19,19 @@ import numpy as np
 from econ_sim.config import Config
 
 
-def size_woods(people: np.ndarray, config: Config) -> tuple[np.ndarray, np.ndarray]:
+def size_woods(people: np.ndarray, config: Config, richness: np.ndarray | None = None) -> tuple[np.ndarray, np.ndarray]:
     """(capacity, starting stock) of each village's woods, in units of
-    firewood, for its starting number of `people`: in balance with their
-    yearly firewood need (or at half capacity, the most productive, if
-    they need more than the woods can bear)."""
+    firewood, for its starting number of `people`, `richness` times the
+    usual (a village in the forest has more): in balance with their yearly
+    firewood need (or at half capacity, the most productive, if they need
+    more than the woods can bear)."""
     cfg = config.environment
     yearly = people * 12.0 * float(np.mean(config.needs.firewood))
-    capacity = cfg.woods_years * yearly
+    years = cfg.woods_years * (np.ones_like(people) if richness is None else richness)
+    capacity = years * yearly
     # Balance: regrowth x stock x (1 - stock / capacity) = yearly use.
-    pressure = 1.0 / (cfg.regrowth * cfg.woods_years)
-    share = 0.5 * (1.0 + np.sqrt(max(1.0 - 4.0 * pressure, 0.0)))
+    pressure = 1.0 / (cfg.regrowth * years)
+    share = 0.5 * (1.0 + np.sqrt(np.maximum(1.0 - 4.0 * pressure, 0.0)))
     return capacity, share * capacity
 
 

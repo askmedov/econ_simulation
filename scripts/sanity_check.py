@@ -30,6 +30,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from econ_sim.checks import broken_invariants  # noqa: E402
+from econ_sim.geography import RegionSettings, region  # noqa: E402
 from econ_sim.config import Config, CouncilConfig, HealthcareConfig, ScheduledEvent, VillageConfig  # noqa: E402
 from econ_sim.metrics import flat  # noqa: E402
 from econ_sim.scenarios import default_workers, process_pool  # noqa: E402
@@ -62,7 +63,7 @@ def problems(sim: Simulation, extreme: bool = False) -> list[tuple[str, int]]:
     """
     found = []
     config, records = sim.config, sim.records
-    start_pop = config.villages[0].population * len(config.villages)
+    start_pop = sum(v.population for v in config.villages)
     one_village = len(config.villages) == 1
 
     def flag(name: str, month: int) -> None:
@@ -181,6 +182,10 @@ def settings(full: bool) -> list[Setting]:
         Setting("small village", replace(base, villages=(VillageConfig(population=100, land=35),)), seeds // 2),
         Setting("big village", replace(base, villages=(VillageConfig(population=5000, land=1750),)), seeds // 20),
         Setting("two villages", replace(base, villages=(VillageConfig(name="A"), VillageConfig(name="B", land=250))), seeds // 4),
+        # A region on a map: shared weather, carriage by road and river, terrain.
+        Setting("region of 20 villages", region(RegionSettings(villages=20, mean_size=300), base), seeds // 10),
+        Setting("region, 10 years", replace(region(RegionSettings(villages=20, mean_size=300, seed=2), base), months=120),
+                seeds // 20),
         Setting("no council", replace(base, council=CouncilConfig(enabled=False)), seeds // 2),
         Setting("no healthcare", replace(base, healthcare=HealthcareConfig(enabled=False)), seeds // 4),
         Setting("council forming", replace(base, villages=(VillageConfig(population=520, land=182),),

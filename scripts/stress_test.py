@@ -27,6 +27,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from econ_sim import households  # noqa: E402
+from econ_sim.geography import RegionSettings, region  # noqa: E402
 from econ_sim.config import (  # noqa: E402
     Config,
     CouncilConfig,
@@ -119,6 +120,7 @@ def scenarios() -> list[Scenario]:
             replace(e, repeat_chance=None) for e in base.events))),
         Scenario("two cold years", replace(base, scheduled_events=(ScheduledEvent("cold_years", 4),)),
                  "a volcanic winter: two failed harvests", ("population", "sown")),
+        Scenario("region of 20 villages", region(RegionSettings(villages=20, mean_size=300), base)),
         Scenario("tax 0%", replace(base, council=CouncilConfig(tax_rate=0.0))),
         Scenario("tax 30%", replace(base, council=CouncilConfig(tax_rate=0.3))),
         Scenario("12-month reserve", replace(base, council=CouncilConfig(reserve_months=12.0))),

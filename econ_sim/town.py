@@ -58,16 +58,22 @@ class Merchants:
     imports: np.ndarray  # rations merchants offer this month, per village (0 if none)
 
 
-def merchants(village_price: np.ndarray, town_price: np.ndarray, need: np.ndarray, config: Config) -> Merchants:
+def merchants(
+    village_price: np.ndarray, town_price: np.ndarray, need: np.ndarray, config: Config,
+    transport: np.ndarray | None = None,
+) -> Merchants:
     """What merchants will carry this month: grain out when the village is
-    cheap, grain in when it is dear."""
+    cheap, grain in when it is dear. Carting it costs `transport` of the
+    price (per village, on a map; `TownConfig.transport` otherwise)."""
     cfg = config.town
     if not cfg.enabled:
         zeros = np.zeros_like(need)
         return Merchants(exports=zeros, imports=zeros.copy())
     cart = cfg.capacity * need
-    cheap = village_price < town_price * (1.0 - cfg.transport)
-    dear = village_price > town_price * (1.0 + cfg.transport)
+    transport = cfg.transport if transport is None else transport
+    with np.errstate(invalid="ignore"):  # a village no road reaches never trades
+        cheap = village_price < town_price * (1.0 - transport)
+        dear = village_price > town_price * (1.0 + transport)
     return Merchants(exports=np.where(cheap, cart, 0.0), imports=np.where(dear, cart, 0.0))
 
 

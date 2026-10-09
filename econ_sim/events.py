@@ -10,7 +10,9 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from econ_sim import geography
 from econ_sim.config import EffectValue, EventSpec, HealthConfig, ScheduledEvent
+from econ_sim.geography import Geography
 from econ_sim.world import ActiveEvent, World
 
 EFFECTS = (
@@ -18,6 +20,7 @@ EFFECTS = (
     "requisition", "debase", "woods_burned",
 )
 PERSON_EFFECTS = ("health_delta",)
+REACHES = ("village", "weather", "region")
 
 
 @dataclass
@@ -60,6 +63,8 @@ def validate(specs: tuple[EventSpec, ...]) -> None:
             raise ValueError(f"{spec.name}: repeat_chance must be between 0 and 1, with chance below 1")
         if spec.scope == "person" and spec.duration != 1:
             raise ValueError(f"{spec.name}: person events last one month")
+        if spec.reach not in REACHES or spec.end not in ("bad", "good"):
+            raise ValueError(f"{spec.name}: reach must be one of {', '.join(REACHES)}, and end 'bad' or 'good'")
         if spec.group:
             group_chance[spec.group] = group_chance.get(spec.group, 0.0) + spec.chance
     for group, total in group_chance.items():
@@ -87,7 +92,7 @@ def chance_now(spec: EventSpec, repeated: bool) -> float:
 
 
 def validate_schedule(
-    scheduled: tuple[ScheduledEvent, ...], specs: tuple[EventSpec, ...], n_locations: int
+    scheduled: tuple[ScheduledEvent, ...], specs: tuple[EventSpec, ...], n_locations: int, on_map: bool = False
 ) -> None:
     location_events = {s.name for s in specs if s.scope == "location"}
     for item in scheduled:
@@ -98,6 +103,8 @@ def validate_schedule(
             raise ValueError(f"{item.event}: month must be 1 or later")
         if item.village is not None and not 0 <= item.village < n_locations:
             raise ValueError(f"{item.event}: no village number {item.village}")
+        if item.near is not None and (not on_map or item.village is not None or len(item.near) != 3):
+            raise ValueError(f"{item.event}: 'near' (x, y, km) needs a map, and no village number")
 
 
 def _draw(value: EffectValue | int | tuple[int, int], rng: np.random.Generator, whole: bool = False):
@@ -118,14 +125,28 @@ def advance(world: World) -> None:
     world.active_events = [e for e in world.active_events if e.months_left > 0]
 
 
+@dataclass
+class Weather:
+    """The map the weather falls on, how far it reaches, and the random
+    stream it is drawn from."""
+
+    geo: Geography
+    scale_km: float
+    rng: np.random.Generator
+
+
 def start_location_events(
-    world: World, specs: tuple[EventSpec, ...], rng: np.random.Generator
+    world: World, specs: tuple[EventSpec, ...], rng: np.random.Generator, weather: Weather | None = None
 ) -> list[ActiveEvent]:
-    """Roll village-wide events. Events in the same group exclude each other."""
+    """Roll village-wide events. Events in the same group exclude each other.
+    With `weather` (a map), weather events follow the season's weather over
+    the map and region events strike every village at once."""
     candidates: dict[str, list[EventSpec]] = {}
     for spec in specs:
         if _can_start(spec, "location", world.month_of_year):
             candidates.setdefault(spec.group or f"_{spec.name}", []).append(spec)
+    if weather is not None:
+        return _start_on_map(world, candidates, rng, weather)
 
     started = []
     for location in range(world.n_locations):
@@ -142,6 +163,51 @@ def start_location_events(
                 if roll < threshold:
                     started.append(_start(world, spec, location, rng))
                     break
+    return started
+
+
+def _start_on_map(
+    world: World, candidates: dict[str, list[EventSpec]], rng: np.random.Generator, weather: Weather
+) -> list[ActiveEvent]:
+    """Start this month's events on a map. Each village rolls for its own
+    events as without a map; weather events take the season's weather at
+    each village (bad ones where it is worst, good ones where it is best);
+    region events take one roll for all."""
+    n = world.n_locations
+    keys = list(candidates)
+    rolls = rng.random((n, len(keys)))
+    started = []
+    for column, key in enumerate(keys):
+        members = candidates[key]
+        names = {spec.name for spec in members}
+        free = np.ones(n, dtype=bool)
+        for event in world.active_events:
+            if event.spec.name in names or event.spec.group == key:
+                free[event.location] = False
+        for reach in REACHES:
+            group = [spec for spec in members if spec.reach == reach]
+            if not group:
+                continue
+            if reach == "region":
+                roll = np.full(n, weather.rng.random())
+            elif reach == "weather":
+                roll = geography.weather(weather.geo, weather.scale_km, weather.rng)
+            else:
+                roll = rolls[:, column]
+            sides = ("bad", "good") if reach == "weather" else (None,)
+            for side in sides:
+                at = 1.0 - roll if side == "good" else roll
+                threshold = np.zeros(n)
+                for spec in group:
+                    if side is not None and spec.end != side:
+                        continue
+                    last = np.array([world.last_started.get((spec.name, loc), -(10**9)) for loc in range(n)])
+                    repeated = world.month - last <= 12
+                    low = threshold.copy()
+                    threshold += np.array([chance_now(spec, r) for r in (False, True)])[repeated.astype(int)]
+                    for loc in np.flatnonzero(free & (at >= low) & (at < threshold)):
+                        started.append(_start(world, spec, int(loc), rng))
+                        free[loc] = False
     return started
 
 
@@ -163,7 +229,10 @@ def start_scheduled_events(
         if item.month != month_number:
             continue
         spec = by_name[item.event]
-        locations = range(world.n_locations) if item.village is None else [item.village]
+        if item.near is not None:
+            locations = np.flatnonzero(world.geo.near(item.near)).tolist()
+        else:
+            locations = range(world.n_locations) if item.village is None else [item.village]
         for location in locations:
             if any(e.spec.name == spec.name and e.location == location for e in world.active_events):
                 continue

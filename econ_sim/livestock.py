@@ -62,15 +62,18 @@ def grow_and_die(
     return before - by_village(households.animals, households.location, n)
 
 
-def winter_cull(households: Households, village_land: np.ndarray, config: Config) -> tuple[np.ndarray, np.ndarray]:
-    """Thin each village's herds to what it can feed through winter, every
+def winter_cull(
+    households: Households, village_land: np.ndarray, config: Config, pasture: np.ndarray | None = None
+) -> tuple[np.ndarray, np.ndarray]:
+    """Thin each village's herds to what it can feed through winter (more
+    with hill pasture or river meadows: `pasture` times the usual), every
     owner in proportion; the meat goes into their grain stores. Returns
     (animals slaughtered, rations of meat) per village."""
     cfg = config.livestock
     n = len(village_land)
     loc = households.location
     herd = by_village(households.animals, loc, n)
-    room = cfg.winter_capacity_per_plot * village_land
+    room = cfg.winter_capacity_per_plot * village_land * (1.0 if pasture is None else pasture)
     cull = np.divide(np.maximum(herd - room, 0.0), herd, out=np.zeros(n), where=herd > 0)
     slaughtered = households.animals * cull[loc]
     households.animals -= slaughtered

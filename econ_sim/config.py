@@ -21,6 +21,11 @@ class VillageConfig:
     land: float = 350.0
     # Starting granary, as months of the starting population's food need.
     initial_food_months: float = 5.0
+    # Where it lies (km east and north, on the map: see MapConfig) and the
+    # country around it (a TerrainSpec name).
+    x: float = 0.0
+    y: float = 0.0
+    terrain: str = "plain"
 
 
 @dataclass(frozen=True)
@@ -438,6 +443,66 @@ class TownConfig:
 
 
 @dataclass(frozen=True)
+class TerrainSpec:
+    """What a kind of country does to the villages in it, against open,
+    arable plain. Its grain is in the land itself (a plot is what one
+    worker farms at base output), so hill villages simply hold more acres
+    to the plot."""
+
+    name: str
+    carriage: float = 1.0  # cost of carting a load across it
+    pasture: float = 1.0  # animals the village can feed through winter
+    woods: float = 1.0  # woods it can hold
+    forage: float = 1.0  # famine foods to be found: roots, nuts, fish, game
+
+
+DEFAULT_TERRAINS: tuple[TerrainSpec, ...] = (
+    TerrainSpec("plain"),
+    # River meadows give hay and fish; the river carries the grain.
+    TerrainSpec("valley", pasture=1.3, woods=0.8, forage=1.2),
+    # Hill pasture for sheep and cattle; steep, slow tracks.
+    TerrainSpec("upland", carriage=1.6, pasture=2.0, woods=0.7, forage=0.8),
+    # Clearings in the woods: wood, nuts, pigs and game, poor roads.
+    TerrainSpec("forest", carriage=1.3, pasture=0.8, woods=2.5, forage=1.5),
+    # Fishing villages on the shore.
+    TerrainSpec("coast", woods=0.8, forage=1.5),
+)
+
+
+@dataclass(frozen=True)
+class MapConfig:
+    """Where the villages lie, the market towns they trade with, and the
+    roads and rivers between them (see `geography`; `geography.region`
+    lays one out from a few settings).
+
+    Without a map (`enabled` False) every village is the same `transport`
+    from the town (TownConfig) and has its own weather, as in Phase 2.
+    With one, carting grain between a village and its market town costs
+    `handling` of its price (loading, tolls, market dues, the merchant's
+    margin) plus `road_per_km` for each km of road (times the terrain's
+    `carriage`) or `river_per_km` for each km by boat (overland carriage
+    cost about twice the river rate in 14th-century England), along the
+    cheapest way; and the weather falls on the map: neighbouring villages
+    share their droughts, good years and hard winters, which change over
+    about `weather_km`.
+    """
+
+    enabled: bool = False
+    towns: tuple[tuple[float, float], ...] = ((0.0, 0.0),)  # (x, y) km of each market town
+    # Links between places, numbered villages first (0, 1, ...), then towns.
+    roads: tuple[tuple[int, int], ...] = ()
+    rivers: tuple[tuple[int, int], ...] = ()
+    handling: float = 0.15
+    road_per_km: float = 0.01
+    river_per_km: float = 0.005
+    weather_km: float = 250.0
+    terrains: tuple[TerrainSpec, ...] = DEFAULT_TERRAINS
+
+    def terrain_index(self, name: str) -> int:
+        return [t.name for t in self.terrains].index(name)
+
+
+@dataclass(frozen=True)
 class EnvironmentConfig:
     """Woods that shrink when overcut, and soil that tires when the land
     is crowded. (Droughts that come in runs are in the events: see
@@ -545,9 +610,11 @@ class MigrationConfig:
     flee_danger: float = 0.03
     # Where they go: with several villages, `stay_in_region` of those who
     # leave settle in another of them that is a better place to live
-    # (chosen by its people times how much better it is), bringing their
-    # coins and grain; the rest go to the town or beyond.
+    # (chosen by its people times how much better it is, and on a map,
+    # times exp(-km / `distance_km`): most moved less than a day's walk),
+    # bringing their coins and grain; the rest go to the town or beyond.
     stay_in_region: float = 0.5
+    distance_km: float = 15.0
     # Coming from beyond: to a place better than `welcome`, about
     # `arrive_rate` young people a month per 1,000 villagers per unit above
     # it, up to `max_pull` above it (at most about 6% of the village a
@@ -624,6 +691,13 @@ class EventSpec:
 
     Location events hit everyone in a village. Person events hit each person
     independently, last one month and support only health_delta for now.
+
+    On a map (MapConfig), `reach` says how far an event spreads: "village"
+    events strike each village on its own; "weather" events follow the
+    season's weather, which neighbouring villages share (bad weather, `end`
+    "bad", where the season is worst; good weather, `end` "good", where it
+    is best); "region" events strike every village at once (a volcano's cold
+    years, a ruler's decree). Without a map every village rolls on its own.
     """
 
     name: str
@@ -640,6 +714,8 @@ class EventSpec:
     repeat_chance: float | None = None
     businesses: tuple[str, ...] | None = None  # production_mult hits only these
     message: str = ""
+    reach: str = "village"  # "village", "weather" or "region": see above
+    end: str = "bad"  # for weather events: the bad or the good end of the season's weather
 
 
 DEFAULT_EVENTS: tuple[EventSpec, ...] = (
@@ -654,6 +730,8 @@ DEFAULT_EVENTS: tuple[EventSpec, ...] = (
         effects={"production_mult": 1.25},
         repeat_chance=0.3,
         message="Good weather: a rich growing season ahead",
+        reach="weather",
+        end="good",
     ),
     EventSpec(
         name="drought",
@@ -666,6 +744,7 @@ DEFAULT_EVENTS: tuple[EventSpec, ...] = (
         effects={"production_mult": 0.6},
         repeat_chance=0.3,
         message="Drought: harvests will be poor this season",
+        reach="weather",
     ),
     EventSpec(
         # A great volcanic eruption veils the sun: cold, wet summers and
@@ -680,6 +759,7 @@ DEFAULT_EVENTS: tuple[EventSpec, ...] = (
         effects={"production_mult": 0.7, "heating_mult": 1.2},
         businesses=("farming",),
         message="The sun is veiled: cold summers and failed harvests for two years",
+        reach="region",
     ),
     EventSpec(
         name="harsh_winter",
@@ -689,6 +769,7 @@ DEFAULT_EVENTS: tuple[EventSpec, ...] = (
         duration=3,
         effects={"health_delta": -3.0, "mortality_mult": 1.3, "heating_mult": 1.5},
         message="Harsh winter: cold weather weakens the village",
+        reach="weather",
     ),
     EventSpec(
         name="forest_fire",
@@ -742,6 +823,7 @@ DEFAULT_EVENTS: tuple[EventSpec, ...] = (
         chance=0.0,  # only when scheduled: a what-if lever
         effects={"debase": 0.25},
         message="The ruler debases the coinage: coins are worth less",
+        reach="region",
     ),
     EventSpec(
         name="debt_jubilee",
@@ -749,6 +831,7 @@ DEFAULT_EVENTS: tuple[EventSpec, ...] = (
         chance=0.0,  # only when scheduled: a what-if lever
         effects={"debt_cancel": 1.0},
         message="The ruler cancels all debts",
+        reach="region",
     ),
     EventSpec(
         name="granary_fire",
@@ -774,6 +857,9 @@ class ScheduledEvent:
     event: str  # name of a location event in `Config.events`
     month: int  # months from the start; 1 is the first simulated month
     village: int | None = None  # village index; None means every village
+    # Or every village within `near[2]` km of the point (near[0], near[1])
+    # on the map: a drought over one part of a region.
+    near: tuple[float, float, float] | None = None
 
 
 @dataclass(frozen=True)
@@ -800,6 +886,7 @@ class Config:
     environment: EnvironmentConfig = field(default_factory=EnvironmentConfig)
     council: CouncilConfig = field(default_factory=CouncilConfig)
     healthcare: HealthcareConfig = field(default_factory=HealthcareConfig)
+    map: MapConfig = field(default_factory=MapConfig)
     products: tuple[ProductSpec, ...] = DEFAULT_PRODUCTS
     businesses: tuple[BusinessSpec, ...] = DEFAULT_BUSINESSES
     events: tuple[EventSpec, ...] = DEFAULT_EVENTS

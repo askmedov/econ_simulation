@@ -9,9 +9,12 @@ from pathlib import Path
 
 import numpy as np
 
+from econ_sim import geography
 from econ_sim.config import Config, ScheduledEvent, VillageConfig
 from econ_sim.metrics import write_csv
-from econ_sim.scenarios import Comparison, Effect, Run, compare, effect, run_batch, series, spread, write_summary_csv
+from econ_sim.scenarios import (
+    Comparison, Effect, Run, compare, effect, effect_by, run_batch, series, spread, write_places_csv, write_summary_csv,
+)
 from econ_sim.simulation import Simulation
 
 
@@ -22,7 +25,12 @@ def main(argv: list[str] | None = None) -> None:
         _print_events(defaults)
         return
 
-    village = VillageConfig(population=args.population, land=args.land, initial_food_months=args.food_months)
+    standard = VillageConfig()
+    village = VillageConfig(
+        population=args.population or standard.population,
+        land=args.land if args.land is not None else standard.land,
+        initial_food_months=args.food_months,
+    )
     config = replace(
         defaults,
         seed=args.seed,
@@ -44,6 +52,12 @@ def main(argv: list[str] | None = None) -> None:
         work=replace(defaults.work, kin_share=0.0 if args.no_kin_help else defaults.work.kin_share),
         events=tuple(replace(e, repeat_chance=None) for e in defaults.events) if args.no_drought_runs else defaults.events,
     )
+    if args.region:
+        settings = geography.RegionSettings(
+            villages=args.region, towns=args.towns, seed=args.map_seed,
+            mean_size=args.population or geography.RegionSettings.mean_size,
+        )
+        config = geography.region(settings, config)
     forced = tuple(_parse_event(text) for text in args.event)
     # Check the forced events before running anything.
     Simulation(replace(config, months=0, scheduled_events=forced))
@@ -68,6 +82,8 @@ def main(argv: list[str] | None = None) -> None:
         _print_outlook(baseline)
     else:
         _print_effect(effect(Comparison(baseline, scenario)), forced, args.runs, config.months)
+        if config.map.enabled:
+            _print_places(Comparison(baseline, scenario), config)
 
     out = Path(args.out)
     write_csv(baseline[0].records, out / "run1.csv")
@@ -80,6 +96,14 @@ def main(argv: list[str] | None = None) -> None:
     written = ["run1.csv", "summary.csv", "log.txt"]
     if scenario is not None:
         written.insert(1, "run1_with_event.csv")
+    if config.map.enabled:
+        geo = geography.build(config)
+        about = {
+            "terrain": np.array([v.terrain for v in config.villages]), "x_km": geo.x, "y_km": geo.y,
+            "carriage": geo.transport, "population_start": np.array([v.population for v in config.villages]),
+        }
+        write_places_csv(out / "places.csv", tuple(v.name for v in config.villages), about, baseline, scenario)
+        written.append("places.csv")
     if args.plot:
         from econ_sim.charts import plot
 
@@ -99,7 +123,11 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--runs", type=int, default=1, help="repeat with this many seeds and average (default %(default)s)")
     parser.add_argument("--seed", type=int, default=defaults.seed, help="random seed of the first run (default %(default)s)")
     parser.add_argument("--start-month", type=int, default=defaults.start_month, help="calendar month to start in, 1-12 (default %(default)s)")
-    parser.add_argument("--event", action="append", default=[], metavar="NAME@MONTH", help="force an event, e.g. drought@4; repeatable")
+    parser.add_argument(
+        "--event", action="append", default=[], metavar="NAME@MONTH[@X,Y,KM]",
+        help="force an event, e.g. drought@4; in a region, drought@4@20,10,8 strikes the villages within 8 km of "
+        "(20, 10) km on the map; repeatable",
+    )
     parser.add_argument("--no-random-events", action="store_true", help="only the forced events happen")
     parser.add_argument("--no-council", action="store_true", help="the village never has a council (no taxes, reserve or relief)")
     parser.add_argument("--no-relief", action="store_true", help="the council gives no famine relief")
@@ -119,8 +147,18 @@ def _parser() -> argparse.ArgumentParser:
         "--no-drought-runs", action="store_true",
         help="a drought (or good year) doesn't make another the next year likelier: isolates a single forced drought",
     )
-    parser.add_argument("--population", type=int, default=village.population, help="villagers at the start (default %(default)s)")
-    parser.add_argument("--land", type=float, default=village.land, help="farmland in plots (default %(default)s)")
+    parser.add_argument(
+        "--population", type=int, default=None,
+        help=f"villagers at the start (default {village.population}; in a region, people in an average village of "
+        f"the plain, default {geography.RegionSettings.mean_size:g})",
+    )
+    parser.add_argument("--land", type=float, default=None, help=f"farmland in plots (default {village.land:g})")
+    parser.add_argument(
+        "--region", type=int, default=0, metavar="VILLAGES",
+        help="a region of this many villages on a map, with hills, woods, a river, market towns and roads",
+    )
+    parser.add_argument("--towns", type=int, default=None, help="market towns in the region (default: one for every 25 villages)")
+    parser.add_argument("--map-seed", type=int, default=1, help="lay out a different region (default %(default)s)")
     parser.add_argument("--food-months", type=float, default=village.initial_food_months, help="months of food in store at the start (default %(default)s)")
     parser.add_argument(
         "--workers", type=int, default=None,
@@ -133,10 +171,18 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def _parse_event(text: str) -> ScheduledEvent:
-    name, sep, month = text.partition("@")
+    name, sep, rest = text.partition("@")
+    month, _, where = rest.partition("@")
     if not sep or not month.isdigit():
-        raise SystemExit(f"--event {text!r}: expected NAME@MONTH, e.g. drought@4")
-    return ScheduledEvent(event=name.strip().replace(" ", "_"), month=int(month))
+        raise SystemExit(f"--event {text!r}: expected NAME@MONTH, e.g. drought@4, or NAME@MONTH@X,Y,KM")
+    near = None
+    if where:
+        try:
+            x, y, km = (float(part) for part in where.split(","))
+        except ValueError:
+            raise SystemExit(f"--event {text!r}: expected a place as X,Y,KM, e.g. drought@4@20,10,8") from None
+        near = (x, y, km)
+    return ScheduledEvent(event=name.strip().replace(" ", "_"), month=int(month), near=near)
 
 
 def _label(record) -> str:
@@ -145,7 +191,10 @@ def _label(record) -> str:
 
 def _print_header(config: Config, forced: tuple[ScheduledEvent, ...], runs: int) -> None:
     v = config.villages[0]
-    print(f"Village of {v.population} people, {v.land:g} plots of land, {v.initial_food_months:g} months of food in store")
+    if config.map.enabled:
+        print(geography.describe(config, geography.build(config)))
+    else:
+        print(f"Village of {v.population} people, {v.land:g} plots of land, {v.initial_food_months:g} months of food in store")
     when = f"{calendar.month_name[config.start_month]} of year 1"
     randomness = "random events on" if config.random_events else "no random events"
     print(f"{config.months} months from {when}; seed {config.seed}; {runs} run{'s' * (runs != 1)}; {randomness}")
@@ -161,8 +210,13 @@ def _print_header(config: Config, forced: tuple[ScheduledEvent, ...], runs: int)
     else:
         print(f"A council forms once the village has {cc.forms_at_population} people for {cc.forms_after_months} months")
     if forced:
-        print("Forced: " + ", ".join(f"{e.event.replace('_', ' ')} in month {e.month}" for e in forced))
+        print("Forced: " + ", ".join(_forced_label(e) for e in forced))
     print()
+
+
+def _forced_label(event: ScheduledEvent) -> str:
+    where = f" within {event.near[2]:g} km of ({event.near[0]:g}, {event.near[1]:g})" if event.near else ""
+    return f"{event.event.replace('_', ' ')} in month {event.month}{where}"
 
 
 def _print_months(sims: list[Run]) -> None:
@@ -265,6 +319,27 @@ def _print_effect(result: Effect, forced: tuple[ScheduledEvent, ...], runs: int,
         print(f"  {'People treated by healers':<28}{result.treated[0]:.0f} without, {result.treated[1]:.0f} with")
 
 
+def _print_places(comparison: Comparison, config: Config) -> None:
+    """The effect by terrain and by distance from market."""
+    geo = geography.build(config)
+    terrains = [t.name for t in config.map.terrains]
+    cost = np.where(np.isfinite(geo.transport), geo.transport, 9.0)
+    cuts = np.quantile(cost, [1 / 3, 2 / 3])
+    thirds = np.searchsorted(cuts, cost, side="right")
+    by_cost = [f"nearest third (under {cuts[0]:.0%})", f"middle third", f"farthest third (over {cuts[1]:.0%})"]
+    runs = len(comparison.baseline)
+    for title, groups, labels in (("terrain", geo.terrain, terrains), ("cost of carting grain to market", thirds, by_cost)):
+        print(f"\nBy {title}:")
+        print(f"  {'':<34}{'Villages':>9}{'People':>9}{'Extra deaths':>14}{'per 1,000':>10}{'Worst month':>17}{'Left':>13}")
+        for e in effect_by(comparison, groups, labels):
+            per_1000 = 1000 * e.extra_deaths.mean / max(e.people, 1)
+            deaths = f"{e.extra_deaths.mean:+.1f}" if runs > 1 else f"{e.extra_deaths.mean:+.0f}"
+            worst = f"{e.lowest_ration[0]:.0%} -> {e.lowest_ration[1]:.0%}"
+            left = f"{e.left[0]:.0f} -> {e.left[1]:.0f}"
+            print(f"  {e.label:<34}{e.villages:>9}{e.people:>9,.0f}{deaths:>14}{per_1000:>10.1f}{worst:>17}{left:>13}")
+    print("  (worst month: the share of their need its villages ate in their hungriest month, without -> with)")
+
+
 def _print_outlook(sims: list[Run]) -> None:
     pop = series(sims, "population")
     deaths, births = series(sims, "deaths").sum(axis=1), series(sims, "births").sum(axis=1)
@@ -277,15 +352,17 @@ def _print_outlook(sims: list[Run]) -> None:
 
 
 def _print_events(config: Config) -> None:
-    print(f"{'Event':<14} {'Scope':<9} {'Chance':>8}  {'When':<14} {'Lasts':<8} Effects")
+    print(f"{'Event':<14} {'Scope':<9} {'Reach':<8} {'Chance':>8}  {'When':<14} {'Lasts':<8} Effects")
     for spec in config.events:
         when = ", ".join(calendar.month_abbr[m] for m in spec.months) if spec.months else "any month"
         lasts = "-".join(map(str, spec.duration)) if isinstance(spec.duration, tuple) else str(spec.duration)
         effects = ", ".join(f"{k} {v}" for k, v in spec.effects.items())
         if spec.repeat_chance is not None:
             effects += f"; {spec.repeat_chance:.0%} the year after one"
-        print(f"{spec.name:<14} {spec.scope:<9} {spec.chance:>8.1%}  {when:<14} {lasts + ' mo':<8} {effects}")
+        reach = spec.reach if spec.scope == "location" else ""
+        print(f"{spec.name:<14} {spec.scope:<9} {reach:<8} {spec.chance:>8.1%}  {when:<14} {lasts + ' mo':<8} {effects}")
     print("\nChance: per eligible month, in the long run.")
+    print("Reach, in a region (--region): a village on its own, the weather (shared by neighbours), or the whole region.")
     print("Force a village event with --event NAME@MONTH, e.g. --event drought@4")
 
 

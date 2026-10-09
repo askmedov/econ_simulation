@@ -6,15 +6,21 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from econ_sim import council, economy, environment, livestock, lords, rules
+from econ_sim import council, economy, environment, geography, livestock, lords, rules
 from econ_sim.council import Councils
-from econ_sim.config import Config, EventSpec
+from econ_sim.config import Config, EventSpec, TownConfig
+from econ_sim.geography import Geography
 from econ_sim.households import Households, assign_land, form_households, link_kin
 from econ_sim.lords import Lords
 from econ_sim.migration import Memory
 from econ_sim.town import Town
 from econ_sim.population import Population
 from econ_sim.rng import RandomStreams
+
+
+# On a map, a remote village's prices start at least this share of the
+# region's (it lives off its own grain, and sees few coins).
+MIN_PRICE_LEVEL = 0.3
 
 
 @dataclass
@@ -56,9 +62,16 @@ class World:
     woods_capacity: np.ndarray | None = None  # what the woods would hold untouched
     woods_normal: np.ndarray | None = None  # what they held at the start (in balance with the village's use)
     soil: np.ndarray | None = None  # soil fertility per village, 1 = normal
+    geo: Geography | None = None  # where the villages lie, their country, and the cost of carting grain to market
 
     def __post_init__(self) -> None:
         n = len(self.names)
+        if self.geo is None:
+            zeros, ones = np.zeros(n), np.ones(n)
+            self.geo = Geography(
+                x=zeros, y=zeros.copy(), terrain=np.zeros(n, dtype=np.int64), transport=np.full(n, TownConfig().transport),
+                market=np.zeros(n, dtype=np.int64), pasture=ones, woods=ones.copy(), forage=ones.copy(), on_map=False,
+            )
         if self.council_costs is None:
             self.council_costs = np.zeros(n)
         if self.lord is None:
@@ -136,6 +149,7 @@ def create_world(config: Config, streams: RandomStreams) -> World:
     economy.assign_starting_jobs(population, config, rng)
     land = np.array([v.land for v in config.villages], dtype=np.float64)
     food = config.product_for("food")
+    geo = geography.build(config)
 
     # Businesses start with a full set of tools, some cash, and some goods.
     workers = economy.headcount(population, n, config)
@@ -149,9 +163,15 @@ def create_world(config: Config, streams: RandomStreams) -> World:
     livestock.place_herds(households, land, config, streams["land"])
     animals = livestock.farm_factor(np.bincount(households.location, weights=households.animals, minlength=n), land, config)
 
-    # Prices start fair, with the wage set so food costs `food_price`.
+    # Prices start fair, with the wage set so food costs `food_price`; on a
+    # map, less where carting grain to market costs more (a remote village
+    # sells its grain for less, and has fewer coins).
     per_worker = economy.productivity(population, tools, workers, land, config, animals)
     wage = config.money.food_price * per_worker[:, config.farming]
+    sizes = np.array([v.population for v in config.villages], dtype=np.float64)
+    gets = np.clip(1.0 - geo.transport, MIN_PRICE_LEVEL, 1.0)  # share of the town price its grain fetches
+    if geo.on_map:
+        wage *= gets / np.average(gets, weights=sizes)
     prices = np.zeros((n, n_products))
     for _ in range(len(config.products)):  # supplies are valued at the prices being worked out
         prices = economy.fair_prices(wage, per_worker, prices, config)
@@ -202,7 +222,13 @@ def create_world(config: Config, streams: RandomStreams) -> World:
         councils.reserve = np.where(councils.formed, cc.reserve_months * food_need, 0.0)
         councils.months_ready = np.where(councils.formed, cc.forms_after_months, 0)
     # The woods are in balance with the village's use of them at the start.
-    woods_capacity, woods = environment.size_woods(np.array([v.population for v in config.villages], dtype=np.float64), config)
+    woods_capacity, woods = environment.size_woods(sizes, config, geo.woods)
+    # The town pays just enough to carry the village's grain there: the
+    # village sells a little grain each month to pay its taxes in coin.
+    if geo.on_map:
+        town_level = float(np.average(prices[:, food] / gets, weights=sizes))
+    else:
+        town_level = float(prices[:, food].mean()) / (1.0 - config.town.transport)
     return World(
         month=config.start_month - 1,
         population=population,
@@ -221,12 +247,11 @@ def create_world(config: Config, streams: RandomStreams) -> World:
         council=councils,
         names=tuple(v.name for v in config.villages),
         lord=Lords(land=demesne, barn=np.zeros(n), purse=np.zeros(n), state_purse=np.zeros(n)),
-        # The town pays just enough to carry the village's grain there: the
-        # village sells a little grain each month to pay its taxes in coin.
-        town=Town.at(float(prices[:, food].mean()) / (1.0 - config.town.transport)),
+        town=Town.at(town_level),
         woods=woods,
         woods_capacity=woods_capacity,
         woods_normal=woods.copy(),
+        geo=geo,
     )
 
 
