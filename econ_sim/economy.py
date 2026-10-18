@@ -286,13 +286,18 @@ def move_workers(population: Population, wanted: np.ndarray, config: Config, rng
     return int(leaving.sum())
 
 
-def assign_new_workers(population: Population, wanted: np.ndarray, config: Config) -> None:
-    """Young people coming of age join the trade most short of workers; the old retire."""
+def assign_new_workers(population: Population, wanted: np.ndarray, config: Config,
+                       closed: np.ndarray | None = None) -> None:
+    """Young people coming of age join the trade most short of workers (never
+    one `closed` to them there, places x businesses: farming in a town); the
+    old retire."""
     working_age = is_working_age(population, config)
     new = working_age & (population.job == NO_JOB)
     if new.any():
         workers = headcount(population, len(wanted), config)
         short = np.divide(wanted - workers, np.maximum(wanted, 1.0))
+        if closed is not None:
+            short = np.where(closed, -np.inf, short)
         population.job[new] = short.argmax(axis=1)[population.location[new]]
     population.job[~working_age] = NO_JOB
 

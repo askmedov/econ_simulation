@@ -242,8 +242,11 @@ def move(
         population.household[rows] = new_home[population.household[rows]]
         population.location[rows] = households.location[population.household[rows]]
         moved_singles = np.concatenate([moved_singles, rows])
-    # Council officials and healers serve their own village only.
+    # Council officials and healers serve their own village only; a farmer
+    # who moves to a town looks for other work.
     staff = population.job[moved_singles] >= len(config.businesses)
+    if geo is not None and geo.has_towns:
+        staff |= geo.town[population.location[moved_singles]] & (population.job[moved_singles] == config.farming)
     population.job[moved_singles[staff]] = NO_JOB
 
     return Moves(

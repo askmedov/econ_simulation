@@ -579,7 +579,11 @@ class Simulation:
         pull = world.markup[:, product_of] ** config.trade.hiring_price_response
         work_needed = orders / np.maximum(per_worker, 1e-9) * pull
         wanted = economy.wanted_workers(work_needed, economy.headcount(pop, n, config), config)
-        economy.assign_new_workers(pop, wanted, config)
+        closed = None
+        if has_towns:  # a town has no fields to work
+            closed = np.zeros_like(wanted, dtype=bool)
+            closed[is_town, farm] = True
+        economy.assign_new_workers(pop, wanted, config, closed)
         switched = economy.move_workers(pop, wanted, config, streams["jobs"])
         # Measure families before weddings move young people into new homes.
         underfed = int(pop.count[family_share[pop.household] < 0.9].sum())

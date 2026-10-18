@@ -1289,6 +1289,108 @@ with fewer famine foods, fare worst (29). Market towns that set their own
 price (step 3) and trade along the roads (step 4) are what will let a
 region share a local dearth.
 
+### 3. Market towns (built)
+
+On a map, market towns are places of their own (`VillageConfig.kind`
+"town"): people with households, births and deaths, councils and healers,
+but no farmland. `geography.region` puts an eighth of the region's people in
+them (each town the size of its share of the countryside around it, at
+least 300), and the town on the river trades with the world beyond. The
+step-2 map's towns were only points that villages carted grain to; now:
+
+- **Townsfolk** work in crafts, a third more skilled than villagers, buy
+  their grain and firewood (a town has little woodland), die a quarter
+  faster than villagers (crowding, dirt, fevers) and live on migrants:
+  half of those who leave a village for beyond go to its market town, where
+  any family can take in a servant or an apprentice.
+- **Grain dealers** keep each town's store (three months of its need at the
+  start) and coins. They buy grain from the villages that trade with the
+  town when it is cheap enough there to be worth carting, sell it in the
+  town, and send it back out to villages in a dearth. **A town's grain
+  costs the villages' price plus carriage, marked up as the dealers' store
+  runs below three months**: the town price is set by what the villages
+  bring and the town eats. The dealers' earnings (half of their coins
+  beyond their working stock, each month) go to the town's families.
+- **Merchants carry goods both ways** between each village and its town:
+  grain, cloth, tools and firewood, wherever the price gap beats the
+  carting (cloth and tools a quarter as dear to cart as grain, firewood
+  twice), up to a fifth of the village's monthly need of each, a full load
+  once the gap beats the carting by a tenth, less for less. Goods go on
+  consignment, sold where they arrive for the business that made them.
+- **The rents of the countryside feed the towns.** 40% of the grain carted
+  from each lord's barn is sold to the dealers of his market town (the rest
+  still goes to a hall, a court or a war far away), and his household
+  spends a quarter of his purse there each month: half on townsfolk's
+  service (servants, masons, carters, clerks), half on cloth.
+- **Only a border town trades with the world beyond**, at the outside price
+  (the Phase 2 town price), carting costing 15% of it, up to half the
+  town's monthly need either way.
+- **Townsfolk live on coins:** a town's wage follows its families' money
+  against 2.5 months of their coin earnings (villagers, paid mostly in
+  grain: 12).
+- Without a map nothing changes, number for number. (One fix applies
+  everywhere: a family leaving its village could take in a newcomer the
+  same month, who then vanished with it uncounted.)
+
+**Getting the coins to go round.** Each first attempt failed in a way
+worth recording: a town price set by a year's cover with a lagging
+forecast swung the town between glut and hunger every eight months (fixed
+by pricing from the villages' price and the dealers' store, and loads
+that grow with the margin); a town whose only income was selling cloth to
+villagers starved with grain in the dealers' store (until the lords'
+rents came to town); a lord who could only spend on cloth hoarded 80,000
+coins while the town's looms ran flat out (until he paid for service
+too); and townsfolk with nothing in the countryside to buy hoarded 60,000
+while the villages' prices halved, because the wage rule took a town to be
+short of coins at 12 months of its earnings (until towns had their own
+measure and villages could sell cloth and firewood in town).
+
+**Over 40 years** (25 villages and their town, 8 runs with random events):
+
+| Years | 0-5 | 10-15 | 20-25 | 35-40 |
+|---|---|---|---|---|
+| Share of people in the town | 12.0% | 12.3% | 12.8% | 11.9% |
+| Grain price: town / villages / beyond | 1.67 / 1.28 / 1.59 | 1.12 / 0.79 / 1.56 | 1.44 / 1.05 / 1.55 | 1.47 / 1.02 / 1.60 |
+| Town: share of need eaten (worst month) | 98% (78%) | 100% (90%) | 96% (76%) | 96% (64%) |
+| Grain carted to the town a month (rations) | 705 | 976 | 831 | 805 |
+| Sold beyond the region a month | 19 | 287 | 124 | 122 |
+
+The villages' grain price holds over the decades (its spread across runs,
+0.5 to 1.9 by year 40, is the same as on the step-2 map: it follows each
+run's weather), and the region sells a little grain beyond. A town's
+worst months come in region-wide dearths: villagers keep their grain, the
+dealers' store runs dry, and the town goes hungry, once (two droughts
+running) to a fifth of its need for a few months.
+
+**A drought** (50 villages and 2 towns, 23,369 people, 40 paired runs over
+three years, a single drought in April):
+
+| | Extra deaths | Per 1,000 | Worst month (ration) | People who left |
+|---|---|---|---|---|
+| Over the whole region: villages | +284 | 14 | 96% -> 88% | 541 -> 844 |
+| ... the towns | +240 | 86 | 83% -> 59% | 263 -> 694 |
+| Over the west (19 villages and a town, 8,865 people): there | +214 | 24 | 96% -> 88% | 270 -> 493 |
+| ... elsewhere (14,504) | +2 | 0.1 | 95% -> 95% | 534 -> 544 |
+
+The towns now suffer most in a dearth, six times the villages' toll per
+head, as the urban poor did: the region's grain price peaks at 3.2 (1.8
+without), and townsfolk leave. A drought over the west is still borne there: its
+villages trade with the town in the west, which the drought struck too,
+and towns do not trade with each other yet. That, and grain carried far
+along roads and rivers, is step 4.
+
+**Limits found:** a town bigger than about a fifth of its countryside
+cannot be fed (carts bring at most a fifth of each village's need); with
+only cloth, tools and firewood to make, nine in ten townsfolk become
+weavers (more trades come with firms, step 10); only grain crosses the
+border.
+
+**Speed:** a month of 1,150,000 people (1,000 villages and 40 towns) takes
+2.1 s, about a third more per person than the step-2 map, spread over the
+whole month rather than in the towns' own code: a paired three-year run
+takes about 80 s on two cores, a little over the one-minute target for a
+million.
+
 ### What-ifs Phase 3 should answer
 
 - A drought over the eastern half of a province: where grain flows, which
