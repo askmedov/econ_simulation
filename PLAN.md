@@ -1067,8 +1067,8 @@ checks on region settings, and what-if numbers written up here:
 |---|---|---|
 | 1 | `claude/phase3-speed` | group-by instead of loops over villages, one compaction a month, parallel seeds, a benchmark script with the targets above (built) |
 | 2 | `claude/region-map` | places, terrain, roads and rivers, costs of carriage, weather that falls on the map; regions generated from a few settings (built) |
-| 3 | `claude/market-towns` | towns and a city as places; the town price set by supply and demand; an outside price at the border |
-| 4 | `claude/trade-network` | trade in grain, animals, cloth, tools and wood along the network; specialisation by terrain |
+| 3 | `claude/market-towns` | towns as places; the town price set by supply and demand; grain and goods carried between each village and its town; an outside price at the border (built) |
+| 4 | `claude/trade-network` | trade between towns along the network (and a city), what roads and rivers can carry, animals and wool; specialisation by terrain |
 | 5 | `claude/regional-migration` | builds on migration by how good a place is (below): distance, towns as destinations, harvest labour, famine refugees |
 | 6 | `claude/epidemics-spread` | disease spreading within and between places; quarantine |
 | 7 | `claude/state-and-war` | provinces, tax quotas, a treasury, public granaries, famine policies, armies on the move |
