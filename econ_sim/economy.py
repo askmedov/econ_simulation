@@ -297,10 +297,19 @@ def assign_new_workers(population: Population, wanted: np.ndarray, config: Confi
     population.job[~working_age] = NO_JOB
 
 
-def assign_starting_jobs(population: Population, config: Config, rng: np.random.Generator) -> None:
-    """Spread the starting workers over the trades by their starting shares."""
+def assign_starting_jobs(
+    population: Population, config: Config, rng: np.random.Generator, no_farming: np.ndarray | None = None
+) -> None:
+    """Spread the starting workers over the trades by their starting shares
+    (in places marked `no_farming`, the towns, over the other trades)."""
     working = is_working_age(population, config)
     shares = np.array([b.initial_share for b in config.businesses], dtype=np.float64)
     shares = shares / shares.sum() if shares.sum() > 0 else np.full(len(shares), 1 / len(shares))
     population.job[:] = NO_JOB
     population.job[working] = rng.choice(len(shares), size=int(working.sum()), p=shares)
+    if no_farming is not None and no_farming.any():
+        town = working & no_farming[population.location]
+        crafts = shares.copy()
+        crafts[config.farming] = 0.0
+        if town.any() and crafts.sum() > 0:
+            population.job[town] = rng.choice(len(crafts), size=int(town.sum()), p=crafts / crafts.sum())

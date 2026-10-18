@@ -58,7 +58,7 @@ def test_a_region_what_if_is_reported_by_place(tmp_path, capsys):
     assert out.startswith("Region of 8 villages")
     assert "By where the forced events struck" in out and "By terrain" in out
     rows = (tmp_path / "places.csv").read_text().splitlines()
-    assert len(rows) == 9 and rows[0].startswith("village,terrain,x_km")
+    assert len(rows) == 10 and rows[0].startswith("village,terrain,x_km")  # 8 villages and their town
 
 
 def test_a_region_gives_each_village_land_for_its_size(capsys, tmp_path):

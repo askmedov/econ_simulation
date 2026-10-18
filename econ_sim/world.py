@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from econ_sim import council, economy, environment, geography, livestock, lords, rules
+from econ_sim import council, economy, environment, geography, livestock, lords, rules, towns
 from econ_sim.council import Councils
 from econ_sim.config import Config, EventSpec, TownConfig
 from econ_sim.geography import Geography
@@ -63,6 +63,16 @@ class World:
     woods_normal: np.ndarray | None = None  # what they held at the start (in balance with the village's use)
     soil: np.ndarray | None = None  # soil fertility per village, 1 = normal
     geo: Geography | None = None  # where the villages lie, their country, and the cost of carting grain to market
+    # Market towns (on a map): their grain dealers' store and coins, the grain
+    # they expect to come in each month, what each village sends them, and
+    # what towns do to their people (death rates, per place) and craftsmen
+    # (output a day, places x businesses).
+    dealers_grain: np.ndarray | None = None
+    dealers_cash: np.ndarray | None = None
+    arrivals: np.ndarray | None = None
+    sends: np.ndarray | None = None
+    unhealthy: np.ndarray | None = None
+    skill: np.ndarray | None = None
 
     def __post_init__(self) -> None:
         n = len(self.names)
@@ -84,6 +94,13 @@ class World:
             self.sown = np.ones(n)
         if self.soil is None:
             self.soil = np.ones(n)
+        for name in ("dealers_grain", "dealers_cash", "arrivals", "sends"):
+            if getattr(self, name) is None:
+                setattr(self, name, np.zeros(n))
+        if self.unhealthy is None:
+            self.unhealthy = np.ones(n)
+        if self.skill is None:
+            self.skill = np.ones((n, self.cash.shape[1]))
         if self.woods is None:  # untouched woods too big to thin (create_world sizes them)
             self.woods_capacity = np.full(n, 1e15)
             self.woods = self.woods_capacity.copy()
@@ -98,9 +115,10 @@ class World:
 
     @property
     def granary(self) -> np.ndarray:
-        """All food in store per village: families' own stores plus the farms'."""
+        """All food in store per place: families' own stores plus the farms'
+        (and in a town, its grain dealers')."""
         families = np.bincount(self.households.location, weights=self.households.grain, minlength=self.n_locations)
-        return families + self.farm_grain
+        return families + self.farm_grain + self.dealers_grain
 
     @property
     def food_price(self) -> np.ndarray:
@@ -125,8 +143,11 @@ class World:
 
     @property
     def village_money(self) -> float:
-        """Coins held in the villages: by families, businesses and councils."""
-        return float(self.households.money.sum() + self.cash.sum() + self.council.treasury.sum())
+        """Coins held in the villages and towns: by families, businesses,
+        councils and grain dealers."""
+        return float(
+            self.households.money.sum() + self.cash.sum() + self.council.treasury.sum() + self.dealers_cash.sum()
+        )
 
     @property
     def money(self) -> float:
@@ -146,10 +167,10 @@ def create_world(config: Config, streams: RandomStreams) -> World:
     yearly_marriage = 1.0 - (1.0 - config.demography.marriage_chance) ** 12
     households = form_households(population, n, rng, yearly_marriage)
     link_kin(households, population, streams["kin"])
-    economy.assign_starting_jobs(population, config, rng)
+    geo = geography.build(config)
+    economy.assign_starting_jobs(population, config, rng, no_farming=geo.town)
     land = np.array([v.land for v in config.villages], dtype=np.float64)
     food = config.product_for("food")
-    geo = geography.build(config)
 
     # Businesses start with a full set of tools, some cash, and some goods.
     workers = economy.headcount(population, n, config)
@@ -166,15 +187,27 @@ def create_world(config: Config, streams: RandomStreams) -> World:
     # Prices start fair, with the wage set so food costs `food_price`; on a
     # map, less where carting grain to market costs more (a remote village
     # sells its grain for less, and has fewer coins).
-    per_worker = economy.productivity(population, tools, workers, land, config, animals)
+    # In a town, the craftsmen are more skilled and the wage is the
+    # countryside's; grain costs what it takes to bring it in.
+    skill = np.ones((n, n_business))
+    unhealthy = np.ones(n)
+    if geo.has_towns:
+        crafts = np.arange(n_business) != config.farming
+        skill[np.ix_(geo.town, crafts)] = config.town.craft_skill
+        unhealthy[geo.town] = config.town.mortality
+    per_worker = economy.productivity(population, tools, workers, land, config, animals) * skill
     wage = config.money.food_price * per_worker[:, config.farming]
     sizes = np.array([v.population for v in config.villages], dtype=np.float64)
     gets = np.clip(1.0 - geo.transport, MIN_PRICE_LEVEL, 1.0)  # share of the town price its grain fetches
     if geo.on_map:
-        wage *= gets / np.average(gets, weights=sizes)
+        country = ~geo.town
+        wage *= gets / np.average(gets[country], weights=sizes[country])
+        wage[geo.town] = np.average(wage[country], weights=sizes[country])
     prices = np.zeros((n, n_products))
     for _ in range(len(config.products)):  # supplies are valued at the prices being worked out
         prices = economy.fair_prices(wage, per_worker, prices, config)
+        if geo.has_towns:
+            prices[:, food] = towns.delivered_price(prices[:, food], geo, sizes)
 
     # Every family starts with a few months of food and firewood money saved.
     need_rows = rules.food_need(population, config)
@@ -223,9 +256,25 @@ def create_world(config: Config, streams: RandomStreams) -> World:
         councils.months_ready = np.where(councils.formed, cc.forms_after_months, 0)
     # The woods are in balance with the village's use of them at the start.
     woods_capacity, woods = environment.size_woods(sizes, config, geo.woods)
+    # Town grain dealers start with a few months of the town's need, and the
+    # coins to buy as much again.
+    dealers_grain = np.where(geo.town, config.town.dealers_months * food_need, 0.0)
+    dealers_cash = dealers_grain * prices[:, food]
+    # Each town expects its need to come in, and each village to send its share.
+    arrivals = np.where(geo.town, food_need, 0.0)
+    sends = np.zeros(n)
+    if geo.has_towns:
+        country = ~geo.town & (geo.market >= 0)
+        around = np.bincount(geo.market[country], weights=food_need[country], minlength=n)
+        sends[country] = food_need[country] * np.divide(arrivals, around, out=np.zeros(n), where=around > 0)[geo.market[country]]
     # The town pays just enough to carry the village's grain there: the
-    # village sells a little grain each month to pay its taxes in coin.
-    if geo.on_map:
+    # village sells a little grain each month to pay its taxes in coin. With
+    # market towns, the world beyond pays just enough to carry a border
+    # town's grain away.
+    if geo.has_towns:
+        border = geo.town & geo.border if (geo.town & geo.border).any() else geo.town
+        town_level = float(np.average(prices[border, food], weights=sizes[border])) / (1.0 - config.town.outside_transport)
+    elif geo.on_map:
         town_level = float(np.average(prices[:, food] / gets, weights=sizes))
     else:
         town_level = float(prices[:, food].mean()) / (1.0 - config.town.transport)
@@ -252,6 +301,12 @@ def create_world(config: Config, streams: RandomStreams) -> World:
         woods_capacity=woods_capacity,
         woods_normal=woods.copy(),
         geo=geo,
+        dealers_grain=dealers_grain,
+        dealers_cash=dealers_cash,
+        arrivals=arrivals,
+        sends=sends,
+        unhealthy=unhealthy,
+        skill=skill,
     )
 
 

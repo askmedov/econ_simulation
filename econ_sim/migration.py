@@ -123,7 +123,21 @@ def _destinations(origin: np.ndarray, place: np.ndarray, people: np.ndarray, con
     if len(settle):
         cumulative = np.cumsum(better[settle], axis=1) / total[settle, None]
         dest[settle] = np.minimum((rng.random(len(settle))[:, None] >= cumulative).sum(axis=1), len(place) - 1)
+    if geo is not None and geo.has_towns:
+        # Of those going beyond, some go to their own market town.
+        town = geo.market[origin]
+        to_town = (dest < 0) & (town >= 0) & (town != origin) & (rng.random(len(origin)) < config.migration.to_town)
+        dest[to_town] = town[to_town]
     return dest
+
+
+def _can_host(households: Households, living: np.ndarray, geo: Geography | None) -> np.ndarray:
+    """Families who take in a newcomer: landholders, and in a town any family
+    (a servant, an apprentice, a journeyman)."""
+    hosts = (households.land > 0) & living
+    if geo is not None and geo.has_towns:
+        hosts |= geo.town[households.location] & living
+    return hosts
 
 
 def move(
@@ -168,8 +182,9 @@ def move(
     singles, family_ids = np.flatnonzero(goes), np.flatnonzero(families)
     to_single = _destinations(loc[singles], place, people, config, rng, geo)
     to_family = _destinations(households.location[family_ids], place, people, config, rng, geo)
-    # A single person settles with a landholding family there, if any.
-    hosts = np.flatnonzero((households.land > 0) & living)
+    # A single person settles with a landholding family there (or any town
+    # family), if any: not one that is leaving itself.
+    hosts = np.flatnonzero(_can_host(households, living & ~families, geo))
     hosts = hosts[np.argsort(households.location[hosts], kind="stable")]
     host_places = households.location[hosts]
     first = np.searchsorted(host_places, np.arange(n))
@@ -239,7 +254,7 @@ def move(
 
 def arrive(
     population: Population, households: Households, place: np.ndarray, room: np.ndarray, config: Config,
-    rng: np.random.Generator,
+    rng: np.random.Generator, geo: Geography | None = None,
 ) -> np.ndarray:
     """Young people come from beyond to villages that are clearly better
     places than ordinary (`place` above `welcome`), and settlers to holdings
@@ -256,7 +271,7 @@ def arrive(
     safe_enough = np.clip((place - cfg.settle_appeal) / (cfg.welcome - cfg.settle_appeal), 0.0, 1.0)
     expected += cfg.settle_rate / 12.0 * np.maximum(room - people, 0.0) * safe_enough
     count = rng.poisson(expected)
-    hosting = np.flatnonzero((households.land > 0) & (sizes(population, len(households)) > 0))
+    hosting = np.flatnonzero(_can_host(households, sizes(population, len(households)) > 0, geo))
     # Host families grouped by village; a village with none takes nobody.
     hosting = hosting[np.argsort(households.location[hosting], kind="stable")]
     places = households.location[hosting]

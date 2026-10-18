@@ -26,6 +26,12 @@ class VillageConfig:
     x: float = 0.0
     y: float = 0.0
     terrain: str = "plain"
+    # On a map, a place is a "village" or a market "town" (no farmland: its
+    # people work in crafts and buy their grain; see TownConfig). A
+    # `border` town also trades with the world beyond the region: a port,
+    # or a town on the road or river out.
+    kind: str = "village"
+    border: bool = False
 
 
 @dataclass(frozen=True)
@@ -167,6 +173,9 @@ class ProductSpec:
 
     name: str
     use: str
+    # Cost of carting a coin's worth of it, against grain: bulky firewood
+    # costs more, cloth and tools much less.
+    carriage: float = 1.0
 
 
 @dataclass(frozen=True)
@@ -190,9 +199,9 @@ class BusinessSpec:
 
 DEFAULT_PRODUCTS: tuple[ProductSpec, ...] = (
     ProductSpec("food", use="food"),
-    ProductSpec("firewood", use="heating"),
-    ProductSpec("clothing", use="comfort"),
-    ProductSpec("tools", use="tool"),
+    ProductSpec("firewood", use="heating", carriage=2.0),
+    ProductSpec("clothing", use="comfort", carriage=0.25),
+    ProductSpec("tools", use="tool", carriage=0.25),
 )
 
 DEFAULT_BUSINESSES: tuple[BusinessSpec, ...] = (
@@ -398,6 +407,13 @@ class LordConfig:
     carted_away: float = 0.2
     sells: float = 0.3
     spends_locally: float = 0.05
+    # On a map with market towns, `to_town` of what is carted away is sold
+    # to the grain dealers of the village's market town (the rest still goes
+    # to a hall, a court or a war far away), and his household spends
+    # `spends_in_town` of his purse a month in that town: the rents of the
+    # countryside feed the towns.
+    to_town: float = 0.4
+    spends_in_town: float = 0.25
     # A what-if lever: a lord who opens his barn to the hungry in a famine.
     charity_in_famine: bool = False
 
@@ -440,6 +456,27 @@ class TownConfig:
     regional_share: float = 0.4
     # Coins are metal: this share is lost, worn away or buried each year.
     coins_lost_a_year: float = 0.005
+    # Market towns as places, on a map (VillageConfig.kind "town"). Towns
+    # die faster than they are born (crowding, dirt, fevers: `mortality`
+    # times the village death rates) and live on migrants. Their craftsmen
+    # make `craft_skill` times as much a day as a village's. Their grain
+    # dealers start with `dealers_months` of the town's need in store, and
+    # coins to buy as much again; each month they pay out `dealers_payout`
+    # of their coins beyond that to the town's families (merchants' and
+    # carters' earnings). A border town trades grain with the world beyond
+    # at the outside price (`price`), carting it costing `outside_transport`
+    # of its price, up to `outside_capacity` of the town's monthly need
+    # either way.
+    mortality: float = 1.25
+    craft_skill: float = 1.3
+    # A town's grain costs what the villages ask for it plus carriage, marked
+    # up as the dealers' store runs below `dealers_months` of the town's need:
+    # the mark-up heads toward (usual store / store) ** `store_elasticity`.
+    store_elasticity: float = 0.5
+    dealers_months: float = 3.0
+    dealers_payout: float = 0.5
+    outside_transport: float = 0.15
+    outside_capacity: float = 0.5
 
 
 @dataclass(frozen=True)
@@ -471,13 +508,14 @@ DEFAULT_TERRAINS: tuple[TerrainSpec, ...] = (
 
 @dataclass(frozen=True)
 class MapConfig:
-    """Where the villages lie, the market towns they trade with, and the
-    roads and rivers between them (see `geography`; `geography.region`
-    lays one out from a few settings).
+    """Where the villages and market towns lie, and the roads and rivers
+    between them (see `geography`; `geography.region` lays one out from a
+    few settings).
 
     Without a map (`enabled` False) every village is the same `transport`
-    from the town (TownConfig) and has its own weather, as in Phase 2.
-    With one, carting grain between a village and its market town costs
+    from a town outside it (TownConfig) and has its own weather, as in
+    Phase 2. With one, the towns are places of their own
+    (VillageConfig.kind), carting grain between a village and its market town costs
     `handling` of its price (loading, tolls, market dues, the merchant's
     margin) plus `road_per_km` for each km of road (times the terrain's
     `carriage`) or `river_per_km` for each km by boat (overland carriage
@@ -488,14 +526,20 @@ class MapConfig:
     """
 
     enabled: bool = False
-    towns: tuple[tuple[float, float], ...] = ((0.0, 0.0),)  # (x, y) km of each market town
-    # Links between places, numbered villages first (0, 1, ...), then towns.
+    # Links between places, numbered as in `Config.villages` (villages and towns).
     roads: tuple[tuple[int, int], ...] = ()
     rivers: tuple[tuple[int, int], ...] = ()
     handling: float = 0.15
     road_per_km: float = 0.01
     river_per_km: float = 0.005
     weather_km: float = 250.0
+    # Merchants carry at most this share of a village's monthly need (or
+    # orders) of each good between it and its market town each month, either
+    # way: carting it costs `transport` x the product's `carriage`. They
+    # carry a full load once the gap in price beats the carting by
+    # `full_load_margin` of the price, and less for less.
+    capacity: float = 0.2
+    full_load_margin: float = 0.1
     terrains: tuple[TerrainSpec, ...] = DEFAULT_TERRAINS
 
     def terrain_index(self, name: str) -> int:
@@ -612,9 +656,12 @@ class MigrationConfig:
     # leave settle in another of them that is a better place to live
     # (chosen by its people times how much better it is, and on a map,
     # times exp(-km / `distance_km`): most moved less than a day's walk),
-    # bringing their coins and grain; the rest go to the town or beyond.
+    # bringing their coins and grain; the rest go to the town or beyond (on
+    # a map with market towns, `to_town` of them to their own market town,
+    # where any family can take in a servant or an apprentice).
     stay_in_region: float = 0.5
     distance_km: float = 15.0
+    to_town: float = 0.5
     # Coming from beyond: to a place better than `welcome`, about
     # `arrive_rate` young people a month per 1,000 villagers per unit above
     # it, up to `max_pull` above it (at most about 6% of the village a

@@ -33,19 +33,36 @@ from econ_sim.config import Config, MapConfig, VillageConfig
 WEATHER_FEATURES = 256  # waves summed to make a weather field
 
 
+KINDS = ("village", "town")
+
+
 @dataclass
 class Geography:
-    """Where each village lies and what its country is like."""
+    """Where each place (village or market town) lies and what its country is like."""
 
     x: np.ndarray  # km east
     y: np.ndarray  # km north
     terrain: np.ndarray  # index into MapConfig.terrains
-    transport: np.ndarray  # share of the grain price it costs to cart grain to or from its market town
-    market: np.ndarray  # each village's market town (-1: none it can reach)
+    transport: np.ndarray  # share of the grain price it costs to cart grain to or from its market town (0 for a town)
+    market: np.ndarray  # each place's market town, by place number (a town is its own; -1: none it can reach)
     pasture: np.ndarray  # animals it can winter, against the usual
     woods: np.ndarray  # woods it can hold, against the usual
     forage: np.ndarray  # famine foods to be found, against the usual
-    on_map: bool  # False: no map (every village the same distance from the town, with its own weather)
+    on_map: bool  # False: no map (every village the same distance from a town outside, with its own weather)
+    town: np.ndarray | None = None  # True for a market town
+    border: np.ndarray | None = None  # True for a town that trades with the world beyond the region
+
+    def __post_init__(self) -> None:
+        n = len(self.x)
+        if self.town is None:
+            self.town = np.zeros(n, dtype=bool)
+        if self.border is None:
+            self.border = np.zeros(n, dtype=bool)
+
+    @property
+    def has_towns(self) -> bool:
+        """Market towns are places of their own (on a map)."""
+        return bool(self.on_map and self.town.any())
 
     def distances(self, origins: np.ndarray) -> np.ndarray:
         """Km as the crow flies from each of `origins` to every village (origins x villages)."""
@@ -63,6 +80,12 @@ def build(config: Config) -> Geography:
     for village in villages:
         if village.terrain not in names:
             raise ValueError(f"{village.name}: unknown terrain {village.terrain!r}; choose from: {', '.join(names)}")
+        if village.kind not in KINDS:
+            raise ValueError(f"{village.name}: unknown kind of place {village.kind!r}; choose from: {', '.join(KINDS)}")
+        if (village.kind == "town" or village.border) and not cfg.enabled:
+            raise ValueError(f"{village.name}: a market town (or a border) needs a map (MapConfig.enabled)")
+        if village.border and village.kind != "town":
+            raise ValueError(f"{village.name}: only a town can trade across the border")
     x = np.array([v.x for v in villages], dtype=np.float64)
     y = np.array([v.y for v in villages], dtype=np.float64)
     terrain = np.array([names.index(v.terrain) for v in villages], dtype=np.int64)
@@ -77,24 +100,25 @@ def build(config: Config) -> Geography:
         woods=np.array([specs[t].woods for t in terrain]),
         forage=np.array([specs[t].forage for t in terrain]),
         on_map=cfg.enabled,
+        town=np.array([v.kind == "town" for v in villages], dtype=bool),
+        border=np.array([v.border for v in villages], dtype=bool),
     )
 
 
 def links(config: Config) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Every road and river leg as (from, to, cost as a share of the grain
-    price); places are numbered villages first, then towns."""
+    price); places are numbered as in `Config.villages`."""
     cfg, villages = config.map, config.villages
-    x = np.array([v.x for v in villages] + [t[0] for t in cfg.towns], dtype=np.float64)
-    y = np.array([v.y for v in villages] + [t[1] for t in cfg.towns], dtype=np.float64)
-    carriage = [cfg.terrains[cfg.terrain_index(v.terrain)].carriage for v in villages] + [1.0] * len(cfg.towns)
-    carriage = np.array(carriage)
+    x = np.array([v.x for v in villages], dtype=np.float64)
+    y = np.array([v.y for v in villages], dtype=np.float64)
+    carriage = np.array([cfg.terrains[cfg.terrain_index(v.terrain)].carriage for v in villages])
     ends, costs = [], []
     for legs, per_km, by_road in ((cfg.roads, cfg.road_per_km, True), (cfg.rivers, cfg.river_per_km, False)):
         if not legs:
             continue
         pairs = np.array(legs, dtype=np.int64)
         if pairs.min() < 0 or pairs.max() >= len(x):
-            raise ValueError(f"a road or river joins place {pairs.max()}, but there are only {len(x)} (villages, then towns)")
+            raise ValueError(f"a road or river joins place {pairs.max()}, but there are only {len(x)}")
         a, b = pairs[:, 0], pairs[:, 1]
         km = np.hypot(x[a] - x[b], y[a] - y[b])
         cost = per_km * km * (0.5 * (carriage[a] + carriage[b]) if by_road else 1.0)
@@ -132,15 +156,19 @@ def cheapest(n_places: int, a: np.ndarray, b: np.ndarray, cost: np.ndarray, sour
 
 
 def carriage(config: Config) -> tuple[np.ndarray, np.ndarray]:
-    """(transport, market) per village: the share of the grain price it
+    """(transport, market) per place: the share of the grain price it
     costs to cart grain between it and its cheapest market town, and that
-    town (-1, and no trade, if no road or river reaches one)."""
+    town (-1, and no trade, if no road or river reaches one). A town is
+    its own market, at no cost."""
     cfg = config.map
-    n, m = len(config.villages), len(cfg.towns)
+    n = len(config.villages)
+    towns = np.flatnonzero([v.kind == "town" for v in config.villages])
     a, b, cost = links(config)
-    best, origin = cheapest(n + m, a, b, cost, np.arange(n, n + m))
-    transport = np.where(np.isfinite(best[:n]), cfg.handling + best[:n], np.inf)
-    return transport, origin[:n]
+    best, origin = cheapest(n, a, b, cost, towns)
+    transport = np.where(np.isfinite(best), cfg.handling + best, np.inf)
+    transport[towns] = 0.0
+    market = np.where(origin >= 0, towns[np.maximum(origin, 0)] if len(towns) else -1, -1)
+    return transport, market
 
 
 def weather(geo: Geography, scale_km: float, rng: np.random.Generator, features: int = WEATHER_FEATURES) -> np.ndarray:
@@ -173,6 +201,8 @@ class RegionSettings:
     smallest: int = 40
     spacing_km: float = 3.0  # between neighbouring villages
     towns: int | None = None  # market towns; None: one for every 25 villages
+    town_share: float = 0.12  # share of the region's people who live in its towns
+    smallest_town: int = 300
     upland: float = 0.2  # share of villages in the hills (to the west)
     forest: float = 0.15  # share of the rest in the woods
     river: bool = True  # a river across the region, west to east
@@ -222,13 +252,26 @@ def region(settings: RegionSettings = RegionSettings(), base: Config | None = No
     sizes = s.mean_size * size_factor * np.exp(s.size_spread * rng.normal(size=n) - s.size_spread**2 / 2)
     sizes = np.maximum(np.round(sizes), s.smallest).astype(int)
 
-    # Market towns where the people are; the first on the river.
+    # Market towns where the people are, each the size of its share of the
+    # countryside around it; the first on the river, which carries goods to
+    # and from the world beyond (or, without a river, the one nearest the
+    # east), and on a coast, the one nearest the sea is a port.
     m = s.towns or max(1, round(n / 25))
     towns = _centres(np.column_stack([x, y]), sizes.astype(np.float64), min(m, n), rng)
+    m = len(towns)
+    border = np.zeros(m, dtype=bool)
     if s.river:
-        first = np.argmin(np.abs(towns[:, 1] - river_y(towns[:, 0])))
+        first = int(np.argmin(np.abs(towns[:, 1] - river_y(towns[:, 0]))))
         towns[first, 1] = river_y(towns[first, :1])[0]
+    else:
+        first = int(np.argmax(towns[:, 0]))
+    border[first] = True
+    if s.coast:
+        border[int(np.argmax(towns[:, 0]))] = True
     tx, ty = towns[:, 0], towns[:, 1]
+    nearest = np.argmin(np.hypot(x[:, None] - tx[None, :], y[:, None] - ty[None, :]), axis=1)
+    around = np.bincount(nearest, weights=sizes, minlength=m)
+    town_sizes = np.maximum(np.round(s.town_share / (1.0 - s.town_share) * around), s.smallest_town).astype(int)
 
     # Roads to each village's nearest neighbours and from each town to its
     # nearest villages, joined up so every place can be reached.
@@ -262,10 +305,16 @@ def region(settings: RegionSettings = RegionSettings(), base: Config | None = No
         )
         for i in range(n)
     )
-    world_map = replace(
-        base.map, enabled=True, towns=tuple((round(float(a), 2), round(float(b), 2)) for a, b in towns),
-        roads=tuple(sorted(roads)), rivers=tuple(rivers),
+    on_bank = np.abs(ty - river_y(tx)) < 0.6 * s.spacing_km if s.river else np.zeros(m, dtype=bool)
+    villages += tuple(
+        VillageConfig(
+            name=f"Town {t + 1}", population=int(town_sizes[t]), land=0.0, initial_food_months=0.0,
+            x=round(float(tx[t]), 2), y=round(float(ty[t]), 2), terrain="valley" if on_bank[t] else "plain",
+            kind="town", border=bool(border[t]),
+        )
+        for t in range(m)
     )
+    world_map = replace(base.map, enabled=True, roads=tuple(sorted(roads)), rivers=tuple(rivers))
     return replace(base, villages=villages, map=world_map)
 
 
@@ -321,15 +370,19 @@ def _join_up(x: np.ndarray, y: np.ndarray, roads: set[tuple[int, int]]) -> set[t
 
 
 def describe(config: Config, geo: Geography) -> str:
-    """One line about the map: villages, people, towns, terrain, carriage."""
+    """One line about the map: villages, towns, people, terrain, carriage."""
     cfg: MapConfig = config.map
-    people = sum(v.population for v in config.villages)
-    kinds = [cfg.terrains[t].name for t in geo.terrain]
+    villages = [v for v in config.villages if v.kind == "village"]
+    towns = [v for v in config.villages if v.kind == "town"]
+    village = ~geo.town
+    kinds = [cfg.terrains[t].name for t in geo.terrain[village]]
     counts = ", ".join(f"{kinds.count(t.name)} {t.name}" for t in cfg.terrains if kinds.count(t.name))
-    reachable = geo.transport[np.isfinite(geo.transport)]
+    reachable = geo.transport[village & np.isfinite(geo.transport)]
     cost = f"{reachable.min():.0%}-{reachable.max():.0%}" if len(reachable) else "none reach a town"
-    towns = len(cfg.towns)
+    town_people = sum(v.population for v in towns)
+    border = sum(v.border for v in towns)
     return (
-        f"Region of {len(config.villages)} villages ({people:,} people) around {towns} market town{'s' * (towns != 1)}: "
-        f"{counts}; carting grain to market costs {cost} of its price"
+        f"Region of {len(villages)} villages ({sum(v.population for v in villages):,} people: {counts}) and "
+        f"{len(towns)} market town{'s' * (len(towns) != 1)} ({town_people:,} people, {border} trading beyond the region); "
+        f"carting grain to market costs {cost} of its price"
     )

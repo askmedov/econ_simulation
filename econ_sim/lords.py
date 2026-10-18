@@ -66,9 +66,31 @@ def sold(lords: Lords, rations: np.ndarray, price: np.ndarray) -> None:
     lords.purse += rations * price
 
 
-def local_spending(lords: Lords, config: Config) -> np.ndarray:
-    """Coins the lord's household spends in the village this month (on its cloth)."""
-    return lords.purse * config.lord.spends_locally
+def local_spending(lords: Lords, config: Config, in_town: bool = False) -> np.ndarray:
+    """Coins the lord's household spends this month on cloth: in the village,
+    or (`in_town`) in its market town."""
+    return lords.purse * (config.lord.spends_in_town if in_town else config.lord.spends_locally)
+
+
+def sell_in_town(lords: Lords, carted: np.ndarray, market: np.ndarray, dealers_grain: np.ndarray,
+                 dealers_cash: np.ndarray, town_price: np.ndarray) -> np.ndarray:
+    """The grain carted from each village's barn is sold to the dealers of its
+    market town at the town's price, as far as their coins go; the rest goes
+    back into the barn. Changes the dealers' store and coins and the lord's
+    purse; returns rations sold per village."""
+    n = len(carted)
+    reach = market >= 0
+    to = np.where(reach, market, 0)
+    value = np.where(reach, carted * town_price[to], 0.0)
+    asked = np.bincount(to, weights=value, minlength=n)
+    afford = np.minimum(1.0, np.divide(dealers_cash, asked, out=np.ones(n), where=asked > 0))
+    sold = np.where(reach, carted * afford[to], 0.0)
+    paid = sold * np.where(reach, town_price[to], 0.0)
+    np.add.at(dealers_grain, to, sold)
+    np.add.at(dealers_cash, to, -paid)
+    lords.purse += paid
+    lords.barn += carted - sold
+    return sold
 
 
 def charity(lords: Lords, gap: np.ndarray, location: np.ndarray, famine: np.ndarray, config: Config) -> np.ndarray:

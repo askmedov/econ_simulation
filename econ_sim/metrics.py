@@ -66,10 +66,15 @@ class MonthRecord:
     tax_grain: float  # rations seized from families who couldn't pay the state's tax
     state_purse: float  # coins the state has taken out of the village
     food_requisitioned: float  # rations soldiers or raiders took from families and farms
-    town_price: float  # coins per ration in the town's grain market
-    grain_exported: float  # rations merchants carried to the town
-    grain_imported: float  # rations merchants brought from the town and sold
-    town_purse: float  # coins the villages have paid the town, net (negative: received)
+    town_price: float  # coins per ration in the town's grain market (with market towns: the world beyond's)
+    grain_exported: float  # rations merchants carried from villages to the town
+    grain_imported: float  # rations merchants brought from the town to villages and sold there
+    town_purse: float  # coins the villages have paid the town (or the world beyond), net (negative: received)
+    town_people: int  # people in the market towns (on a map)
+    town_ration: float  # share of the towns' food need eaten
+    market_price: float  # coins per ration in the market towns (by their need)
+    dealers_grain: float  # rations in the towns' grain dealers' stores
+    grain_beyond: float  # rations border towns bought from the world beyond, net (negative: sold)
     coins_lost: float  # coins lost, worn away or buried since the start
     emigrants: int  # people who left their village (for the town, beyond, or another village)
     immigrants: int  # people who came to a village (from beyond, or another village)

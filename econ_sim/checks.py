@@ -36,7 +36,7 @@ def broken_invariants(world: World) -> list[str]:
         "grain": hh.grain, "money": hh.money, "land": hh.land, "animals": hh.animals, "debt": hh.debt, "lent": hh.lent,
         "business cash": world.cash, "tools": world.tools, "stock": world.stock, "supplies": world.supplies,
         "lord's barn": world.lord.barn, "council reserve": world.council.reserve, "treasury": world.council.treasury,
-        "woods": world.woods,
+        "woods": world.woods, "dealers' grain": world.dealers_grain, "dealers' coins": world.dealers_cash,
     }
     for name, values in held.items():
         if values.size and (not np.all(np.isfinite(values)) or values.min() < -1e-9):
