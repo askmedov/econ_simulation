@@ -225,8 +225,10 @@ class Simulation:
         if has_towns:  # part of it to his market town, where the dealers buy it
             to_town = config.lord.to_town * carted_away
             carted_away -= to_town
+            promised = np.zeros(n)  # (for the villages' grain they are carting in)
+            np.add.at(promised, towns.town_of(geo), carts.exports * world.food_price)
             carted_away += lords.sell_in_town(world.lord, to_town, geo.market, world.dealers_grain, world.dealers_cash,
-                                              world.food_price)
+                                              world.food_price, promised)
 
         # 4. What families need this month. They eat from their own store as
         # far as it lasts until their next harvest, offer what they can

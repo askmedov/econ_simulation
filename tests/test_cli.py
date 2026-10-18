@@ -58,14 +58,15 @@ def test_a_region_what_if_is_reported_by_place(tmp_path, capsys):
     assert out.startswith("Region of 8 villages")
     assert "By where the forced events struck" in out and "By terrain" in out
     rows = (tmp_path / "places.csv").read_text().splitlines()
-    assert len(rows) == 10 and rows[0].startswith("village,terrain,x_km")  # 8 villages and their town
+    assert len(rows) == 10 and rows[0].startswith("village,kind,terrain,x_km")  # 8 villages and their town
+    assert "By kind of place" in out and "market towns" in out
 
 
 def test_a_region_gives_each_village_land_for_its_size(capsys, tmp_path):
     main(["--region", "6", "--population", "120", "--months", "1", "--workers", "1", "--out", str(tmp_path)])
     capsys.readouterr()
     rows = [line.split(",") for line in (tmp_path / "places.csv").read_text().splitlines()[1:]]
-    assert all(80 <= int(row[5]) <= 400 for row in rows)
+    assert all(80 <= int(row[6]) <= 400 for row in rows if row[1] == "village")
     with pytest.raises(SystemExit):
         main(["--region", "6", "--land", "50", "--out", str(tmp_path)])
 

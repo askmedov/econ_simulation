@@ -18,7 +18,12 @@ in coin, and merchants carry grain to and from a town market; coins are
 metal, flowing in and out with that trade. Villages can also make up a
 region on a map, with hills, woods and a river, market towns and roads:
 carting grain costs more the farther a village is from its town, and the
-weather falls on the map, so neighbouring villages share their droughts. A village council taxes, keeps
+weather falls on the map, so neighbouring villages share their droughts.
+The market towns are places with people of their own, who work in crafts
+and buy their grain from the villages through the town's grain dealers;
+the town price is set by what the villages bring and the town eats, the
+lords spend their rents there, and only a border town trades with the
+world beyond. A village council taxes, keeps
 a grain reserve, gives famine relief and pays healers. See [PLAN.md](PLAN.md) for the design and
 roadmap.
 
@@ -69,10 +74,11 @@ Python 3.11+. matplotlib is only needed for charts.
 ```
 
 With `--region`, `--population` is the size of an average village of the
-plain, `--towns` the number of market towns, and `--map-seed` lays out a
-different region; an event at `@X,Y,KM` strikes the villages within KM km
-of (X, Y) km on the map. A region what-if is also reported where the events
-struck and elsewhere, by terrain and by distance from market.
+plain, `--towns` the number of market towns (about an eighth of the people
+live in them), and `--map-seed` lays out a different region; an event at
+`@X,Y,KM` strikes the places within KM km of (X, Y) km on the map. A region
+what-if is also reported where the events struck and elsewhere, in villages
+and towns, and in villages by terrain and by distance from market.
 
 Other options: `--months`, `--seed`, `--population`, `--land`,
 `--food-months`, `--out`, `--workers` (cores to run on; all by default), and the policy levers `--no-council`,
@@ -95,11 +101,11 @@ by chance. Use `--runs 100` or more to see the real effect and its range.
 
 | File | Contents |
 |---|---|
-| `run1.csv` | Every month of the first run: population, births, deaths, weddings, food produced, eaten (and how much from families' own stores), sold, spoiled and in store, people in landless families and how they ate, prices of every product, workers in every trade, wages, savings, how well the village and its poorest fifth ate, how warm families kept, the council's treasury, taxes, grain reserve and relief, healers and people treated, health, seed, animals, debts and land sales, the lord's rent and the state's tax, the town price and grain carried to and from it, coins lost, emigrants and immigrants (whole families, moves between villages, how good a place each village is, empty villages), homespun cloth, harvest help, grain given by kin, the woods and the soil, active events |
+| `run1.csv` | Every month of the first run: population, births, deaths, weddings, food produced, eaten (and how much from families' own stores), sold, spoiled and in store, people in landless families and how they ate, prices of every product, workers in every trade, wages, savings, how well the village and its poorest fifth ate, how warm families kept, the council's treasury, taxes, grain reserve and relief, healers and people treated, health, seed, animals, debts and land sales, the lord's rent and the state's tax, the town price and grain carried to and from it (in a region: people in the towns and how they ate, the towns' grain price, their dealers' store and coins, grain bought beyond the region), coins lost, emigrants and immigrants (whole families, moves between villages, how good a place each village is, empty villages), homespun cloth, harvest help, grain given by kin, the woods and the soil, active events |
 | `run1_with_event.csv` | The same run with the forced events |
 | `summary.csv` | Key measures' average and 10–90% range across runs (population, births, deaths, food stock and price, wage, how well the village and its poorest fifth ate, health, relief, people treated, treasury, grain reserve), for the baseline, with the events (`_event`), and the difference (`_diff`) |
 | `log.txt` | Notable happenings in the first run (events, food shortages, a council forming) |
-| `places.csv` | In a region: each village's terrain, place on the map, cost of carting grain to market and size at the start, and, averaged over runs (with and without the events), its size at the end, deaths, departures, worst month and highest grain price |
+| `places.csv` | In a region: each village's and town's kind, terrain, place on the map, cost of carting grain to market and size at the start, and, averaged over runs (with and without the events), its size at the end, deaths, departures, worst month and highest grain price |
 | `overview.png` | Food in store, food price, health, food need met for the village and its poorest fifth, and deaths over time (with `--plot`) |
 
 ## Using it from Python
@@ -133,7 +139,8 @@ All parameters are in [`econ_sim/config.py`](econ_sim/config.py).
 | `econ_sim/livestock.py` | Plough animals and herds: farm output, growth, the winter cull, slaughter and distress sales |
 | `econ_sim/credit.py` | Loans between families, repayment, foreclosure, distress land sales, debt cancellation |
 | `econ_sim/lords.py` | The lord's demesne, barn and purse; the state's coin tax; requisitions by armies and raiders |
-| `econ_sim/town.py` | The town's grain price, merchants carrying grain in and out, coins lost and debased |
+| `econ_sim/town.py` | The town's grain price (the world beyond, in a region), merchants carrying grain in and out, coins lost and debased |
+| `econ_sim/towns.py` | Market towns in a region: their grain dealers and price, merchants carrying grain and goods between villages and towns, the border with the world beyond |
 | `econ_sim/migration.py` | How good a place each village is to live; who leaves (young people, families, the starving), where they go, and who comes |
 | `econ_sim/geography.py` | The map: laying out a region, terrain, the cost of carting grain to market along roads and rivers, the weather over the map |
 | `econ_sim/work.py` | Everyone at harvest, homespun cloth, kin who give each other grain |

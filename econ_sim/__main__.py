@@ -103,6 +103,7 @@ def main(argv: list[str] | None = None) -> None:
     if config.map.enabled:
         geo = geography.build(config)
         about = {
+            "kind": np.array([v.kind for v in config.villages]),
             "terrain": np.array([v.terrain for v in config.villages]), "x_km": geo.x, "y_km": geo.y,
             "carriage": geo.transport, "population_start": np.array([v.population for v in config.villages]),
         }
@@ -328,15 +329,20 @@ def _print_effect(result: Effect, forced: tuple[ScheduledEvent, ...], runs: int,
 
 
 def _print_places(comparison: Comparison, config: Config, forced: tuple[ScheduledEvent, ...]) -> None:
-    """The effect where the forced events struck and elsewhere, by terrain
-    and by distance from market."""
+    """The effect where the forced events struck and elsewhere, in villages
+    and towns, and in villages by terrain and by distance from market."""
     geo = geography.build(config)
+    village = ~geo.town
     terrains = [t.name for t in config.map.terrains]
     cost = np.where(np.isfinite(geo.transport), geo.transport, 9.0)
-    cuts = np.quantile(cost, [1 / 3, 2 / 3])
-    thirds = np.searchsorted(cuts, cost, side="right")
+    cuts = np.quantile(cost[village], [1 / 3, 2 / 3]) if village.any() else np.zeros(2)
+    thirds = np.where(village, np.searchsorted(cuts, cost, side="right"), -1)
     by_cost = [f"nearest third (under {cuts[0]:.0%})", "middle third", f"farthest third (over {cuts[1]:.0%})"]
-    tables = [("terrain", geo.terrain, terrains), ("cost of carting grain to market", thirds, by_cost)]
+    tables = [
+        ("kind of place", geo.town.astype(int), ["villages", "market towns"]),
+        ("terrain (villages)", np.where(village, geo.terrain, -1), terrains),
+        ("cost of carting grain to market (villages)", thirds, by_cost),
+    ]
     struck = np.zeros(len(config.villages), dtype=bool)
     for event in forced:
         if event.near is not None:
@@ -350,14 +356,14 @@ def _print_places(comparison: Comparison, config: Config, forced: tuple[Schedule
     runs = len(comparison.baseline)
     for title, groups, labels in tables:
         print(f"\nBy {title}:")
-        print(f"  {'':<34}{'Villages':>9}{'People':>9}{'Extra deaths':>14}{'per 1,000':>10}{'Worst month':>17}{'Left':>13}")
+        print(f"  {'':<34}{'Places':>9}{'People':>9}{'Extra deaths':>14}{'per 1,000':>10}{'Worst month':>17}{'Left':>13}")
         for e in effect_by(comparison, groups, labels):
             per_1000 = 1000 * e.extra_deaths.mean / max(e.people, 1)
             deaths = f"{e.extra_deaths.mean:+.1f}" if runs > 1 else f"{e.extra_deaths.mean:+.0f}"
             worst = f"{e.lowest_ration[0]:.0%} -> {e.lowest_ration[1]:.0%}"
             left = f"{e.left[0]:.0f} -> {e.left[1]:.0f}"
             print(f"  {e.label:<34}{e.villages:>9}{e.people:>9,.0f}{deaths:>14}{per_1000:>10.1f}{worst:>17}{left:>13}")
-    print("  (worst month: the share of their need its villages ate in their hungriest month, without -> with)")
+    print("  (worst month: the share of their need its places ate in their hungriest month, without -> with)")
 
 
 def _print_outlook(sims: list[Run]) -> None:

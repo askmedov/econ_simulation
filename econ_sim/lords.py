@@ -91,17 +91,19 @@ def pay_servants(lords: Lords, market: np.ndarray, households_location: np.ndarr
 
 
 def sell_in_town(lords: Lords, carted: np.ndarray, market: np.ndarray, dealers_grain: np.ndarray,
-                 dealers_cash: np.ndarray, town_price: np.ndarray) -> np.ndarray:
+                 dealers_cash: np.ndarray, town_price: np.ndarray, promised: np.ndarray | None = None) -> np.ndarray:
     """The grain carted from each village's barn is sold to the dealers of its
-    market town at the town's price, as far as their coins go; the rest goes
-    back into the barn. Changes the dealers' store and coins and the lord's
-    purse; returns rations sold per village."""
+    market town at the town's price, as far as their coins go (beyond what
+    they have `promised` to villages this month); the rest goes back into the
+    barn. Changes the dealers' store and coins and the lord's purse; returns
+    rations sold per village."""
     n = len(carted)
     reach = market >= 0
     to = np.where(reach, market, 0)
     value = np.where(reach, carted * town_price[to], 0.0)
     asked = np.bincount(to, weights=value, minlength=n)
-    afford = np.minimum(1.0, np.divide(dealers_cash, asked, out=np.ones(n), where=asked > 0))
+    free = np.maximum(dealers_cash - (0.0 if promised is None else promised), 0.0)
+    afford = np.minimum(1.0, np.divide(free, asked, out=np.ones(n), where=asked > 0))
     sold = np.where(reach, carted * afford[to], 0.0)
     paid = sold * np.where(reach, town_price[to], 0.0)
     np.add.at(dealers_grain, to, sold)
