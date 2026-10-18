@@ -70,7 +70,8 @@ def problems(sim: Simulation, extreme: bool = False) -> list[tuple[str, int]]:
         found.append((name, month))
 
     def coins(r) -> float:
-        return r.savings + r.business_cash + r.treasury + r.lord_purse + r.state_purse + r.town_purse + r.coins_lost
+        return (r.savings + r.business_cash + r.treasury + r.dealers_cash + r.lord_purse + r.state_purse + r.town_purse
+                + r.coins_lost)
 
     money = coins(records[0]) if records else 0.0
     start_prices = dict(records[0].prices) if records else {}

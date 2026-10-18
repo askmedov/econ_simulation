@@ -414,6 +414,9 @@ class LordConfig:
     # countryside feed the towns.
     to_town: float = 0.4
     spends_in_town: float = 0.25
+    # Of what he spends in town, this share pays townsfolk for their
+    # service (servants, masons, carters, clerks); the rest buys cloth.
+    servants: float = 0.5
     # A what-if lever: a lord who opens his barn to the hungry in a famine.
     charity_in_famine: bool = False
 
@@ -469,6 +472,13 @@ class TownConfig:
     # either way.
     mortality: float = 1.25
     craft_skill: float = 1.3
+    # A town has little woodland of its own (`woods` of what a village of its
+    # size would have): it buys most of its firewood from the countryside.
+    woods: float = 0.1
+    # Townsfolk live on coins and hold fewer months of their coin earnings
+    # than villagers, who are paid mostly in grain (TradeConfig.money_months):
+    # a town's wage follows the money there is against this many.
+    money_months: float = 2.5
     # A town's grain costs what the villages ask for it plus carriage, marked
     # up as the dealers' store runs below `dealers_months` of the town's need:
     # the mark-up heads toward (usual store / store) ** `store_elasticity`.

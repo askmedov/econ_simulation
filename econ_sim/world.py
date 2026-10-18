@@ -255,7 +255,8 @@ def create_world(config: Config, streams: RandomStreams) -> World:
         councils.reserve = np.where(councils.formed, cc.reserve_months * food_need, 0.0)
         councils.months_ready = np.where(councils.formed, cc.forms_after_months, 0)
     # The woods are in balance with the village's use of them at the start.
-    woods_capacity, woods = environment.size_woods(sizes, config, geo.woods)
+    richness = np.where(geo.town, geo.woods * config.town.woods, geo.woods) if geo.has_towns else geo.woods
+    woods_capacity, woods = environment.size_woods(sizes, config, richness)
     # Town grain dealers start with a few months of the town's need, and the
     # coins to buy as much again.
     dealers_grain = np.where(geo.town, config.town.dealers_months * food_need, 0.0)

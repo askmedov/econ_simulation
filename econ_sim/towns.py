@@ -73,79 +73,106 @@ def delivered_price(village_price: np.ndarray, geo: Geography, weights: np.ndarr
 
 @dataclass
 class Carts:
-    """What merchants carry this month (places x products): `into` a village
-    from its town, offered there (and `held` back from each town's own
-    market for it), and what they would carry `out` of a village to its
-    town if it is left unsold."""
+    """What merchants carry this month. Grain (per place): what the town's
+    dealers send `grain_in` to each village (and `grain_held` back from
+    each town's own market for it), and what they would buy `grain_out` of
+    a village if it is left unsold. Other goods go on consignment, each
+    move from place `src` to place `dst` (`goods`, moves x products, the
+    food column empty): offered at the price where they arrive and sold
+    for the business that made them; what is not sold goes back."""
 
-    into: np.ndarray
-    held: np.ndarray
-    out: np.ndarray
+    grain_in: np.ndarray
+    grain_held: np.ndarray
+    grain_out: np.ndarray
+    src: np.ndarray
+    dst: np.ndarray
+    goods: np.ndarray
+
+    def incoming(self, n: int) -> np.ndarray:
+        """Goods arriving at each place (places x products)."""
+        out = np.zeros((n, self.goods.shape[1]))
+        np.add.at(out, self.dst, self.goods)
+        return out
+
+    def outgoing(self, n: int) -> np.ndarray:
+        """Goods leaving each place (places x products)."""
+        out = np.zeros((n, self.goods.shape[1]))
+        np.add.at(out, self.src, self.goods)
+        return out
 
 
-def carts(prices: np.ndarray, geo: Geography, wanted: np.ndarray, town_stock: np.ndarray, town_cash: np.ndarray,
-          config: Config) -> Carts:
-    """Merchants' loads for this month. A village dearer than its town by
-    more than the carting (`transport` x each product's `carriage`) gets up
-    to `MapConfig.capacity` of what it `wanted` of a good last month from
-    the town's `town_stock` (shared out among its villages if short); a
-    village cheaper than its town by more than that sends up to as much,
-    if the town's business has the coins (`town_cash`, places x products)
-    to buy it."""
+def carts(prices: np.ndarray, geo: Geography, wanted: np.ndarray, stock: np.ndarray, dealers_cash: np.ndarray,
+          weights: np.ndarray, food: int, config: Config) -> Carts:
+    """Merchants' loads for this month, between each village and its market
+    town, wherever a good is dearer at one end than at the other by more
+    than the carting (`transport` x the product's `carriage`), a full load
+    once the gap beats it by `full_load_margin`. Into a village: up to
+    `MapConfig.capacity` of what it `wanted` of a good last month, from the
+    town's `stock` (shared out among its villages if short; for grain, the
+    dealers'). Out of a village to its town: as much again, plus its share
+    (by `weights`) of what the town wanted, from what it has beyond a month
+    of its own orders; grain only as far as the dealers' coins go."""
     n, k = prices.shape
-    into, out = np.zeros((n, k)), np.zeros((n, k))
+    empty = np.zeros(0, dtype=np.int64)
     villages = np.flatnonzero(~geo.town & (geo.market >= 0) & np.isfinite(geo.transport))
     if not len(villages):
-        return Carts(into, np.zeros((n, k)), out)
+        return Carts(np.zeros(n), np.zeros(n), np.zeros(n), empty, empty, np.zeros((0, k)))
     town = geo.market[villages]
     carriage = np.array([p.carriage for p in config.products])
     cost = np.minimum(geo.transport[villages, None] * carriage[None, :], 0.9)
     here, there = prices[villages], prices[town]
-    full = config.map.capacity * np.maximum(wanted[villages], 0.0)
     ramp = config.map.full_load_margin
     with np.errstate(divide="ignore", invalid="ignore"):
         bring = np.clip(np.nan_to_num(here / (there * (1.0 + cost)) - 1.0) / ramp, 0.0, 1.0)
         send = np.clip(np.nan_to_num(there * (1.0 - cost) / here - 1.0, posinf=1.0) / ramp, 0.0, 1.0)
     send = np.where(here > 0, send, 0.0)
+    full = config.map.capacity * np.maximum(wanted[villages], 0.0)
+    # Into villages: each town shares out what it has among those asking.
     asked = bring * full
-    # Each town shares out what it has among the villages asking for it.
     asked_of = np.zeros((n, k))
     np.add.at(asked_of, town, asked)
-    can = np.minimum(1.0, np.divide(town_stock, asked_of, out=np.ones((n, k)), where=asked_of > 0))
-    into[villages] = asked * can[town]
-    held = np.zeros((n, k))
-    np.add.at(held, town, into[villages])
-    # Each town's business buys what its coins allow.
-    offered = send * full * here
-    offered_to = np.zeros((n, k))
-    np.add.at(offered_to, town, offered)
-    afford = np.minimum(1.0, np.divide(town_cash, offered_to, out=np.ones((n, k)), where=offered_to > 0))
-    out[villages] = send * full * afford[town]
-    return Carts(into, held, out)
+    can = np.minimum(1.0, np.divide(stock, asked_of, out=np.ones((n, k)), where=asked_of > 0))
+    into = asked * can[town]
+    # Out of villages: their share of the town's wants too.
+    w = np.maximum(weights[villages], 0.0)
+    around = np.bincount(town, weights=w, minlength=n)
+    share = np.divide(w, around[town], out=np.zeros(len(w)), where=around[town] > 0)
+    town_wants = config.map.capacity * np.maximum(wanted[town], 0.0) * share[:, None]
+    out = np.minimum(send * (full + town_wants), np.maximum(stock[villages] - wanted[villages], 0.0))
+    # Grain out: as far as each town's dealers can pay.
+    grain_out = send[:, food] * full[:, food]
+    offered_to = np.bincount(town, weights=grain_out * here[:, food], minlength=n)
+    afford = np.minimum(1.0, np.divide(dealers_cash, offered_to, out=np.ones(n), where=offered_to > 0))
+    grain_in, grain_held, grain_sold = np.zeros(n), np.zeros(n), np.zeros(n)
+    grain_in[villages] = into[:, food]
+    grain_held = np.bincount(town, weights=into[:, food], minlength=n)
+    grain_sold[villages] = grain_out * afford[town]
+    into[:, food] = 0.0
+    out[:, food] = 0.0
+    src = np.concatenate([town, villages])
+    dst = np.concatenate([villages, town])
+    return Carts(grain_in, grain_held, grain_sold, src, dst, np.concatenate([into, out]))
 
 
-def send_goods(stock: np.ndarray, cash: np.ndarray, prices: np.ndarray, out: np.ndarray, orders: np.ndarray,
-               geo: Geography, seller: np.ndarray, food: int, config: Config) -> None:
-    """Merchants carry to each town what its villages have of each good
-    beyond the stock they keep (up to the loads in `out`), the town's
-    business paying the village's price for it, as far as its coins go.
-    Grain is not among them (see the dealers). Changes `stock` and `cash`."""
-    to = town_of(geo)
-    for product in range(stock.shape[1]):
-        if product == food or not out[:, product].any():
-            continue
-        business = seller[product]
-        spare = np.maximum(stock[:, product] - config.trade.stock_target_months * orders[:, product], 0.0)
-        load = np.minimum(out[:, product], spare)
-        value = load * prices[:, product]
-        asked = np.zeros(len(to))
-        np.add.at(asked, to, value)
-        afford = np.minimum(1.0, np.divide(cash[:, business], asked, out=np.ones(len(to)), where=asked > 0))
-        load, value = load * afford[to], value * afford[to]
-        stock[:, product] -= load
-        cash[:, business] += value
-        np.add.at(stock[:, product], to, load)
-        np.add.at(cash[:, business], to, -value)
+def settle(cart: Carts, product: int, stock: np.ndarray, cash: np.ndarray, demand: np.ndarray, offer: np.ndarray,
+           sold: np.ndarray, spent: np.ndarray, asked: np.ndarray) -> None:
+    """After a market in `product` where each place had `offer` (its own
+    `stock` plus goods carted in), `sold` and took `spent` coins, with
+    buyers having `asked` for as much as `demand`: each unit on offer was as
+    likely to sell as any other, so each business (the place's own, and
+    each that sent goods) is paid and counts the demand for its share, and
+    unsold goods go back. Changes `stock`, `cash` (that product's
+    businesses) and `demand` (all per place)."""
+    goods = cart.goods[:, product]
+    with np.errstate(invalid="ignore"):
+        part = np.divide(goods, offer[cart.dst], out=np.zeros(len(goods)), where=offer[cart.dst] > 0)
+        local = np.clip(np.divide(stock, offer, out=np.ones_like(offer), where=offer > 0), 0.0, 1.0)
+    stock -= np.minimum(sold * local, stock)
+    cash += spent * local
+    demand[:] = asked * local
+    np.add.at(stock, cart.src, goods - sold[cart.dst] * part)
+    np.add.at(cash, cart.src, spent[cart.dst] * part)
+    np.add.at(demand, cart.src, asked[cart.dst] * part)
 
 
 def town_of(geo: Geography) -> np.ndarray:

@@ -68,8 +68,26 @@ def sold(lords: Lords, rations: np.ndarray, price: np.ndarray) -> None:
 
 def local_spending(lords: Lords, config: Config, in_town: bool = False) -> np.ndarray:
     """Coins the lord's household spends this month on cloth: in the village,
-    or (`in_town`) in its market town."""
-    return lords.purse * (config.lord.spends_in_town if in_town else config.lord.spends_locally)
+    or (`in_town`) in its market town (what is not paid to servants)."""
+    if in_town:
+        return lords.purse * config.lord.spends_in_town * (1.0 - config.lord.servants)
+    return lords.purse * config.lord.spends_locally
+
+
+def pay_servants(lords: Lords, market: np.ndarray, households_location: np.ndarray, members: np.ndarray,
+                 config: Config) -> np.ndarray:
+    """The lord's household pays townsfolk of his market town for their
+    service this month (`servants` of what he spends in town), shared by
+    the town's families by their members. Takes it from his purse; returns
+    coins received per household."""
+    n = len(lords.purse)
+    people = np.bincount(households_location, weights=members, minlength=n)
+    reach = (market >= 0) & (people[np.maximum(market, 0)] > 0)
+    wages = np.where(reach, lords.purse * config.lord.spends_in_town * config.lord.servants, 0.0)
+    lords.purse -= wages
+    to_town = np.bincount(market[reach], weights=wages[reach], minlength=n)
+    return np.divide(to_town[households_location] * members, people[households_location],
+                     out=np.zeros(len(members)), where=people[households_location] > 0)
 
 
 def sell_in_town(lords: Lords, carted: np.ndarray, market: np.ndarray, dealers_grain: np.ndarray,

@@ -74,6 +74,7 @@ class MonthRecord:
     town_ration: float  # share of the towns' food need eaten
     market_price: float  # coins per ration in the market towns (by their need)
     dealers_grain: float  # rations in the towns' grain dealers' stores
+    dealers_cash: float  # coins the towns' grain dealers hold
     grain_beyond: float  # rations border towns bought from the world beyond, net (negative: sold)
     coins_lost: float  # coins lost, worn away or buried since the start
     emigrants: int  # people who left their village (for the town, beyond, or another village)

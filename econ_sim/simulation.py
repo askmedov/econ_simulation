@@ -186,10 +186,8 @@ class Simulation:
             wanted[:, food] = need
             in_store = world.stock.copy()
             in_store[:, food] = world.dealers_grain
-            coins = world.cash[:, seller].copy()
-            coins[:, food] = world.dealers_cash
-            cart = towns.carts(world.prices, geo, wanted, in_store, coins, config)
-            carts = town.Merchants(exports=cart.out[:, food], imports=cart.into[:, food])
+            cart = towns.carts(world.prices, geo, wanted, in_store, world.dealers_cash, need, food, config)
+            carts = town.Merchants(exports=cart.grain_out, imports=cart.grain_in)
             outlook = outlook + world.arrivals[:, None]
         else:
             carts = town.merchants(world.food_price, town_price, need, config, world.geo.transport)
@@ -259,13 +257,11 @@ class Simulation:
         if has_towns:
             # Grain goes out of the dealers' store to the villages; the rest is
             # on offer in the town; goods go out of the town's businesses.
-            world.dealers_grain -= cart.held[:, food]
-            goods = cart.held.copy()
-            goods[:, food] = 0.0  # (the food column is the farms' grain)
-            world.stock -= goods
+            world.dealers_grain -= cart.grain_held
+            world.stock -= cart.outgoing(n)  # (no grain: the food column is the farms')
             brought[is_town] = world.dealers_grain[is_town]
             world.dealers_grain[is_town] = 0.0
-            offer = world.stock.copy() + cart.into
+            offer = world.stock.copy() + cart.incoming(n)
         offer[:, food] = market.by_village(plan.spare, hh.location, n) + world.farm_grain + lord_offer + brought
         stock_before = world.stock.copy()
         shared = market.share_with_neighbours(hh.money, essentials, hh.location, n, config)
@@ -330,18 +326,9 @@ class Simulation:
                 world.stock[:, product] = np.maximum(world.stock[:, product] - sale.sold, 0.0)
                 world.cash[:, seller[product]] += spent_at
                 demand[:, product] = sale.demand
-            else:
-                # Goods brought from the town are sold for the town's business
-                # (and count in its orders); what is left goes back.
-                ours = np.clip(np.divide(world.stock[:, product], offer[:, product], out=np.ones(n),
-                                         where=offer[:, product] > 0), 0.0, 1.0)
-                to = towns.town_of(geo)
-                world.stock[:, product] = np.maximum(world.stock[:, product] - sale.sold * ours, 0.0)
-                np.add.at(world.stock[:, product], to, np.maximum(cart.into[:, product] - sale.sold * (1.0 - ours), 0.0))
-                world.cash[:, seller[product]] += spent_at * ours
-                np.add.at(world.cash[:, seller[product]], to, spent_at * (1.0 - ours))
-                demand[:, product] = sale.demand * ours
-                np.add.at(demand[:, product], to, sale.demand * (1.0 - ours))
+            else:  # goods carted in are sold for the business that made them, and count in its orders
+                towns.settle(cart, product, world.stock[:, product], world.cash[:, seller[product]], demand[:, product],
+                             offer[:, product], sale.sold, spent_at, sale.demand)
             sold[:, product] = sale.sold
             if family_want is not None:
                 if family_money is not hh.money:
@@ -428,8 +415,6 @@ class Simulation:
                 trade(product, want, spend, business_want(product), lords.local_spending(world.lord, config, has_towns))
             else:
                 trade(product, None, None, business_want(product))
-        if has_towns:  # merchants buy up villages' unsold goods for their town's businesses
-            towns.send_goods(world.stock, world.cash, world.prices, cart.out, world.orders, geo, seller, food, config)
 
         # The council gives food from its reserve to families who couldn't eat enough.
         relief = council.give_relief(world.council, plan.own + bought[food], family_food, hh.location, config)
@@ -495,6 +480,7 @@ class Simulation:
             townsfolk = market.by_village(members, hh.location, n)
             income += np.divide(dealt[hh.location] * members, townsfolk[hh.location], out=np.zeros(n_hh),
                                 where=townsfolk[hh.location] > 0)
+            income += lords.pay_servants(world.lord, geo.market, hh.location, members, config)  # and the lords' wages
         taxes = council.collect_taxes(income, hh.location, world.council, cc.treasury_months * running_costs, famine, config)
         hh.money += income
         staff_income, _ = council.pay_staff(pop, world.council, official, official_pay, n_hh)
@@ -527,7 +513,9 @@ class Simulation:
         world.coin_earnings = (1 - 1 / 12) * world.coin_earnings + this_month / 12
         earnings = world.coin_earnings
         held = market.by_village(hh.money, hh.location, n)
-        months_held = np.divide(held, config.trade.money_months * earnings, out=np.ones(n), where=earnings > 0)
+        usual_months = np.where(is_town, config.town.money_months, config.trade.money_months) if has_towns \
+            else config.trade.money_months
+        months_held = np.divide(held, usual_months * earnings, out=np.ones(n), where=earnings > 0)
         world.wage_level *= 1.0 + config.trade.wage_adjustment * np.clip(months_held - 1.0, -1.0, 1.0)
 
         # 7. Some stored food spoils: in families' stores, the farms' and the council's reserve.
@@ -705,6 +693,7 @@ class Simulation:
             market_price=float(np.average(world.food_price[is_town], weights=np.maximum(need[is_town], 1e-9)))
             if is_town.any() else 0.0,
             dealers_grain=float(world.dealers_grain.sum()),
+            dealers_cash=float(world.dealers_cash.sum()),
             grain_beyond=float(beyond.sum()),
             coins_lost=float(world.town.coins_lost),
             emigrants=int(moves.left.sum()),
