@@ -1068,7 +1068,7 @@ checks on region settings, and what-if numbers written up here:
 | 1 | `claude/phase3-speed` | group-by instead of loops over villages, one compaction a month, parallel seeds, a benchmark script with the targets above (built) |
 | 2 | `claude/region-map` | places, terrain, roads and rivers, costs of carriage, weather that falls on the map; regions generated from a few settings (built) |
 | 3 | `claude/market-towns` | towns as places; the town price set by supply and demand; grain and goods carried between each village and its town; an outside price at the border (built) |
-| 4 | `claude/trade-network` | trade between towns along the network (and a city), what roads and rivers can carry, animals and wool; specialisation by terrain |
+| 4 | `claude/trade-network` | trade between towns along the network (and a city), what roads and rivers can carry, animals and wool; specialisation by terrain (built) |
 | 5 | `claude/regional-migration` | builds on migration by how good a place is (below): distance, towns as destinations, harvest labour, famine refugees |
 | 6 | `claude/epidemics-spread` | disease spreading within and between places; quarantine |
 | 7 | `claude/state-and-war` | provinces, tax quotas, a treasury, public granaries, famine policies, armies on the move |
@@ -1390,6 +1390,75 @@ border.
 whole month rather than in the towns' own code: a paired three-year run
 takes about 80 s on two cores, a little over the one-minute target for a
 million.
+
+### 4. A trade network (built)
+
+- **Routes between towns.** Each market town finds the cheapest way to
+  its six nearest towns over the roads and rivers (a search from each town
+  that stops once it has reached them: 0.2 s for 5,000 villages and 200
+  towns), with the share of the way by water.
+- **Grain between towns.** A town's dealers buy from a neighbouring town
+  cheaper by more than the route costs (bulk dealers pay 5% for loading,
+  tolls and dues, against 15% for petty carting between a village and its
+  market, plus the way), a full load once the gap beats it by a tenth, up
+  to 30% a month of the need of the buying town's market (the town and its
+  villages) by road, three times as much by river, from what the selling
+  town holds beyond a month of its own need, paid at the seller's price.
+  Cloth, tools and firewood go between towns on consignment the same way.
+- **A town prices its grain from its cheapest source**: its villages at
+  their prices plus carriage, or a neighbouring town plus the route (a
+  city amid starving villages no longer prices a full store from their
+  hunger). **In a dearth merchants bring a village up to half its need of
+  grain a month** (other goods, and grain out of villages, a fifth).
+- **A city.** With several towns, the one on the river is half as big again
+  as its countryside would make it.
+- **Wool.** On a map with a border town, herds are shorn each June and the
+  wool sold beyond the region (as English wool went to Flanders and
+  Italy), a year's wool from an animal fetching 3 rations' worth at the
+  outside grain price, less the carting to the border. A wool slump (the
+  markets abroad closed for a year: wool fetches 40%) is a what-if lever.
+- **Specialisation by terrain.** Hill villages hold 0.6 of the plain's
+  farmland for their people and winter about twice its animals per person
+  (and start stocked); river valleys hold 15% more farmland; each
+  village's fields count as usual for it (no tired soil, no land to spare).
+
+Over ten years in a region of 100 villages (a year, per person):
+
+| | Grain sent to town (rations) | Wool sold (coins) | Grain price |
+|---|---|---|---|
+| River valley | 1.10 | 0.60 | 1.34 |
+| Plain | 0.98 | 0.36 | 1.30 |
+| Woods | 0.92 | 0.37 | 1.32 |
+| Hills | 0.66 | 0.91 | 1.36 |
+
+The valleys are the region's granary, the hills its wool country. Wool's
+coins (a third to nine-tenths of a coin a head a year) also offset the
+coins the state's tax takes out: over 40 years no run of a 25-village
+region now deflates below a village grain price of 0.9 (step 3: 0.5), and
+the towns of a 50-village region keep 12-13% of its people.
+
+**Does trade between towns share a local dearth?** A drought over the west
+of the 100-village region (31 places, 12,041 people, the city among them),
+40 paired runs over three years:
+
+| | Extra deaths per 1,000: struck | elsewhere | Struck villages' worst month | Their grain price, months 4-16 (peak) |
+|---|---|---|---|---|
+| Towns trade with each other | 12.6 | 0.9 | 92% -> 87% | 2.06 (2.42) |
+| They don't | 12.2 | 0.2 | 92% -> 85% | 2.16 (2.62) |
+
+Only a little. Trade takes the top off the struck villages' price and their
+worst month, and carries a share of the dearth east, but it saves no lives
+that the runs can show: grain from the east crosses three legs (village to
+town, town to town, town to village), each with its own carting, so the
+west's price must reach about twice the east's before any comes, and most
+grain stays with the families who grew it. Towns now trade about 800
+rations a month in ordinary times, evening out their prices. A wool slump
+costs the region a fifth of its wool coins over three years and no lives.
+What would save lives in a local dearth is the subject of step 7: a public
+granary, relief, a ban on carrying grain out.
+
+Speed is unchanged: a month of 1,150,000 people (1,000 villages, 40 towns)
+takes 2.1 s.
 
 ### What-ifs Phase 3 should answer
 
