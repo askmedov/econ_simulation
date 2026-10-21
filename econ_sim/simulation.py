@@ -148,9 +148,12 @@ class Simulation:
         if has_towns:
             per_worker = per_worker * world.skill
         fair = economy.fair_prices(world.wage_level, per_worker, world.prices, config)
-        if has_towns:  # a town's grain costs what it takes to bring it in, at the villages' prices
-            fair[:, food] = np.where(is_town, towns.delivered_price(fair[:, food] * world.markup[:, food], geo,
-                                                                    people_here), fair[:, food])
+        if has_towns:
+            # A town's grain costs what it takes to bring it in from where it
+            # is cheapest: its villages, at their prices, or a neighbouring town.
+            delivered = towns.delivered_price(fair[:, food] * world.markup[:, food], geo, people_here)
+            delivered = np.minimum(delivered, towns.from_neighbours(world.food_price, geo))
+            fair[:, food] = np.where(is_town, delivered, fair[:, food])
         world.prices = fair * world.markup
 
         # 3. How well the village's stores and coming harvests cover the year

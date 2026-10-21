@@ -80,7 +80,8 @@ def test_merchants_carry_where_the_gap_beats_the_carting_and_more_the_wider_it_i
     assert cart.grain_in[0] == 0 and cart.grain_in[1] == 0  # 1.5 < 1.3 x 1.3: not worth it
     prices[1, 0] = 1.3 * (1 + 0.3) * 1.05  # half way up the ramp
     cart = towns.carts(prices, g, wanted, stock, np.full(3, 1e6), np.ones(3), 0, CONFIG)
-    assert np.isclose(cart.grain_in[1], 0.5 * full) and np.isclose(cart.grain_held[2], 0.5 * full)
+    relief = CONFIG.map.relief_capacity * 100.0  # grain into a village in a dearth
+    assert np.isclose(cart.grain_in[1], 0.5 * relief) and np.isclose(cart.grain_held[2], 0.5 * relief)
 
 
 def test_a_town_shares_out_what_it_has_and_its_dealers_buy_only_what_they_can_pay_for():

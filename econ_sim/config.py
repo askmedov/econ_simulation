@@ -562,16 +562,23 @@ class MapConfig:
     # orders) of each good between it and its market town each month, either
     # way: carting it costs `transport` x the product's `carriage`. They
     # carry a full load once the gap in price beats the carting by
-    # `full_load_margin` of the price, and less for less.
+    # `full_load_margin` of the price, and less for less. In a dearth they
+    # bring a village up to `relief_capacity` of its need of grain a month:
+    # carts come to wherever people will pay.
     capacity: float = 0.2
     full_load_margin: float = 0.1
+    relief_capacity: float = 0.5
     # Between neighbouring market towns, merchants carry at most
-    # `town_capacity` of the receiving town's monthly need (or orders) of
-    # each good a month along a road; a route by river carries up to
-    # `water_capacity` times as much (barges), in proportion to the share
-    # of the way by water.
+    # `town_capacity` a month of the monthly need of the receiving town's
+    # market (the town and its villages; for other goods, the town's orders)
+    # along a road; a route by river carries up to `water_capacity` times as
+    # much (barges), in proportion to the share of the way by water.
     town_capacity: float = 0.3
     water_capacity: float = 3.0
+    # Grain dealers trading between towns deal in bulk: their loading, tolls
+    # and dues come to `wholesale_handling` of the price (petty carting
+    # between a village and its market: `handling`), plus the way.
+    wholesale_handling: float = 0.05
     terrains: tuple[TerrainSpec, ...] = DEFAULT_TERRAINS
 
     def terrain_index(self, name: str) -> int:

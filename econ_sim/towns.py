@@ -54,6 +54,17 @@ def store_markup(markup: np.ndarray, store: np.ndarray, need: np.ndarray, config
     return markup + config.food.price_adjustment * (target - markup)
 
 
+def from_neighbours(previous: np.ndarray, geo: Geography) -> np.ndarray:
+    """What grain costs each town to bring from its cheapest neighbouring
+    town (its price last month, plus the route); inf if it has none."""
+    r = geo.routes
+    cheapest = np.full(len(previous), np.inf)
+    if len(r.a):
+        np.minimum.at(cheapest, r.b, previous[r.a] * (1.0 + r.cost))
+        np.minimum.at(cheapest, r.a, previous[r.b] * (1.0 + r.cost))
+    return cheapest
+
+
 def delivered_price(village_price: np.ndarray, geo: Geography, weights: np.ndarray) -> np.ndarray:
     """What grain costs to bring into each town from the villages that trade
     with it (their price, plus carriage), averaged by `weights` (their need);
@@ -127,8 +138,11 @@ def carts(prices: np.ndarray, geo: Geography, wanted: np.ndarray, stock: np.ndar
         send = np.clip(np.nan_to_num(there * (1.0 - cost) / here - 1.0, posinf=1.0) / ramp, 0.0, 1.0)
     send = np.where(here > 0, send, 0.0)
     full = config.map.capacity * np.maximum(wanted[villages], 0.0)
-    # Into villages: each town shares out what it has among those asking.
-    asked = bring * full
+    # Into villages: each town shares out what it has among those asking
+    # (grain up to `relief_capacity` of their need).
+    full_in = full.copy()
+    full_in[:, food] = config.map.relief_capacity * np.maximum(wanted[villages, food], 0.0)
+    asked = bring * full_in
     asked_of = np.zeros((n, k))
     np.add.at(asked_of, town, asked)
     can = np.minimum(1.0, np.divide(stock, asked_of, out=np.ones((n, k)), where=asked_of > 0))
@@ -237,22 +251,25 @@ def between_towns(dealers_grain: np.ndarray, dealers_cash: np.ndarray, price: np
                   geo: Geography, config: Config) -> np.ndarray:
     """Grain the dealers of neighbouring towns trade this month: from a town
     to one dearer by more than the cost of the route between them, up to
-    `town_capacity` of the dearer town's monthly need (more by river), a
-    full load once the gap beats the cost by `full_load_margin`, from what
-    the cheaper town's dealers hold beyond `keep_months` of their own need,
-    and as far as the buyers' coins go at the seller's price. Changes the
-    stores and coins; returns grain arriving per place (negative: sent)."""
+    `town_capacity` of the monthly need of the dearer town's market (the
+    town and the villages that trade with it; more by river), a full load
+    once the gap beats the cost by `full_load_margin`, from what the cheaper
+    town's dealers hold beyond `keep_months` of their own town's need, and
+    as far as the buyers' coins go at the seller's price. Changes the stores
+    and coins; returns grain arriving per place (negative: sent)."""
     r = geo.routes
     moved = np.zeros_like(need)
     if not len(r.a):
         return moved
+    trading = geo.market >= 0
+    area = np.bincount(geo.market[trading], weights=need[trading], minlength=len(need))
     src = np.concatenate([r.a, r.b])
     dst = np.concatenate([r.b, r.a])
     cost = np.concatenate([r.cost, r.cost])
     ramp = config.map.full_load_margin
     with np.errstate(divide="ignore", invalid="ignore"):
         gap = np.nan_to_num(price[dst] / (price[src] * (1.0 + cost)) - 1.0)
-    full = config.map.town_capacity * np.concatenate([water_factor(geo, config)] * 2) * need[dst]
+    full = config.map.town_capacity * np.concatenate([water_factor(geo, config)] * 2) * area[dst]
     load = np.clip(gap / ramp, 0.0, 1.0) * full
     spare = np.maximum(dealers_grain - config.town.keep_months * need, 0.0)
     asked = np.bincount(src, weights=load, minlength=len(need))

@@ -125,7 +125,7 @@ def build(config: Config) -> Geography:
     if cfg.enabled:
         transport, market = carriage(config)
         a, b, cost, water = legs(config)
-        routes = town_routes(len(villages), a, b, cost, water, np.flatnonzero(town), cfg.handling)
+        routes = town_routes(len(villages), a, b, cost, water, np.flatnonzero(town), cfg.wholesale_handling)
         if border.any():
             best, _ = cheapest(len(villages), a, b, cost, np.flatnonzero(border))
             to_border = np.where(np.isfinite(best), cfg.handling + best, np.inf)

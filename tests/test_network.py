@@ -41,9 +41,10 @@ def test_routes_join_neighbouring_towns_by_the_cheapest_way_and_know_how_much_is
     geo = geography.build(config)
     r = geo.routes
     assert r.a.tolist() == [2] and r.b.tolist() == [3]
-    assert np.isclose(r.cost[0], config.map.handling + config.map.road_per_km * 20) and r.water[0] == 0
+    assert np.isclose(r.cost[0], config.map.wholesale_handling + config.map.road_per_km * 20) and r.water[0] == 0
     by_river = geography.build(two_towns(river=True)).routes
-    assert np.isclose(by_river.cost[0], config.map.handling + config.map.river_per_km * 20) and by_river.water[0] == 1
+    assert np.isclose(by_river.cost[0], config.map.wholesale_handling + config.map.river_per_km * 20)
+    assert by_river.water[0] == 1
     assert towns.water_factor(geography.build(two_towns(river=True)), config)[0] == config.map.water_capacity
 
 
@@ -62,8 +63,9 @@ def test_grain_goes_to_the_dearer_town_when_the_gap_beats_the_route_and_is_paid_
     before = cash.sum()
     moved = towns.between_towns(grain, cash, np.array([1.0, 1.0, 1.0, 1.25]), need, geo_of(0.3), CONFIG)
     assert not moved.any()  # 25% dearer, but the route costs 30%
+    need[1] = 200.0  # the east town's market: itself and a village
     moved = towns.between_towns(grain, cash, np.array([1.0, 1.0, 1.0, 2.0]), need, geo_of(0.3), CONFIG)
-    full = CONFIG.map.town_capacity * 100.0
+    full = CONFIG.map.town_capacity * 300.0
     assert np.isclose(moved[3], full) and np.isclose(moved[2], -full)
     assert np.isclose(cash[2], full * 1.0) and np.isclose(cash.sum(), before)  # at the seller's price
 
