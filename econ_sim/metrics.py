@@ -76,6 +76,8 @@ class MonthRecord:
     dealers_grain: float  # rations in the towns' grain dealers' stores
     dealers_cash: float  # coins the towns' grain dealers hold
     grain_beyond: float  # rations border towns bought from the world beyond, net (negative: sold)
+    grain_between_towns: float  # rations the dealers of neighbouring towns sold each other
+    wool_sold: float  # coins the region's wool fetched beyond it (at shearing)
     coins_lost: float  # coins lost, worn away or buried since the start
     emigrants: int  # people who left their village (for the town, beyond, or another village)
     immigrants: int  # people who came to a village (from beyond, or another village)

@@ -36,14 +36,16 @@ def owners_part(factor: np.ndarray) -> np.ndarray:
     return (factor - 1.0) / factor
 
 
-def place_herds(households: Households, village_land: np.ndarray, config: Config, rng: np.random.Generator) -> None:
+def place_herds(households: Households, village_land: np.ndarray, config: Config, rng: np.random.Generator,
+                pasture: np.ndarray | None = None) -> None:
     """Give landholding families a full village set of animals at the start,
-    roughly by the land they hold."""
+    roughly by the land they hold (more where there is more pasture: a hill
+    village is already stocked with sheep and cattle)."""
     n = len(village_land)
     weight = households.land * rng.lognormal(0.0, 0.5, size=len(households))
     total = by_village(weight, households.location, n)
     loc = households.location
-    herd = config.livestock.per_plot * village_land
+    herd = config.livestock.per_plot * village_land * (1.0 if pasture is None else np.maximum(pasture, 1.0))
     households.animals = np.divide(weight * herd[loc], total[loc], out=np.zeros(len(households)), where=total[loc] > 0)
 
 
@@ -141,3 +143,9 @@ def distress_sales(
     households.animals += got - selling
     households.money += (selling - got) * price[loc]
     return AnimalSales(sold=sold, price=price)
+
+
+def shear(households: Households, worth: np.ndarray) -> np.ndarray:
+    """A year's wool from every herd, sold for `worth` coins an animal (per
+    village). Returns coins received per household."""
+    return households.animals * worth[households.location]

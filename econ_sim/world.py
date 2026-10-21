@@ -181,7 +181,7 @@ def create_world(config: Config, streams: RandomStreams) -> World:
     # the plough animals.
     demesne = lords.take_demesne(land, config)
     assign_land(households, population, land - demesne, config, streams["land"])
-    livestock.place_herds(households, land, config, streams["land"])
+    livestock.place_herds(households, land, config, streams["land"], geo.pasture)
     animals = livestock.farm_factor(np.bincount(households.location, weights=households.animals, minlength=n), land, config)
 
     # Prices start fair, with the wage set so food costs `food_price`; on a

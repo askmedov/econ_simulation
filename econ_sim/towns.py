@@ -149,9 +149,30 @@ def carts(prices: np.ndarray, geo: Geography, wanted: np.ndarray, stock: np.ndar
     grain_sold[villages] = grain_out * afford[town]
     into[:, food] = 0.0
     out[:, food] = 0.0
-    src = np.concatenate([town, villages])
-    dst = np.concatenate([villages, town])
-    return Carts(grain_in, grain_held, grain_sold, src, dst, np.concatenate([into, out]))
+    src = [town, villages]
+    dst = [villages, town]
+    moves = [into, out]
+    # Between neighbouring towns, from what each has left beyond a month of
+    # its own orders.
+    r = geo.routes
+    if len(r.a):
+        left = stock.copy()
+        np.add.at(left, town, -into)
+        pairs_src, pairs_dst = np.concatenate([r.a, r.b]), np.concatenate([r.b, r.a])
+        route_cost = np.minimum(np.concatenate([r.cost, r.cost])[:, None] * carriage[None, :], 0.9)
+        with np.errstate(divide="ignore", invalid="ignore"):
+            gap = np.nan_to_num(prices[pairs_dst] / (prices[pairs_src] * (1.0 + route_cost)) - 1.0)
+        water = np.concatenate([water_factor(geo, config)] * 2)
+        load = np.clip(gap / ramp, 0.0, 1.0) * config.map.town_capacity * water[:, None] * np.maximum(wanted[pairs_dst], 0.0)
+        load[:, food] = 0.0  # (the dealers trade grain: see `between_towns`)
+        spare = np.maximum(left - wanted, 0.0)
+        asked = np.zeros((n, k))
+        np.add.at(asked, pairs_src, load)
+        load = load * np.minimum(1.0, np.divide(spare, asked, out=np.ones((n, k)), where=asked > 0))[pairs_src]
+        src.append(pairs_src)
+        dst.append(pairs_dst)
+        moves.append(load)
+    return Carts(grain_in, grain_held, grain_sold, np.concatenate(src), np.concatenate(dst), np.concatenate(moves))
 
 
 def settle(cart: Carts, product: int, stock: np.ndarray, cash: np.ndarray, demand: np.ndarray, offer: np.ndarray,
@@ -200,10 +221,52 @@ def border_trade(dealers_grain: np.ndarray, dealers_cash: np.ndarray, town_price
         sell = np.where(border & (town_price > 0), np.clip(np.nan_to_num(sell_at / town_price - 1.0) / ramp, 0.0, 1.0), 0.0)
     load = cfg.outside_capacity * need
     bought = np.minimum(buy * load, np.divide(dealers_cash, buy_at, out=np.zeros_like(need), where=buy_at > 0))
-    sold = np.minimum(sell * load, np.maximum(dealers_grain - need, 0.0))
+    sold = np.minimum(sell * load, np.maximum(dealers_grain - cfg.keep_months * need, 0.0))
     dealers_grain += bought - sold
     dealers_cash += sold * sell_at - bought * buy_at
     moved = bought - sold
+    return moved
+
+
+def water_factor(geo: Geography, config: Config) -> np.ndarray:
+    """How much more each route between towns carries than a road (by its share of water)."""
+    return 1.0 + (config.map.water_capacity - 1.0) * geo.routes.water
+
+
+def between_towns(dealers_grain: np.ndarray, dealers_cash: np.ndarray, price: np.ndarray, need: np.ndarray,
+                  geo: Geography, config: Config) -> np.ndarray:
+    """Grain the dealers of neighbouring towns trade this month: from a town
+    to one dearer by more than the cost of the route between them, up to
+    `town_capacity` of the dearer town's monthly need (more by river), a
+    full load once the gap beats the cost by `full_load_margin`, from what
+    the cheaper town's dealers hold beyond `keep_months` of their own need,
+    and as far as the buyers' coins go at the seller's price. Changes the
+    stores and coins; returns grain arriving per place (negative: sent)."""
+    r = geo.routes
+    moved = np.zeros_like(need)
+    if not len(r.a):
+        return moved
+    src = np.concatenate([r.a, r.b])
+    dst = np.concatenate([r.b, r.a])
+    cost = np.concatenate([r.cost, r.cost])
+    ramp = config.map.full_load_margin
+    with np.errstate(divide="ignore", invalid="ignore"):
+        gap = np.nan_to_num(price[dst] / (price[src] * (1.0 + cost)) - 1.0)
+    full = config.map.town_capacity * np.concatenate([water_factor(geo, config)] * 2) * need[dst]
+    load = np.clip(gap / ramp, 0.0, 1.0) * full
+    spare = np.maximum(dealers_grain - config.town.keep_months * need, 0.0)
+    asked = np.bincount(src, weights=load, minlength=len(need))
+    load = load * np.minimum(1.0, np.divide(spare, asked, out=np.ones_like(need), where=asked > 0))[src]
+    value = load * price[src]
+    owed = np.bincount(dst, weights=value, minlength=len(need))
+    afford = np.minimum(1.0, np.divide(dealers_cash, owed, out=np.ones_like(need), where=owed > 0))[dst]
+    load, value = load * afford, value * afford
+    np.add.at(dealers_grain, src, -load)
+    np.add.at(dealers_grain, dst, load)
+    np.add.at(dealers_cash, dst, -value)
+    np.add.at(dealers_cash, src, value)
+    np.add.at(moved, dst, load)
+    np.add.at(moved, src, -load)
     return moved
 
 

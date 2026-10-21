@@ -17,8 +17,11 @@ from econ_sim.world import ActiveEvent, World
 
 EFFECTS = (
     "production_mult", "health_delta", "mortality_mult", "fertility_mult", "granary_loss", "heating_mult", "debt_cancel",
-    "requisition", "debase", "woods_burned",
+    "requisition", "debase", "woods_burned", "wool_price",
 )
+# Effects that only mean something on a map (wool is sold through its border
+# towns): without one, events with only these are never rolled.
+MAP_ONLY_EFFECTS = ("wool_price",)
 PERSON_EFFECTS = ("health_delta",)
 REACHES = ("village", "weather", "region")
 
@@ -38,13 +41,14 @@ class Modifiers:
     requisition: np.ndarray
     debase: np.ndarray
     woods_burned: np.ndarray
+    wool_price: np.ndarray
 
     @classmethod
     def neutral(cls, n_locations: int, n_businesses: int = 1) -> Modifiers:
         ones, zeros = np.ones(n_locations), np.zeros(n_locations)
         return cls(
             np.ones((n_locations, n_businesses)), zeros.copy(), ones.copy(), ones.copy(), zeros.copy(), ones.copy(),
-            zeros.copy(), zeros.copy(), zeros.copy(), zeros.copy(),
+            zeros.copy(), zeros.copy(), zeros.copy(), zeros.copy(), ones.copy(),
         )
 
 
@@ -143,7 +147,8 @@ def start_location_events(
     the map and region events strike every village at once."""
     candidates: dict[str, list[EventSpec]] = {}
     for spec in specs:
-        if _can_start(spec, "location", world.month_of_year):
+        map_only = set(spec.effects) <= set(MAP_ONLY_EFFECTS)
+        if _can_start(spec, "location", world.month_of_year) and (weather is not None or not map_only):
             candidates.setdefault(spec.group or f"_{spec.name}", []).append(spec)
     if weather is not None:
         return _start_on_map(world, candidates, rng, weather)

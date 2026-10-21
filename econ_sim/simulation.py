@@ -18,7 +18,7 @@ from econ_sim.world import World, create_world
 
 
 # Measures kept for each village, month by month (see `Simulation.place_series`).
-PLACE_SERIES = ("population", "births", "deaths", "ration", "food_price", "left")
+PLACE_SERIES = ("population", "births", "deaths", "ration", "food_price", "left", "sent", "wool")
 
 
 class Simulation:
@@ -382,7 +382,7 @@ class Simulation:
         world.farm_grain[:] -= sellers.farms
         hh.grain -= plan.own + sold_by_family
         imported = sellers.imports
-        beyond = np.zeros(n)
+        beyond, between = np.zeros(n), np.zeros(n)
         if has_towns:
             # The dealers are paid for the grain they sold, in the town and in
             # its villages, and take back what was not sold; they pay for the
@@ -391,9 +391,10 @@ class Simulation:
             to = towns.town_of(geo)
             np.add.at(world.dealers_cash, to, (imported - exported) * world.food_price)
             np.add.at(world.dealers_grain, to, brought - imported + exported)
+            between = towns.between_towns(world.dealers_grain, world.dealers_cash, world.food_price, need, geo, config)
             beyond = towns.border_trade(world.dealers_grain, world.dealers_cash, world.food_price, town_price, need, geo, config)
             world.town.purse += towns.outside_coins(beyond, town_price, config)
-            came_in = np.zeros(n)
+            came_in = between.copy()
             np.add.at(came_in, to, np.where(is_town, 0.0, exported - imported))
             weight = towns.MEMORY
             world.arrivals = (1.0 - weight) * world.arrivals + weight * np.where(is_town, came_in + beyond, 0.0)
@@ -443,7 +444,7 @@ class Simulation:
         # the soil tires on crowded land and recovers on land left to rest.
         cut = made[:, wood] + market.by_village(gathered * (1.0 - other), hh.location, n)
         woods_burned = environment.grow_woods(world.woods, world.woods_capacity, cut, mods.woods_burned, config)
-        environment.tire_soil(world.soil, people_here, world.land, config)
+        environment.tire_soil(world.soil, people_here, geo.usual_land(world.land), config)
         warmth = np.divide(bought[fuel] + gathered, family_fuel, out=np.ones_like(family_fuel), where=family_fuel > 0)
         eaten = market.by_village(family_eaten, hh.location, n)
         share = np.divide(eaten, need, out=np.ones_like(need), where=need > 0)
@@ -483,6 +484,14 @@ class Simulation:
             income += np.divide(dealt[hh.location] * members, townsfolk[hh.location], out=np.zeros(n_hh),
                                 where=townsfolk[hh.location] > 0)
             income += lords.pay_servants(world.lord, geo.market, hh.location, members, config)  # and the lords' wages
+        wool = np.zeros(n_hh)
+        if has_towns and world.month_of_year == config.livestock.shearing_month:
+            # Shearing: the wool goes beyond the region, the coins come in.
+            worth = config.livestock.wool * town_price * np.maximum(1.0 - geo.to_border, 0.0) * mods.wool_price
+            wool = livestock.shear(hh, worth)
+            income += wool
+            world.town.purse -= float(wool.sum())
+        wool_by_place = market.by_village(wool, hh.location, n)
         taxes = council.collect_taxes(income, hh.location, world.council, cc.treasury_months * running_costs, famine, config)
         hh.money += income
         staff_income, _ = council.pay_staff(pop, world.council, official, official_pay, n_hh)
@@ -599,13 +608,15 @@ class Simulation:
         people = rules.by_location(pop.count.astype(np.float64), pop, n)
         migration.remember(world.memory, share, died, people, mods.requisition, config, mods.mortality_mult)
         # (a town is not judged by its farmland)
-        land_seen = np.where(is_town, people / config.environment.people_per_plot, world.land) if has_towns else world.land
+        land_seen = geo.usual_land(world.land)
+        if has_towns:
+            land_seen = np.where(is_town, people / config.environment.people_per_plot, land_seen)
         # (nor by its lord: its rents, tolls and dues count as an ordinary take)
         take_seen = np.where(is_town, config.migration.usual_take, to_lord) if has_towns else to_lord
         place = migration.appeal(prospects, world.memory, people, land_seen, take_seen, config)
         moves = migration.move(pop, hh, place, world.memory, family_share, config, streams["migration"], world.geo)
         world.town.purse += moves.coins
-        room = world.land * config.environment.people_per_plot  # people the land would feed at a usual density
+        room = geo.usual_land(world.land) * config.environment.people_per_plot  # people the land feeds at a usual density
         moves.arrived += migration.arrive(pop, hh, place, room, config, streams["migration"], world.geo)
         migration.remember_leaving(world.memory, moves.left, rules.by_location(pop.count.astype(np.float64), pop, n))
         weddings = households.marry(pop, hh, config, streams["marriage"], willing)
@@ -701,6 +712,8 @@ class Simulation:
             dealers_grain=float(world.dealers_grain.sum()),
             dealers_cash=float(world.dealers_cash.sum()),
             grain_beyond=float(beyond.sum()),
+            grain_between_towns=float(np.maximum(between, 0.0).sum()),
+            wool_sold=float(wool_by_place.sum()),
             coins_lost=float(world.town.coins_lost),
             emigrants=int(moves.left.sum()),
             immigrants=int(moves.arrived.sum()),
@@ -751,7 +764,8 @@ class Simulation:
         self.records.append(record)
         villagers = rules.by_location(pop.count.astype(np.float64), pop, n)
         for name, values in (("population", villagers), ("births", born), ("deaths", died), ("ration", share),
-                             ("food_price", world.food_price), ("left", moves.left)):
+                             ("food_price", world.food_price), ("left", moves.left), ("sent", exported),
+                             ("wool", wool_by_place)):
             self.places[name].append(np.asarray(values, dtype=np.float64).copy())
         if alive_at_start and self.extinct:
             self._note(None, "The last villager has died")

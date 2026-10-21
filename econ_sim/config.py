@@ -339,6 +339,13 @@ class LivestockConfig:
     growth: float = 0.15
     winter_capacity_per_plot: float = 0.3
     meat_rations: float = 5.0
+    # On a map with a border town, herds are shorn in `shearing_month` and the
+    # wool sold through the towns to the world beyond (as English wool went
+    # to Flanders and Italy): a year's wool from an animal fetches `wool`
+    # rations' worth at the outside grain price, less the carting to the
+    # border. Hill villages, with more pasture, keep more animals.
+    wool: float = 3.0
+    shearing_month: int = 6
     # Extra yearly losses per unit of farm output lost to bad weather
     # (pasture and hay fail too), and per unit of extra heating a hard
     # winter needs.
@@ -484,6 +491,9 @@ class TownConfig:
     # the mark-up heads toward (usual store / store) ** `store_elasticity`.
     store_elasticity: float = 0.5
     dealers_months: float = 3.0
+    # Dealers send grain away (to other towns, or beyond) only from what they
+    # hold beyond this many months of their own town's need.
+    keep_months: float = 1.0
     dealers_payout: float = 0.5
     outside_transport: float = 0.15
     outside_capacity: float = 0.5
@@ -498,21 +508,26 @@ class TerrainSpec:
 
     name: str
     carriage: float = 1.0  # cost of carting a load across it
-    pasture: float = 1.0  # animals the village can feed through winter
+    pasture: float = 1.0  # animals the village can feed through winter, per plot of its farmland
     woods: float = 1.0  # woods it can hold
     forage: float = 1.0  # famine foods to be found: roots, nuts, fish, game
+    # Farmland per person a village has at the usual density (its fields
+    # count as usual for it: no tired soil, no land to spare): hill
+    # villages grow less grain and keep more animals, and buy grain with
+    # their wool.
+    arable: float = 1.0
 
 
 DEFAULT_TERRAINS: tuple[TerrainSpec, ...] = (
     TerrainSpec("plain"),
     # River meadows give hay and fish; the river carries the grain.
-    TerrainSpec("valley", pasture=1.3, woods=0.8, forage=1.2),
+    TerrainSpec("valley", pasture=1.3, woods=0.8, forage=1.2, arable=1.15),
     # Hill pasture for sheep and cattle; steep, slow tracks.
-    TerrainSpec("upland", carriage=1.6, pasture=2.0, woods=0.7, forage=0.8),
+    TerrainSpec("upland", carriage=1.6, pasture=3.5, woods=0.7, forage=0.8, arable=0.6),
     # Clearings in the woods: wood, nuts, pigs and game, poor roads.
-    TerrainSpec("forest", carriage=1.3, pasture=0.8, woods=2.5, forage=1.5),
+    TerrainSpec("forest", carriage=1.3, pasture=1.25, woods=2.5, forage=1.5, arable=0.8),
     # Fishing villages on the shore.
-    TerrainSpec("coast", woods=0.8, forage=1.5),
+    TerrainSpec("coast", woods=0.8, forage=1.5, arable=0.9),
 )
 
 
@@ -550,6 +565,13 @@ class MapConfig:
     # `full_load_margin` of the price, and less for less.
     capacity: float = 0.2
     full_load_margin: float = 0.1
+    # Between neighbouring market towns, merchants carry at most
+    # `town_capacity` of the receiving town's monthly need (or orders) of
+    # each good a month along a road; a route by river carries up to
+    # `water_capacity` times as much (barges), in proportion to the share
+    # of the way by water.
+    town_capacity: float = 0.3
+    water_capacity: float = 3.0
     terrains: tuple[TerrainSpec, ...] = DEFAULT_TERRAINS
 
     def terrain_index(self, name: str) -> int:
@@ -880,6 +902,17 @@ DEFAULT_EVENTS: tuple[EventSpec, ...] = (
         chance=0.0,  # only when scheduled: a what-if lever
         effects={"debase": 0.25},
         message="The ruler debases the coinage: coins are worth less",
+        reach="region",
+    ),
+    EventSpec(
+        # A war or an embargo closes the wool markets abroad (a what-if
+        # lever, on a map: wool is sold beyond through its border towns).
+        name="wool_slump",
+        scope="location",
+        chance=0.0,
+        duration=12,
+        effects={"wool_price": 0.4},
+        message="The wool markets abroad are closed: wool fetches less than half its price",
         reach="region",
     ),
     EventSpec(
