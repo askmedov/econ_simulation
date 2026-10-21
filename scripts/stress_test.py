@@ -121,6 +121,7 @@ def scenarios() -> list[Scenario]:
         Scenario("two cold years", replace(base, scheduled_events=(ScheduledEvent("cold_years", 4),)),
                  "a volcanic winter: two failed harvests", ("population", "sown")),
         Scenario("region of 20 villages", region(RegionSettings(villages=20, mean_size=300), base)),
+        Scenario("region with a city", region(RegionSettings(villages=45, mean_size=250, towns=3, seed=3), base)),
         Scenario("tax 0%", replace(base, council=CouncilConfig(tax_rate=0.0))),
         Scenario("tax 30%", replace(base, council=CouncilConfig(tax_rate=0.3))),
         Scenario("12-month reserve", replace(base, council=CouncilConfig(reserve_months=12.0))),

@@ -23,7 +23,10 @@ The market towns are places with people of their own, who work in crafts
 and buy their grain from the villages through the town's grain dealers;
 the town price is set by what the villages bring and the town eats, the
 lords spend their rents there, and only a border town trades with the
-world beyond. A village council taxes, keeps
+world beyond. Neighbouring towns trade grain and goods along roads and
+rivers (barges carry more), the town on the river is the region's city,
+and the hill villages, with less farmland and more sheep, sell their wool
+beyond the region. A village council taxes, keeps
 a grain reserve, gives famine relief and pays healers. See [PLAN.md](PLAN.md) for the design and
 roadmap.
 
@@ -101,7 +104,7 @@ by chance. Use `--runs 100` or more to see the real effect and its range.
 
 | File | Contents |
 |---|---|
-| `run1.csv` | Every month of the first run: population, births, deaths, weddings, food produced, eaten (and how much from families' own stores), sold, spoiled and in store, people in landless families and how they ate, prices of every product, workers in every trade, wages, savings, how well the village and its poorest fifth ate, how warm families kept, the council's treasury, taxes, grain reserve and relief, healers and people treated, health, seed, animals, debts and land sales, the lord's rent and the state's tax, the town price and grain carried to and from it (in a region: people in the towns and how they ate, the towns' grain price, their dealers' store and coins, grain bought beyond the region), coins lost, emigrants and immigrants (whole families, moves between villages, how good a place each village is, empty villages), homespun cloth, harvest help, grain given by kin, the woods and the soil, active events |
+| `run1.csv` | Every month of the first run: population, births, deaths, weddings, food produced, eaten (and how much from families' own stores), sold, spoiled and in store, people in landless families and how they ate, prices of every product, workers in every trade, wages, savings, how well the village and its poorest fifth ate, how warm families kept, the council's treasury, taxes, grain reserve and relief, healers and people treated, health, seed, animals, debts and land sales, the lord's rent and the state's tax, the town price and grain carried to and from it (in a region: people in the towns and how they ate, the towns' grain price, their dealers' store and coins, grain bought beyond the region, grain between towns, wool sold beyond), coins lost, emigrants and immigrants (whole families, moves between villages, how good a place each village is, empty villages), homespun cloth, harvest help, grain given by kin, the woods and the soil, active events |
 | `run1_with_event.csv` | The same run with the forced events |
 | `summary.csv` | Key measures' average and 10–90% range across runs (population, births, deaths, food stock and price, wage, how well the village and its poorest fifth ate, health, relief, people treated, treasury, grain reserve), for the baseline, with the events (`_event`), and the difference (`_diff`) |
 | `log.txt` | Notable happenings in the first run (events, food shortages, a council forming) |
@@ -140,9 +143,9 @@ All parameters are in [`econ_sim/config.py`](econ_sim/config.py).
 | `econ_sim/credit.py` | Loans between families, repayment, foreclosure, distress land sales, debt cancellation |
 | `econ_sim/lords.py` | The lord's demesne, barn and purse; the state's coin tax; requisitions by armies and raiders |
 | `econ_sim/town.py` | The town's grain price (the world beyond, in a region), merchants carrying grain in and out, coins lost and debased |
-| `econ_sim/towns.py` | Market towns in a region: their grain dealers and price, merchants carrying grain and goods between villages and towns, the border with the world beyond |
+| `econ_sim/towns.py` | Market towns in a region: their grain dealers and price, merchants carrying grain and goods between villages and towns and between neighbouring towns, the border with the world beyond |
 | `econ_sim/migration.py` | How good a place each village is to live; who leaves (young people, families, the starving), where they go, and who comes |
-| `econ_sim/geography.py` | The map: laying out a region, terrain, the cost of carting grain to market along roads and rivers, the weather over the map |
+| `econ_sim/geography.py` | The map: laying out a region, terrain, the cost of carting grain to market along roads and rivers, the routes between towns, the weather over the map |
 | `econ_sim/work.py` | Everyone at harvest, homespun cloth, kin who give each other grain |
 | `econ_sim/environment.py` | Woods that regrow and thin when overcut; soil that tires on crowded land |
 | `econ_sim/checks.py` | Invariants of the state (land, debts, households, couples, kin) for tests and the sanity check |

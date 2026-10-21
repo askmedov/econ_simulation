@@ -187,6 +187,8 @@ def settings(full: bool) -> list[Setting]:
         Setting("region of 20 villages", region(RegionSettings(villages=20, mean_size=300), base), seeds // 10),
         Setting("region, 10 years", replace(region(RegionSettings(villages=20, mean_size=300, seed=2), base), months=120),
                 seeds // 20),
+        Setting("region with a city and 3 towns", region(RegionSettings(villages=45, mean_size=250, towns=3, seed=3), base),
+                seeds // 20),
         Setting("no council", replace(base, council=CouncilConfig(enabled=False)), seeds // 2),
         Setting("no healthcare", replace(base, healthcare=HealthcareConfig(enabled=False)), seeds // 4),
         Setting("council forming", replace(base, villages=(VillageConfig(population=520, land=182),),
