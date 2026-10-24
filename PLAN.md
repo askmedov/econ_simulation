@@ -1654,3 +1654,58 @@ deterministic functions and on the invariants.
   rounds to 3 decimals).
 - **Speed so far**: a 36-month run of the default village takes 20 ms
   (Python: 225 ms).
+
+### 4. The map (built)
+
+- **What is ported**: the map read from the exported region (carriage and
+  market towns by Dijkstra, routes between towns with their share by
+  water, the cost to the border; checked against Python on every exported
+  region, to 1e-9), the weather field (256 random Fourier waves, scale
+  `weather_km`), events by reach (village, weather, region) and
+  `MAP_ONLY_EFFECTS`, scheduled events `near` a point, market towns (their
+  dealers, the delivered price and the store mark-up), consignment carts,
+  trade between towns, the border, lords selling grain and spending in
+  town, wool in June, terrain, and migration on a map (distance, towns as
+  destinations, any town family hosts). The deterministic parts are all in
+  the golden fixtures (two of the five states are a region with towns and
+  a city, in June and later).
+- **Parity** (`scripts/parity.py region`): the 24-28 measures per run of
+  the village settings plus, per group of places (villages, towns, each
+  terrain, and where a drought struck against elsewhere), deaths per
+  1,000, people at the end, the worst month, the grain price, leavers per
+  1,000, grain sent to town and wool coins per head a year, and the
+  event's extra deaths per 1,000: 66 to 95 measures a setting.
+
+| Setting (runs) | Measures | Largest \|t\| | Monthly | Deaths per 1,000: villages | towns | Grain sent per head a year | Wool coins per head a year |
+|---|---|---|---|---|---|---|---|
+| Region of 20 villages (60) | 66 | 3.0 | 1 of 429 | 140 / 136 | 171 / 161 | 0.96 / 1.04 | 0.477 / 0.476 |
+| Region of 20, 10 years (30) | 66 | 2.7 | 2 of 1,437 | 458 / 456 | 556 / 565 | 1.13 / 1.23 | 0.512 / 0.525 |
+| A city and 3 towns (40) | 67 | 2.1 | 2 of 429 | 139 / 137 | 208 / 195 | 1.06 / 1.14 | 0.452 / 0.448 |
+| 100 villages, drought over the west (30) | 95 | 2.1 | 3 of 429 | 141 / 136 | 198 / 188 | 1.03 / 1.11 | 0.419 / 0.421 |
+| Region of 20, no random events (100) | 66 | 3.0 | 1 of 429 | 117 / 115 | 133 / 134 | 1.05 / 1.05 | 0.494 / 0.496 |
+| A city and 3 towns, no random events (40) | 67 | 2.6 | 0 of 429 | 116 / 117 | 148 / 149 | 1.17 / 1.16 | 0.468 / 0.462 |
+| 100 villages, drought over the west alone (100) | 95 | 2.5 | 1 of 429 | 116 / 116 | 136 / 136 | 1.14 / 1.14 | 0.438 / 0.440 |
+
+- **One measure of 516 reaches |t| = 3.0** (leavers from the forest
+  villages of the 20-village region, 32 / 20 per 1,000), about what chance
+  gives for so many; it doesn't recur on the other maps.
+- **On a map the weather is nearly one draw for the whole region** (it
+  changes over about 250 km; these regions are 15-30 km across), so a
+  handful of region-wide droughts and cold years make up much of the
+  spread between runs, and the settings share their seeds and with them
+  their weather. With random events, Rust's villages sent about 8% more
+  grain to town in all four settings, its towns kept a few more people,
+  fewer people left; without random events these agree to the percent (the
+  three quiet settings). Counting the events themselves: over 40,000
+  Aprils of the 20-village region Rust starts a drought in 10.7% (Python:
+  10.75% over 4,000), good weather in 15.4% (14.5%) and cold years in
+  0.41% (as the chance says); event rolls do not depend on the state, in
+  either engine (the same seeds give the same events in a region of ten
+  people a place as in the full one). The gaps with random events are the
+  luck of a few region-wide disasters, not the map's workings.
+- **The drought over the west alone**, where runs differ least, agrees on
+  every measure to the percent: struck places 3.1 / 4.2 extra deaths per
+  1,000, the grain price 1.180 / 1.180, the struck villages' price peak
+  1.517 / 1.517, grain between towns 27,770 / 27,970 rations, wool coins
+  46,990 / 46,940. (With 30 runs its population sat 3 standard errors high
+  for nine months running, by 0.1%; with 100 runs it doesn't.)

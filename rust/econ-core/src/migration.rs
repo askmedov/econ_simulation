@@ -124,7 +124,7 @@ impl Moves {
 /// For each leaver from `origin`, another place that is a better place
 /// (chosen by its people times how much better, and on a map, the nearer
 /// the likelier), or -1 for beyond.
-fn destinations(
+pub fn destinations(
     origin: &[usize],
     place: &[f64],
     people: &[f64],

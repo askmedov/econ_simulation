@@ -88,6 +88,13 @@ def region_settings() -> list[Setting]:
         Setting("region with a city and 3 towns", city, runs=40),
         Setting("100 villages, drought over the west", region100, (ScheduledEvent("drought", 4, near=(0.0, 12.0, 11.0)),),
                 runs=30),
+        # On a map the weather is nearly one draw for the whole region, so a
+        # few region-wide droughts or cold years dominate the runs above;
+        # without random events the map's own workings are compared sharply.
+        Setting("region of 20, no random events", replace(region20, random_events=False), runs=100),
+        Setting("city and 3 towns, no random events", replace(city, random_events=False), runs=40),
+        Setting("100 villages, drought over the west alone", replace(region100, random_events=False),
+                (ScheduledEvent("drought", 4, near=(0.0, 12.0, 11.0)),), runs=60),
     ]
 
 

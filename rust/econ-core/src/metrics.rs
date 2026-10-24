@@ -482,10 +482,10 @@ pub fn write_csv(records: &[MonthRecord], path: &Path) -> std::io::Result<()> {
         Some(r) => r.flat().into_iter().map(|(n, _)| n).collect(),
         None => MonthRecord::default().flat().into_iter().map(|(n, _)| n).collect(),
     };
-    writeln!(out, "{}", header.join(","))?;
+    write!(out, "{}\r\n", header.join(","))?; // (line ends as Python's csv module writes them)
     for record in records {
         let row: Vec<String> = record.flat().iter().map(|(_, v)| v.csv()).collect();
-        writeln!(out, "{}", row.join(","))?;
+        write!(out, "{}\r\n", row.join(","))?;
     }
     out.flush()
 }

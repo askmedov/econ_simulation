@@ -3,6 +3,8 @@
 
 mod dump;
 mod options;
+mod report;
+mod run;
 
 use clap::{Parser, Subcommand};
 use options::RunArgs;
@@ -58,7 +60,10 @@ fn main() {
             threads(args.workers);
             args.config().and_then(|config| dump::worlds(&config, args.runs))
         }
-        None => Err("running and reporting what-ifs comes with the runner milestone; use `records`".into()),
+        None => {
+            threads(cli.run.workers);
+            run::run(&cli.run)
+        }
     };
     if let Err(message) = result {
         eprintln!("econ-sim: {message}");

@@ -275,9 +275,8 @@ pub fn fmt_number(value: f64) -> String {
         return "nan".into();
     }
     let text = format!("{:.3}", round_to(value, 3));
-    let text = text.trim_end_matches('0').trim_end_matches('.').to_string();
-    if text == "-0" {
-        "0".into()
+    if text.contains('.') {
+        text.trim_end_matches('0').trim_end_matches('.').to_string()
     } else {
         text
     }
@@ -359,10 +358,10 @@ fn write_columns(path: &Path, columns: &[(String, Vec<String>)], rows: usize) ->
     }
     let mut out = std::io::BufWriter::new(std::fs::File::create(path)?);
     let header: Vec<String> = columns.iter().map(|(n, _)| crate::metrics::csv_text(n)).collect();
-    writeln!(out, "{}", header.join(","))?;
+    write!(out, "{}\r\n", header.join(","))?; // (line ends as Python's csv module writes them)
     for i in 0..rows {
         let row: Vec<String> = columns.iter().map(|(_, v)| crate::metrics::csv_text(&v[i])).collect();
-        writeln!(out, "{}", row.join(","))?;
+        write!(out, "{}\r\n", row.join(","))?;
     }
     out.flush()
 }
