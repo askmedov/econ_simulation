@@ -27,6 +27,7 @@ pub mod migration;
 pub mod population;
 pub mod rng;
 pub mod rules;
+pub mod scenarios;
 pub mod simulation;
 pub mod town;
 pub mod towns;

@@ -1556,3 +1556,40 @@ deterministic functions and on the invariants.
   does the same for now, so that the two engines can be compared; it is
   for the user to decide whether to fix it in both (the fix changes
   Python's region results).
+
+### 2. The state and setup (built)
+
+- **The state** is a struct of arrays as in Python: people (`count`,
+  `age_months`, `female`, `health`, `skill`, `location`, `household`,
+  `job`, `married`, `couple`; 40 bytes a person), families (`location`,
+  `money`, `land`, `grain`, `animals`, `debt`, `lent`, `kin`), per-place
+  vectors and places x products tables (`Grid`). The farms' grain is the
+  food column of the stock, as in Python.
+- **`create_world`** is ported step by step (people from the age pyramid,
+  families, kin, jobs, land and herds, prices and wages, savings and
+  stores, councils, woods, the towns' dealers), drawing from the same
+  named streams.
+- **Parity of the starting state** (`scripts/parity.py setup`): 38
+  measures of each starting state (ages, sexes, households and their
+  sizes, marriage and couples, kin, land and its spread, animals, coins,
+  grain, wage, prices, woods, treasury and reserve, dealers' grain,
+  business cash, officials, healers, the share of each trade), compared
+  over many seeds. **All agree** (largest |t|: 1.5 in the default village,
+  200 seeds; 1.4 in a village of 100, 300 seeds; 2.3 in the region with a
+  city and three towns, 60 seeds). For instance, default village, Python
+  against Rust: household size 4.42 / 4.39, adults married 93.3% / 93.4%,
+  landless families 30.2% / 30.3%, land Gini 0.619 / 0.617, grain in
+  store 4,191 / 4,194. Measures that don't vary from seed to seed (the
+  animals, the woods, the starting prices) agree to rounding.
+- **Tests ported**: the families at the start and at weddings
+  (`tests/households.rs`, 16 tests from `test_households.py`), whole runs
+  (`tests/simulation.rs`: the same seed gives the same history, every
+  ration and every person accounted for month by month, a century
+  survived, a grouped population of rows of 100 keeps its totals, an
+  empty village runs on quietly) and the invariants every month in six
+  settings, with the checks catching broken states. One Python test is
+  pinned to a lucky seed (a village of 100 recovers from a drought, seed
+  64); a hamlet of 100 can have a ruinous run of years in either engine,
+  so the Rust test asks that most runs recover (Python: 82% of 200 runs
+  eat above 80% of their need in every month of their fifth year; Rust:
+  87%).

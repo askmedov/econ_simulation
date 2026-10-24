@@ -69,7 +69,7 @@ pub fn broken_invariants(world: &World) -> Vec<String> {
         if pop.household.iter().any(|&h| h as usize >= n_hh) {
             broken.push("people in no household".into());
         } else if (0..pop.len()).any(|i| hh.location[pop.household[i] as usize] != pop.location[i]) {
-            broken.push("people living outside their household's place".into());
+            broken.push("people living outside their household's village".into());
         }
         if pop.job.iter().any(|&j| j != NO_JOB && j < 0) {
             broken.push("unknown job".into());
@@ -95,7 +95,7 @@ pub fn broken_invariants(world: &World) -> Vec<String> {
         let k = hh.kin[h];
         k >= n_hh as i32 || (k >= 0 && hh.location[k as usize] != hh.location[h])
     }) {
-        broken.push("kin links to no family or another place".into());
+        broken.push("kin links to no family or another village".into());
     }
     broken
 }

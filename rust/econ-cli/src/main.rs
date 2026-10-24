@@ -1,30 +1,55 @@
-use std::io::Write;
+//! The command line: runs and paired what-ifs as Python's
+//! (`python -m econ_sim`), and tools for checking the engine.
+
+mod dump;
+mod options;
+
+use clap::{Parser, Subcommand};
+use options::RunArgs;
+
+#[derive(Parser)]
+#[command(
+    name = "econ-sim",
+    about = "Simulate a pre-industrial economy month by month, and see what an event does to the next few years.",
+    after_help = "Example: econ-sim --event drought@4 --runs 200",
+    args_conflicts_with_subcommands = true
+)]
+struct Cli {
+    #[command(subcommand)]
+    command: Option<Command>,
+    #[command(flatten)]
+    run: RunArgs,
+}
+
+#[derive(Subcommand)]
+enum Command {
+    /// Every month of every run, as CSV on standard output (with --event, both arms of each pair)
+    Records(RunArgs),
+    /// The starting state of each run, one line of JSON each
+    World(RunArgs),
+}
+
+fn threads(workers: Option<usize>) {
+    if let Some(n) = workers {
+        rayon::ThreadPoolBuilder::new().num_threads(n.max(1)).build_global().ok();
+    }
+}
 
 fn main() {
-    let args: Vec<String> = std::env::args().collect();
-    let mut config = match args.iter().position(|a| a == "--config") {
-        Some(i) => econ_core::Config::from_file(&args[i + 1]).expect("config"),
-        None => econ_core::config::default_config(),
-    };
-    let seeds: usize = args.iter().position(|a| a == "--runs").map_or(1, |i| args[i + 1].parse().unwrap());
-    if let Some(i) = args.iter().position(|a| a == "--months") {
-        config.months = args[i + 1].parse().unwrap();
-    }
-    let first = config.seed;
-    let mut out = std::io::BufWriter::new(std::io::stdout());
-    for k in 0..seeds {
-        let mut c = config.clone();
-        c.seed = first + k as i64;
-        let mut sim = econ_core::Simulation::new(c).expect("a valid config");
-        sim.run();
-        for (j, r) in sim.records.iter().enumerate() {
-            let flat = r.flat();
-            if k == 0 && j == 0 {
-                let names: Vec<String> = flat.iter().map(|(n, _)| n.clone()).collect();
-                writeln!(out, "seed,{}", names.join(",")).unwrap();
-            }
-            let row: Vec<String> = flat.iter().map(|(_, v)| v.csv()).collect();
-            writeln!(out, "{},{}", first + k as i64, row.join(",")).unwrap();
+    let cli = Cli::parse();
+    let result = match cli.command {
+        Some(Command::Records(args)) => {
+            threads(args.workers);
+            args.config().and_then(|config| dump::records(&config, &args.forced()?, args.runs))
         }
+        Some(Command::World(args)) => {
+            threads(args.workers);
+            args.config().and_then(|config| dump::worlds(&config, args.runs))
+        }
+        None => Err("running and reporting what-ifs comes with the runner milestone; use `records`".into()),
+    };
+    if let Err(message) = result {
+        eprintln!("econ-sim: {message}");
+        std::process::exit(2);
     }
 }
