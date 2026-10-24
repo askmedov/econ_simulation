@@ -1,0 +1,16 @@
+[package]
+name = "econ-cli"
+description = "Command line: runs, paired what-ifs, sanity and stress checks, benchmarks"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "econ-sim"
+path = "src/main.rs"
+
+[dependencies]
+econ-core = { path = "../econ-core" }
+serde.workspace = true
+serde_json.workspace = true
+rayon.workspace = true

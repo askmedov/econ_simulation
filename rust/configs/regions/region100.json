@@ -1,0 +1,2753 @@
+{
+ "seed": 42,
+ "months": 36,
+ "start_month": 1,
+ "villages": [
+  {
+   "name": "Plain 1",
+   "population": 310,
+   "land": 108.5,
+   "initial_food_months": 5.0,
+   "x": 20.01,
+   "y": 5.38,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 2",
+   "population": 227,
+   "land": 79.4,
+   "initial_food_months": 5.0,
+   "x": 22.33,
+   "y": 21.95,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 3",
+   "population": 530,
+   "land": 185.5,
+   "initial_food_months": 5.0,
+   "x": 0.87,
+   "y": 13.55,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Upland 4",
+   "population": 350,
+   "land": 73.5,
+   "initial_food_months": 5.0,
+   "x": 10.26,
+   "y": 7.4,
+   "terrain": "upland",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 5",
+   "population": 481,
+   "land": 168.4,
+   "initial_food_months": 5.0,
+   "x": 15.96,
+   "y": 0.6,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Upland 6",
+   "population": 153,
+   "land": 32.1,
+   "initial_food_months": 5.0,
+   "x": 7.61,
+   "y": 7.88,
+   "terrain": "upland",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Valley 7",
+   "population": 208,
+   "land": 83.7,
+   "initial_food_months": 5.0,
+   "x": 4.57,
+   "y": 13.59,
+   "terrain": "valley",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Upland 8",
+   "population": 127,
+   "land": 26.7,
+   "initial_food_months": 5.0,
+   "x": 6.78,
+   "y": 5.28,
+   "terrain": "upland",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 9",
+   "population": 329,
+   "land": 115.2,
+   "initial_food_months": 5.0,
+   "x": 1.18,
+   "y": 22.07,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Valley 10",
+   "population": 693,
+   "land": 278.9,
+   "initial_food_months": 5.0,
+   "x": 14.22,
+   "y": 12.69,
+   "terrain": "valley",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 11",
+   "population": 331,
+   "land": 115.8,
+   "initial_food_months": 5.0,
+   "x": 13.04,
+   "y": 24.92,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 12",
+   "population": 162,
+   "land": 56.7,
+   "initial_food_months": 5.0,
+   "x": 4.57,
+   "y": 19.22,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 13",
+   "population": 179,
+   "land": 62.6,
+   "initial_food_months": 5.0,
+   "x": 1.58,
+   "y": 11.32,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 14",
+   "population": 179,
+   "land": 62.6,
+   "initial_food_months": 5.0,
+   "x": 1.31,
+   "y": 25.59,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 15",
+   "population": 348,
+   "land": 121.8,
+   "initial_food_months": 5.0,
+   "x": 1.83,
+   "y": 20.26,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 16",
+   "population": 133,
+   "land": 46.6,
+   "initial_food_months": 5.0,
+   "x": 5.24,
+   "y": 17.29,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 17",
+   "population": 404,
+   "land": 141.4,
+   "initial_food_months": 5.0,
+   "x": 4.03,
+   "y": 29.04,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 18",
+   "population": 360,
+   "land": 126.0,
+   "initial_food_months": 5.0,
+   "x": 17.36,
+   "y": 4.04,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Forest 19",
+   "population": 262,
+   "land": 73.4,
+   "initial_food_months": 5.0,
+   "x": 14.29,
+   "y": 21.92,
+   "terrain": "forest",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Upland 20",
+   "population": 278,
+   "land": 58.4,
+   "initial_food_months": 5.0,
+   "x": 15.96,
+   "y": 9.85,
+   "terrain": "upland",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Forest 21",
+   "population": 138,
+   "land": 38.6,
+   "initial_food_months": 5.0,
+   "x": 9.81,
+   "y": 19.31,
+   "terrain": "forest",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 22",
+   "population": 409,
+   "land": 143.1,
+   "initial_food_months": 5.0,
+   "x": 26.33,
+   "y": 0.61,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 23",
+   "population": 429,
+   "land": 150.1,
+   "initial_food_months": 5.0,
+   "x": 29.01,
+   "y": 28.55,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 24",
+   "population": 323,
+   "land": 113.0,
+   "initial_food_months": 5.0,
+   "x": 28.13,
+   "y": 22.05,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 25",
+   "population": 370,
+   "land": 129.5,
+   "initial_food_months": 5.0,
+   "x": 25.39,
+   "y": 15.7,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 26",
+   "population": 83,
+   "land": 29.0,
+   "initial_food_months": 5.0,
+   "x": 19.13,
+   "y": 21.84,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 27",
+   "population": 211,
+   "land": 73.8,
+   "initial_food_months": 5.0,
+   "x": 0.82,
+   "y": 5.38,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 28",
+   "population": 332,
+   "land": 116.2,
+   "initial_food_months": 5.0,
+   "x": 8.24,
+   "y": 26.36,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 29",
+   "population": 245,
+   "land": 85.8,
+   "initial_food_months": 5.0,
+   "x": 29.15,
+   "y": 1.37,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Upland 30",
+   "population": 170,
+   "land": 35.7,
+   "initial_food_months": 5.0,
+   "x": 4.11,
+   "y": 5.06,
+   "terrain": "upland",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Upland 31",
+   "population": 360,
+   "land": 75.6,
+   "initial_food_months": 5.0,
+   "x": 4.87,
+   "y": 10.07,
+   "terrain": "upland",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Forest 32",
+   "population": 177,
+   "land": 49.6,
+   "initial_food_months": 5.0,
+   "x": 7.53,
+   "y": 18.98,
+   "terrain": "forest",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Upland 33",
+   "population": 371,
+   "land": 77.9,
+   "initial_food_months": 5.0,
+   "x": 8.29,
+   "y": 13.54,
+   "terrain": "upland",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Upland 34",
+   "population": 126,
+   "land": 26.5,
+   "initial_food_months": 5.0,
+   "x": 10.03,
+   "y": 2.14,
+   "terrain": "upland",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Valley 35",
+   "population": 393,
+   "land": 158.2,
+   "initial_food_months": 5.0,
+   "x": 19.64,
+   "y": 19.0,
+   "terrain": "valley",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 36",
+   "population": 267,
+   "land": 93.4,
+   "initial_food_months": 5.0,
+   "x": 1.67,
+   "y": 29.23,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 37",
+   "population": 379,
+   "land": 132.6,
+   "initial_food_months": 5.0,
+   "x": 24.86,
+   "y": 4.94,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Valley 38",
+   "population": 247,
+   "land": 99.4,
+   "initial_food_months": 5.0,
+   "x": 10.87,
+   "y": 10.02,
+   "terrain": "valley",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 39",
+   "population": 309,
+   "land": 108.2,
+   "initial_food_months": 5.0,
+   "x": 1.19,
+   "y": 1.31,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Forest 40",
+   "population": 489,
+   "land": 136.9,
+   "initial_food_months": 5.0,
+   "x": 10.34,
+   "y": 29.03,
+   "terrain": "forest",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 41",
+   "population": 400,
+   "land": 140.0,
+   "initial_food_months": 5.0,
+   "x": 26.31,
+   "y": 9.82,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 42",
+   "population": 283,
+   "land": 99.0,
+   "initial_food_months": 5.0,
+   "x": 22.23,
+   "y": 13.84,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 43",
+   "population": 181,
+   "land": 63.4,
+   "initial_food_months": 5.0,
+   "x": 15.82,
+   "y": 6.93,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 44",
+   "population": 348,
+   "land": 121.8,
+   "initial_food_months": 5.0,
+   "x": 28.0,
+   "y": 14.25,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Upland 45",
+   "population": 241,
+   "land": 50.6,
+   "initial_food_months": 5.0,
+   "x": 10.37,
+   "y": 5.21,
+   "terrain": "upland",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Upland 46",
+   "population": 386,
+   "land": 81.1,
+   "initial_food_months": 5.0,
+   "x": 5.12,
+   "y": 6.92,
+   "terrain": "upland",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 47",
+   "population": 993,
+   "land": 347.5,
+   "initial_food_months": 5.0,
+   "x": 28.74,
+   "y": 7.97,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 48",
+   "population": 445,
+   "land": 155.8,
+   "initial_food_months": 5.0,
+   "x": 20.17,
+   "y": 2.06,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 49",
+   "population": 353,
+   "land": 123.6,
+   "initial_food_months": 5.0,
+   "x": 22.73,
+   "y": 2.33,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 50",
+   "population": 174,
+   "land": 60.9,
+   "initial_food_months": 5.0,
+   "x": 3.68,
+   "y": 25.87,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 51",
+   "population": 262,
+   "land": 91.7,
+   "initial_food_months": 5.0,
+   "x": 3.91,
+   "y": 1.96,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 52",
+   "population": 1094,
+   "land": 382.9,
+   "initial_food_months": 5.0,
+   "x": 21.95,
+   "y": 17.25,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Valley 53",
+   "population": 140,
+   "land": 56.4,
+   "initial_food_months": 5.0,
+   "x": 25.19,
+   "y": 19.18,
+   "terrain": "valley",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Valley 54",
+   "population": 713,
+   "land": 287.0,
+   "initial_food_months": 5.0,
+   "x": 13.2,
+   "y": 9.65,
+   "terrain": "valley",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Upland 55",
+   "population": 349,
+   "land": 73.3,
+   "initial_food_months": 5.0,
+   "x": 9.82,
+   "y": 14.08,
+   "terrain": "upland",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Valley 56",
+   "population": 282,
+   "land": 113.5,
+   "initial_food_months": 5.0,
+   "x": 15.63,
+   "y": 14.35,
+   "terrain": "valley",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Upland 57",
+   "population": 286,
+   "land": 60.1,
+   "initial_food_months": 5.0,
+   "x": 7.24,
+   "y": 2.32,
+   "terrain": "upland",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 58",
+   "population": 250,
+   "land": 87.5,
+   "initial_food_months": 5.0,
+   "x": 26.21,
+   "y": 24.9,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Forest 59",
+   "population": 141,
+   "land": 39.5,
+   "initial_food_months": 5.0,
+   "x": 13.58,
+   "y": 16.6,
+   "terrain": "forest",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 60",
+   "population": 281,
+   "land": 98.4,
+   "initial_food_months": 5.0,
+   "x": 19.06,
+   "y": 25.74,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Forest 61",
+   "population": 107,
+   "land": 30.0,
+   "initial_food_months": 5.0,
+   "x": 9.87,
+   "y": 22.13,
+   "terrain": "forest",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Upland 62",
+   "population": 372,
+   "land": 78.1,
+   "initial_food_months": 5.0,
+   "x": 2.39,
+   "y": 6.68,
+   "terrain": "upland",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Valley 63",
+   "population": 419,
+   "land": 168.6,
+   "initial_food_months": 5.0,
+   "x": 7.86,
+   "y": 10.23,
+   "terrain": "valley",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 64",
+   "population": 332,
+   "land": 116.2,
+   "initial_food_months": 5.0,
+   "x": 27.9,
+   "y": 19.5,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Valley 65",
+   "population": 826,
+   "land": 332.5,
+   "initial_food_months": 5.0,
+   "x": 2.03,
+   "y": 16.57,
+   "terrain": "valley",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 66",
+   "population": 364,
+   "land": 127.4,
+   "initial_food_months": 5.0,
+   "x": 16.46,
+   "y": 27.94,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Valley 67",
+   "population": 974,
+   "land": 392.0,
+   "initial_food_months": 5.0,
+   "x": 16.45,
+   "y": 16.46,
+   "terrain": "valley",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 68",
+   "population": 499,
+   "land": 174.6,
+   "initial_food_months": 5.0,
+   "x": 29.23,
+   "y": 4.89,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Forest 69",
+   "population": 229,
+   "land": 64.1,
+   "initial_food_months": 5.0,
+   "x": 12.69,
+   "y": 28.63,
+   "terrain": "forest",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Upland 70",
+   "population": 146,
+   "land": 30.7,
+   "initial_food_months": 5.0,
+   "x": 12.67,
+   "y": 8.37,
+   "terrain": "upland",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Valley 71",
+   "population": 260,
+   "land": 104.6,
+   "initial_food_months": 5.0,
+   "x": 23.32,
+   "y": 18.72,
+   "terrain": "valley",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 72",
+   "population": 483,
+   "land": 169.0,
+   "initial_food_months": 5.0,
+   "x": 17.17,
+   "y": 18.93,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 73",
+   "population": 185,
+   "land": 64.8,
+   "initial_food_months": 5.0,
+   "x": 27.8,
+   "y": 25.78,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 74",
+   "population": 541,
+   "land": 189.4,
+   "initial_food_months": 5.0,
+   "x": 24.81,
+   "y": 8.17,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 75",
+   "population": 393,
+   "land": 137.5,
+   "initial_food_months": 5.0,
+   "x": 23.34,
+   "y": 7.25,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 76",
+   "population": 541,
+   "land": 189.4,
+   "initial_food_months": 5.0,
+   "x": 8.23,
+   "y": 22.85,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 77",
+   "population": 617,
+   "land": 216.0,
+   "initial_food_months": 5.0,
+   "x": 18.8,
+   "y": 28.65,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Valley 78",
+   "population": 241,
+   "land": 97.0,
+   "initial_food_months": 5.0,
+   "x": 29.2,
+   "y": 16.07,
+   "terrain": "valley",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 79",
+   "population": 398,
+   "land": 139.3,
+   "initial_food_months": 5.0,
+   "x": 18.97,
+   "y": 11.37,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Upland 80",
+   "population": 170,
+   "land": 35.7,
+   "initial_food_months": 5.0,
+   "x": 12.8,
+   "y": 4.27,
+   "terrain": "upland",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 81",
+   "population": 420,
+   "land": 147.0,
+   "initial_food_months": 5.0,
+   "x": 4.9,
+   "y": 23.23,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 82",
+   "population": 622,
+   "land": 217.7,
+   "initial_food_months": 5.0,
+   "x": 23.21,
+   "y": 25.47,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 83",
+   "population": 297,
+   "land": 104.0,
+   "initial_food_months": 5.0,
+   "x": 22.95,
+   "y": 10.19,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 84",
+   "population": 655,
+   "land": 229.2,
+   "initial_food_months": 5.0,
+   "x": 16.09,
+   "y": 23.22,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 85",
+   "population": 229,
+   "land": 80.1,
+   "initial_food_months": 5.0,
+   "x": 19.16,
+   "y": 13.95,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 86",
+   "population": 299,
+   "land": 104.6,
+   "initial_food_months": 5.0,
+   "x": 25.41,
+   "y": 13.24,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Forest 87",
+   "population": 213,
+   "land": 59.6,
+   "initial_food_months": 5.0,
+   "x": 11.22,
+   "y": 17.39,
+   "terrain": "forest",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Upland 88",
+   "population": 435,
+   "land": 91.4,
+   "initial_food_months": 5.0,
+   "x": 12.82,
+   "y": 0.78,
+   "terrain": "upland",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Forest 89",
+   "population": 312,
+   "land": 87.4,
+   "initial_food_months": 5.0,
+   "x": 13.55,
+   "y": 19.64,
+   "terrain": "forest",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 90",
+   "population": 324,
+   "land": 113.4,
+   "initial_food_months": 5.0,
+   "x": 21.7,
+   "y": 28.84,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Forest 91",
+   "population": 223,
+   "land": 62.4,
+   "initial_food_months": 5.0,
+   "x": 8.07,
+   "y": 16.1,
+   "terrain": "forest",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 92",
+   "population": 249,
+   "land": 87.1,
+   "initial_food_months": 5.0,
+   "x": 25.45,
+   "y": 27.62,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 93",
+   "population": 818,
+   "land": 286.3,
+   "initial_food_months": 5.0,
+   "x": 20.3,
+   "y": 7.56,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 94",
+   "population": 528,
+   "land": 184.8,
+   "initial_food_months": 5.0,
+   "x": 7.87,
+   "y": 28.79,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 95",
+   "population": 397,
+   "land": 139.0,
+   "initial_food_months": 5.0,
+   "x": 20.11,
+   "y": 15.92,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 96",
+   "population": 376,
+   "land": 131.6,
+   "initial_food_months": 5.0,
+   "x": 26.01,
+   "y": 21.85,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 97",
+   "population": 790,
+   "land": 276.5,
+   "initial_food_months": 5.0,
+   "x": 16.38,
+   "y": 25.65,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 98",
+   "population": 541,
+   "land": 189.4,
+   "initial_food_months": 5.0,
+   "x": 28.93,
+   "y": 11.07,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Forest 99",
+   "population": 357,
+   "land": 100.0,
+   "initial_food_months": 5.0,
+   "x": 10.92,
+   "y": 26.24,
+   "terrain": "forest",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 100",
+   "population": 408,
+   "land": 142.8,
+   "initial_food_months": 5.0,
+   "x": 21.63,
+   "y": 4.09,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Town 1",
+   "population": 1317,
+   "land": 0.0,
+   "initial_food_months": 0.0,
+   "x": 23.51,
+   "y": 6.98,
+   "terrain": "plain",
+   "kind": "town",
+   "border": false
+  },
+  {
+   "name": "Town 2",
+   "population": 882,
+   "land": 0.0,
+   "initial_food_months": 0.0,
+   "x": 6.46,
+   "y": 23.48,
+   "terrain": "plain",
+   "kind": "town",
+   "border": false
+  },
+  {
+   "name": "Town 3",
+   "population": 1536,
+   "land": 0.0,
+   "initial_food_months": 0.0,
+   "x": 20.7,
+   "y": 21.48,
+   "terrain": "plain",
+   "kind": "town",
+   "border": false
+  },
+  {
+   "name": "City",
+   "population": 1774,
+   "land": 0.0,
+   "initial_food_months": 0.0,
+   "x": 7.86,
+   "y": 10.64,
+   "terrain": "valley",
+   "kind": "town",
+   "border": true
+  }
+ ],
+ "demography": {
+  "adult_age": 15,
+  "retirement_age": 60,
+  "fertile_ages": [
+   15,
+   45
+  ],
+  "annual_birth_chance": 0.26,
+  "fertility_by_age": [
+   [
+    15,
+    1.0
+   ],
+   [
+    30,
+    0.9
+   ],
+   [
+    35,
+    0.75
+   ],
+   [
+    40,
+    0.4
+   ]
+  ],
+  "female_share_at_birth": 0.5,
+  "marriage_chance": 0.041666666666666664,
+  "bride_ages": [
+   15,
+   35
+  ],
+  "groom_ages": [
+   18,
+   45
+  ],
+  "widow_ages": [
+   45,
+   55
+  ],
+  "crowded_marriage_factor": 0.5,
+  "wage_cover_for_marriage": [
+   1.0,
+   1.4
+  ],
+  "annual_mortality": [
+   [
+    0,
+    0.28
+   ],
+   [
+    1,
+    0.07
+   ],
+   [
+    5,
+    0.02
+   ],
+   [
+    10,
+    0.01
+   ],
+   [
+    15,
+    0.012
+   ],
+   [
+    25,
+    0.016
+   ],
+   [
+    40,
+    0.022
+   ],
+   [
+    50,
+    0.035
+   ],
+   [
+    60,
+    0.07
+   ],
+   [
+    70,
+    0.14
+   ],
+   [
+    80,
+    0.3
+   ]
+  ],
+  "initial_age_decay": 0.03,
+  "max_initial_age": 75
+ },
+ "food": {
+  "adult_need": 1.0,
+  "child_need": 0.6,
+  "labor_share": 0.7,
+  "seasonality": [
+   0.2,
+   0.2,
+   0.4,
+   0.6,
+   0.8,
+   1.0,
+   1.2,
+   2.0,
+   2.6,
+   1.8,
+   0.6,
+   0.6
+  ],
+  "spoilage": 0.02,
+  "planning_months": 12,
+  "reserve_margin": 0.1,
+  "normal_cover": 1.3,
+  "price_elasticity": 2.5,
+  "price_adjustment": 0.3,
+  "output_noise": 0.1,
+  "seed_per_plot": 6.0,
+  "seed_months": [
+   8,
+   9,
+   10
+  ],
+  "max_seed_share": 0.4,
+  "foraging": 0.15
+ },
+ "health": {
+  "initial": [
+   80.0,
+   100.0
+  ],
+  "maximum": 100.0,
+  "starvation_ration": 0.4,
+  "recovery": 10.0,
+  "hunger_damage": 40.0,
+  "danger_threshold": 50.0,
+  "max_extra_mortality": 0.08,
+  "work_at_zero_health": 0.5,
+  "fertility_health": [
+   60.0,
+   95.0
+  ]
+ },
+ "skill": {
+  "mean": 1.0,
+  "sd": 0.15,
+  "minimum": 0.5,
+  "maximum": 1.5
+ },
+ "money": {
+  "food_price": 1.0,
+  "initial_savings_months": 4.0,
+  "initial_business_cash_per_worker": 1.0,
+  "wage_payout": 0.9,
+  "sharing_threshold_months": 2.0,
+  "sharing_rate": 0.25,
+  "gift_share": 0.5
+ },
+ "needs": {
+  "firewood": [
+   0.6,
+   0.6,
+   0.45,
+   0.3,
+   0.15,
+   0.1,
+   0.1,
+   0.1,
+   0.15,
+   0.3,
+   0.45,
+   0.6
+  ],
+  "cold_damage": 10.0,
+  "savings_months": 3.0,
+  "spare_spending": 0.3,
+  "gathering": 0.8,
+  "other_fuels": 0.5
+ },
+ "trade": {
+  "tool_wear": 0.03,
+  "buying_budget": 1.0,
+  "stock_target_months": 4.0,
+  "orders_memory": 0.1,
+  "markup_speed": 0.5,
+  "max_markup_change": 0.1,
+  "markup_range": [
+   0.5,
+   3.0
+  ],
+  "hiring_rate": 0.05,
+  "hiring_price_response": 0.5,
+  "pay_memory": 0.2,
+  "wage_adjustment": 0.01,
+  "money_months": 12.0
+ },
+ "land": {
+  "landless_share": 0.3,
+  "holding_spread": 0.8,
+  "keep_months": 1.0,
+  "partible": true
+ },
+ "livestock": {
+  "per_plot": 0.25,
+  "farm_boost": 0.3,
+  "growth": 0.15,
+  "winter_capacity_per_plot": 0.3,
+  "meat_rations": 5.0,
+  "wool": 3.0,
+  "shearing_month": 6,
+  "drought_losses": 0.6,
+  "winter_losses": 0.3,
+  "value_months": 6.0,
+  "buyers_spend": 0.5,
+  "lowest_price": 0.2
+ },
+ "credit": {
+  "enabled": true,
+  "interest": 0.2,
+  "lend_share": 0.5,
+  "loan_to_value": 0.5,
+  "personal_months": 2.0,
+  "repay_share": 0.5,
+  "grain_repay_share": 0.5,
+  "grain_kept_months": 2.0,
+  "foreclose_at": 0.9,
+  "default_at": 2.0,
+  "years_purchase": 15.0,
+  "buyers_spend": 0.5,
+  "lowest_price": 0.3
+ },
+ "lord": {
+  "enabled": true,
+  "demesne": 0.25,
+  "labour_service": 0.1,
+  "carted_away": 0.2,
+  "sells": 0.3,
+  "spends_locally": 0.05,
+  "to_town": 0.4,
+  "spends_in_town": 0.25,
+  "servants": 0.5,
+  "charity_in_famine": false
+ },
+ "state": {
+  "enabled": true,
+  "collection_month": 11,
+  "hearth_tax_months": 0.5,
+  "land_tax": 0.1,
+  "remit_in_famine": false
+ },
+ "town": {
+  "enabled": true,
+  "transport": 0.3,
+  "capacity": 0.15,
+  "seasonal": 0.1,
+  "dearest_month": 6,
+  "swing_sd": 0.03,
+  "swing_memory": 0.97,
+  "regional_share": 0.4,
+  "coins_lost_a_year": 0.005,
+  "mortality": 1.25,
+  "craft_skill": 1.3,
+  "woods": 0.1,
+  "money_months": 2.5,
+  "store_elasticity": 0.5,
+  "dealers_months": 3.0,
+  "keep_months": 1.0,
+  "dealers_payout": 0.5,
+  "outside_transport": 0.15,
+  "outside_capacity": 0.5
+ },
+ "migration": {
+  "enabled": true,
+  "usual_prospects": 1.1,
+  "memory_months": 24.0,
+  "hunger_weight": 4.0,
+  "danger_weight": 6.0,
+  "normal_mortality": 0.045,
+  "plunder_weight": 0.25,
+  "small_village": 50.0,
+  "size_exponent": 0.5,
+  "land_range": [
+   0.7,
+   1.5
+  ],
+  "usual_take": 0.11,
+  "burden_exponent": 0.5,
+  "burden_range": [
+   0.6,
+   1.25
+  ],
+  "young_ages": [
+   15,
+   29
+  ],
+  "leave_chance": 0.025,
+  "family_leave_chance": 0.002,
+  "rooted": 0.2,
+  "push": 3.0,
+  "chain": 10.0,
+  "flee_below": 0.5,
+  "flee_chance": 0.05,
+  "flee_danger": 0.03,
+  "stay_in_region": 0.5,
+  "distance_km": 15.0,
+  "to_town": 0.5,
+  "welcome": 1.2,
+  "arrive_rate": 5.0,
+  "max_pull": 1.0,
+  "settle_rate": 0.02,
+  "settle_appeal": 0.9
+ },
+ "work": {
+  "enabled": true,
+  "harvest_months": [
+   7,
+   8,
+   9,
+   10
+  ],
+  "craft_help": 0.3,
+  "helper_ages": [
+   10,
+   14
+  ],
+  "old_helper_age": 69,
+  "helper_effort": 0.3,
+  "home_cloth": 0.1,
+  "kin_share": 0.5
+ },
+ "environment": {
+  "enabled": true,
+  "woods_years": 40.0,
+  "regrowth": 0.15,
+  "reach_exponent": 0.5,
+  "people_per_plot": 2.9,
+  "overcropping": 0.2,
+  "fertility_range": [
+   0.6,
+   1.1
+  ],
+  "soil_recovery": 0.1
+ },
+ "council": {
+  "enabled": true,
+  "forms_at_population": 500,
+  "forms_after_months": 6,
+  "established_at_start": true,
+  "tax_rate": 0.1,
+  "treasury_months": 6.0,
+  "officials_per_1000": 4.0,
+  "official_pay": 1.2,
+  "grain_levy": 0.05,
+  "reserve_months": 2.0,
+  "relief": true
+ },
+ "healthcare": {
+  "enabled": true,
+  "healers_per_1000": 5.0,
+  "healer_pay": 1.2,
+  "patients_per_healer": 30.0,
+  "min_risk": 0.003,
+  "treatment_recovery": 10.0,
+  "treatment_mortality": 0.85
+ },
+ "map": {
+  "enabled": true,
+  "roads": [
+   [
+    0,
+    17
+   ],
+   [
+    0,
+    47
+   ],
+   [
+    0,
+    92
+   ],
+   [
+    0,
+    99
+   ],
+   [
+    1,
+    25
+   ],
+   [
+    1,
+    70
+   ],
+   [
+    1,
+    81
+   ],
+   [
+    1,
+    102
+   ],
+   [
+    2,
+    6
+   ],
+   [
+    2,
+    12
+   ],
+   [
+    2,
+    64
+   ],
+   [
+    3,
+    5
+   ],
+   [
+    3,
+    37
+   ],
+   [
+    3,
+    44
+   ],
+   [
+    3,
+    69
+   ],
+   [
+    4,
+    17
+   ],
+   [
+    4,
+    47
+   ],
+   [
+    4,
+    87
+   ],
+   [
+    5,
+    7
+   ],
+   [
+    5,
+    30
+   ],
+   [
+    5,
+    45
+   ],
+   [
+    5,
+    62
+   ],
+   [
+    5,
+    103
+   ],
+   [
+    6,
+    12
+   ],
+   [
+    6,
+    30
+   ],
+   [
+    6,
+    32
+   ],
+   [
+    7,
+    29
+   ],
+   [
+    7,
+    45
+   ],
+   [
+    7,
+    56
+   ],
+   [
+    8,
+    13
+   ],
+   [
+    8,
+    14
+   ],
+   [
+    8,
+    80
+   ],
+   [
+    9,
+    19
+   ],
+   [
+    9,
+    53
+   ],
+   [
+    9,
+    55
+   ],
+   [
+    10,
+    18
+   ],
+   [
+    10,
+    68
+   ],
+   [
+    10,
+    96
+   ],
+   [
+    10,
+    98
+   ],
+   [
+    11,
+    14
+   ],
+   [
+    11,
+    15
+   ],
+   [
+    11,
+    31
+   ],
+   [
+    11,
+    64
+   ],
+   [
+    12,
+    30
+   ],
+   [
+    13,
+    35
+   ],
+   [
+    13,
+    49
+   ],
+   [
+    14,
+    64
+   ],
+   [
+    15,
+    31
+   ],
+   [
+    15,
+    64
+   ],
+   [
+    15,
+    90
+   ],
+   [
+    16,
+    35
+   ],
+   [
+    16,
+    49
+   ],
+   [
+    16,
+    93
+   ],
+   [
+    17,
+    42
+   ],
+   [
+    17,
+    47
+   ],
+   [
+    18,
+    83
+   ],
+   [
+    18,
+    88
+   ],
+   [
+    19,
+    42
+   ],
+   [
+    19,
+    53
+   ],
+   [
+    19,
+    78
+   ],
+   [
+    20,
+    31
+   ],
+   [
+    20,
+    60
+   ],
+   [
+    20,
+    86
+   ],
+   [
+    21,
+    28
+   ],
+   [
+    21,
+    36
+   ],
+   [
+    21,
+    48
+   ],
+   [
+    22,
+    57
+   ],
+   [
+    22,
+    72
+   ],
+   [
+    22,
+    91
+   ],
+   [
+    23,
+    57
+   ],
+   [
+    23,
+    63
+   ],
+   [
+    23,
+    95
+   ],
+   [
+    24,
+    43
+   ],
+   [
+    24,
+    52
+   ],
+   [
+    24,
+    77
+   ],
+   [
+    24,
+    85
+   ],
+   [
+    25,
+    34
+   ],
+   [
+    25,
+    71
+   ],
+   [
+    25,
+    83
+   ],
+   [
+    25,
+    102
+   ],
+   [
+    26,
+    29
+   ],
+   [
+    26,
+    38
+   ],
+   [
+    26,
+    61
+   ],
+   [
+    27,
+    39
+   ],
+   [
+    27,
+    75
+   ],
+   [
+    27,
+    93
+   ],
+   [
+    27,
+    98
+   ],
+   [
+    27,
+    101
+   ],
+   [
+    28,
+    36
+   ],
+   [
+    28,
+    67
+   ],
+   [
+    29,
+    38
+   ],
+   [
+    29,
+    45
+   ],
+   [
+    29,
+    50
+   ],
+   [
+    29,
+    61
+   ],
+   [
+    30,
+    45
+   ],
+   [
+    30,
+    62
+   ],
+   [
+    30,
+    103
+   ],
+   [
+    31,
+    60
+   ],
+   [
+    31,
+    90
+   ],
+   [
+    32,
+    54
+   ],
+   [
+    32,
+    62
+   ],
+   [
+    32,
+    90
+   ],
+   [
+    32,
+    103
+   ],
+   [
+    33,
+    44
+   ],
+   [
+    33,
+    56
+   ],
+   [
+    33,
+    79
+   ],
+   [
+    33,
+    87
+   ],
+   [
+    34,
+    51
+   ],
+   [
+    34,
+    71
+   ],
+   [
+    34,
+    102
+   ],
+   [
+    35,
+    49
+   ],
+   [
+    36,
+    48
+   ],
+   [
+    36,
+    67
+   ],
+   [
+    36,
+    73
+   ],
+   [
+    36,
+    74
+   ],
+   [
+    36,
+    99
+   ],
+   [
+    36,
+    100
+   ],
+   [
+    37,
+    53
+   ],
+   [
+    37,
+    62
+   ],
+   [
+    37,
+    69
+   ],
+   [
+    38,
+    50
+   ],
+   [
+    39,
+    68
+   ],
+   [
+    39,
+    93
+   ],
+   [
+    39,
+    98
+   ],
+   [
+    40,
+    46
+   ],
+   [
+    40,
+    73
+   ],
+   [
+    40,
+    82
+   ],
+   [
+    40,
+    97
+   ],
+   [
+    41,
+    84
+   ],
+   [
+    41,
+    85
+   ],
+   [
+    41,
+    94
+   ],
+   [
+    42,
+    69
+   ],
+   [
+    43,
+    77
+   ],
+   [
+    43,
+    85
+   ],
+   [
+    43,
+    97
+   ],
+   [
+    44,
+    79
+   ],
+   [
+    45,
+    61
+   ],
+   [
+    46,
+    67
+   ],
+   [
+    46,
+    97
+   ],
+   [
+    47,
+    48
+   ],
+   [
+    47,
+    99
+   ],
+   [
+    48,
+    99
+   ],
+   [
+    49,
+    80
+   ],
+   [
+    49,
+    101
+   ],
+   [
+    50,
+    56
+   ],
+   [
+    51,
+    70
+   ],
+   [
+    51,
+    94
+   ],
+   [
+    52,
+    63
+   ],
+   [
+    52,
+    70
+   ],
+   [
+    52,
+    95
+   ],
+   [
+    53,
+    69
+   ],
+   [
+    54,
+    86
+   ],
+   [
+    54,
+    90
+   ],
+   [
+    55,
+    58
+   ],
+   [
+    55,
+    66
+   ],
+   [
+    57,
+    72
+   ],
+   [
+    57,
+    81
+   ],
+   [
+    57,
+    91
+   ],
+   [
+    58,
+    66
+   ],
+   [
+    58,
+    86
+   ],
+   [
+    58,
+    88
+   ],
+   [
+    59,
+    65
+   ],
+   [
+    59,
+    76
+   ],
+   [
+    59,
+    96
+   ],
+   [
+    60,
+    75
+   ],
+   [
+    62,
+    103
+   ],
+   [
+    63,
+    77
+   ],
+   [
+    63,
+    95
+   ],
+   [
+    65,
+    76
+   ],
+   [
+    65,
+    96
+   ],
+   [
+    66,
+    71
+   ],
+   [
+    68,
+    98
+   ],
+   [
+    70,
+    102
+   ],
+   [
+    72,
+    91
+   ],
+   [
+    73,
+    74
+   ],
+   [
+    73,
+    82
+   ],
+   [
+    73,
+    100
+   ],
+   [
+    74,
+    82
+   ],
+   [
+    74,
+    92
+   ],
+   [
+    74,
+    100
+   ],
+   [
+    75,
+    80
+   ],
+   [
+    75,
+    101
+   ],
+   [
+    76,
+    89
+   ],
+   [
+    78,
+    84
+   ],
+   [
+    78,
+    92
+   ],
+   [
+    79,
+    87
+   ],
+   [
+    80,
+    101
+   ],
+   [
+    81,
+    89
+   ],
+   [
+    81,
+    91
+   ],
+   [
+    82,
+    100
+   ],
+   [
+    83,
+    96
+   ],
+   [
+    84,
+    94
+   ],
+   [
+    86,
+    88
+   ],
+   [
+    89,
+    91
+   ],
+   [
+    92,
+    99
+   ]
+  ],
+  "rivers": [
+   [
+    64,
+    6
+   ],
+   [
+    6,
+    103
+   ],
+   [
+    103,
+    62
+   ],
+   [
+    62,
+    37
+   ],
+   [
+    37,
+    53
+   ],
+   [
+    53,
+    9
+   ],
+   [
+    9,
+    55
+   ],
+   [
+    55,
+    66
+   ],
+   [
+    66,
+    34
+   ],
+   [
+    34,
+    70
+   ],
+   [
+    70,
+    52
+   ],
+   [
+    52,
+    77
+   ]
+  ],
+  "handling": 0.15,
+  "road_per_km": 0.01,
+  "river_per_km": 0.005,
+  "weather_km": 250.0,
+  "capacity": 0.2,
+  "full_load_margin": 0.1,
+  "relief_capacity": 0.5,
+  "town_capacity": 0.3,
+  "water_capacity": 3.0,
+  "wholesale_handling": 0.05,
+  "terrains": [
+   {
+    "name": "plain",
+    "carriage": 1.0,
+    "pasture": 1.0,
+    "woods": 1.0,
+    "forage": 1.0,
+    "arable": 1.0
+   },
+   {
+    "name": "valley",
+    "carriage": 1.0,
+    "pasture": 1.3,
+    "woods": 0.8,
+    "forage": 1.2,
+    "arable": 1.15
+   },
+   {
+    "name": "upland",
+    "carriage": 1.6,
+    "pasture": 3.5,
+    "woods": 0.7,
+    "forage": 0.8,
+    "arable": 0.6
+   },
+   {
+    "name": "forest",
+    "carriage": 1.3,
+    "pasture": 1.25,
+    "woods": 2.5,
+    "forage": 1.5,
+    "arable": 0.8
+   },
+   {
+    "name": "coast",
+    "carriage": 1.0,
+    "pasture": 1.0,
+    "woods": 0.8,
+    "forage": 1.5,
+    "arable": 0.9
+   }
+  ]
+ },
+ "products": [
+  {
+   "name": "food",
+   "use": "food",
+   "carriage": 1.0
+  },
+  {
+   "name": "firewood",
+   "use": "heating",
+   "carriage": 2.0
+  },
+  {
+   "name": "clothing",
+   "use": "comfort",
+   "carriage": 0.25
+  },
+  {
+   "name": "tools",
+   "use": "tool",
+   "carriage": 0.25
+  }
+ ],
+ "businesses": [
+  {
+   "name": "farming",
+   "product": "food",
+   "output": 1.72,
+   "tool_boost": 0.25,
+   "inputs": [],
+   "uses_land": true,
+   "initial_share": 0.8
+  },
+  {
+   "name": "woodcutting",
+   "product": "firewood",
+   "output": 6.0,
+   "tool_boost": 0.3,
+   "inputs": [],
+   "uses_land": false,
+   "initial_share": 0.1
+  },
+  {
+   "name": "weaving",
+   "product": "clothing",
+   "output": 2.0,
+   "tool_boost": 0.0,
+   "inputs": [],
+   "uses_land": false,
+   "initial_share": 0.07
+  },
+  {
+   "name": "smithing",
+   "product": "tools",
+   "output": 1.0,
+   "tool_boost": 0.0,
+   "inputs": [
+    [
+     "firewood",
+     2.0
+    ]
+   ],
+   "uses_land": false,
+   "initial_share": 0.03
+  }
+ ],
+ "events": [
+  {
+   "name": "good_weather",
+   "scope": "location",
+   "chance": 0.15,
+   "effects": {
+    "production_mult": 1.25
+   },
+   "duration": 6,
+   "months": [
+    4
+   ],
+   "group": "weather",
+   "repeat_chance": 0.3,
+   "businesses": [
+    "farming"
+   ],
+   "message": "Good weather: a rich growing season ahead",
+   "reach": "weather",
+   "end": "good"
+  },
+  {
+   "name": "drought",
+   "scope": "location",
+   "chance": 0.1,
+   "effects": {
+    "production_mult": 0.6
+   },
+   "duration": 6,
+   "months": [
+    4
+   ],
+   "group": "weather",
+   "repeat_chance": 0.3,
+   "businesses": [
+    "farming"
+   ],
+   "message": "Drought: harvests will be poor this season",
+   "reach": "weather",
+   "end": "bad"
+  },
+  {
+   "name": "cold_years",
+   "scope": "location",
+   "chance": 0.005,
+   "effects": {
+    "production_mult": 0.7,
+    "heating_mult": 1.2
+   },
+   "duration": 18,
+   "months": [
+    4
+   ],
+   "group": "weather",
+   "repeat_chance": null,
+   "businesses": [
+    "farming"
+   ],
+   "message": "The sun is veiled: cold summers and failed harvests for two years",
+   "reach": "region",
+   "end": "bad"
+  },
+  {
+   "name": "harsh_winter",
+   "scope": "location",
+   "chance": 0.15,
+   "effects": {
+    "health_delta": -3.0,
+    "mortality_mult": 1.3,
+    "heating_mult": 1.5
+   },
+   "duration": 3,
+   "months": [
+    12
+   ],
+   "group": null,
+   "repeat_chance": null,
+   "businesses": null,
+   "message": "Harsh winter: cold weather weakens the village",
+   "reach": "weather",
+   "end": "bad"
+  },
+  {
+   "name": "forest_fire",
+   "scope": "location",
+   "chance": 0.02,
+   "effects": {
+    "production_mult": 0.4,
+    "woods_burned": [
+     0.01,
+     0.04
+    ]
+   },
+   "duration": [
+    2,
+    3
+   ],
+   "months": [
+    6,
+    7,
+    8
+   ],
+   "group": null,
+   "repeat_chance": null,
+   "businesses": [
+    "woodcutting"
+   ],
+   "message": "Forest fire: little wood can be cut, and part of the woods is lost",
+   "reach": "village",
+   "end": "bad"
+  },
+  {
+   "name": "disease",
+   "scope": "location",
+   "chance": 0.02,
+   "effects": {
+    "health_delta": -8.0,
+    "mortality_mult": 2.5,
+    "production_mult": 0.85
+   },
+   "duration": [
+    2,
+    3
+   ],
+   "months": null,
+   "group": "epidemic",
+   "repeat_chance": null,
+   "businesses": null,
+   "message": "Disease outbreak",
+   "reach": "village",
+   "end": "bad"
+  },
+  {
+   "name": "plague",
+   "scope": "location",
+   "chance": 0.003,
+   "effects": {
+    "health_delta": -10.0,
+    "mortality_mult": [
+     6.0,
+     10.0
+    ],
+    "production_mult": 0.7
+   },
+   "duration": [
+    4,
+    8
+   ],
+   "months": null,
+   "group": "epidemic",
+   "repeat_chance": null,
+   "businesses": null,
+   "message": "Plague: a deadly epidemic sweeps the village",
+   "reach": "village",
+   "end": "bad"
+  },
+  {
+   "name": "army",
+   "scope": "location",
+   "chance": 0.003,
+   "effects": {
+    "requisition": [
+     0.2,
+     0.4
+    ],
+    "health_delta": -5.0
+   },
+   "duration": 1,
+   "months": null,
+   "group": "soldiers",
+   "repeat_chance": null,
+   "businesses": null,
+   "message": "An army passes through: soldiers take grain and animals",
+   "reach": "village",
+   "end": "bad"
+  },
+  {
+   "name": "raid",
+   "scope": "location",
+   "chance": 0.002,
+   "effects": {
+    "requisition": [
+     0.1,
+     0.3
+    ],
+    "mortality_mult": 1.5,
+    "health_delta": -5.0
+   },
+   "duration": 1,
+   "months": null,
+   "group": "soldiers",
+   "repeat_chance": null,
+   "businesses": null,
+   "message": "Raiders strike: grain and animals taken, people killed",
+   "reach": "village",
+   "end": "bad"
+  },
+  {
+   "name": "debasement",
+   "scope": "location",
+   "chance": 0.0,
+   "effects": {
+    "debase": 0.25
+   },
+   "duration": 1,
+   "months": null,
+   "group": null,
+   "repeat_chance": null,
+   "businesses": null,
+   "message": "The ruler debases the coinage: coins are worth less",
+   "reach": "region",
+   "end": "bad"
+  },
+  {
+   "name": "wool_slump",
+   "scope": "location",
+   "chance": 0.0,
+   "effects": {
+    "wool_price": 0.4
+   },
+   "duration": 12,
+   "months": null,
+   "group": null,
+   "repeat_chance": null,
+   "businesses": null,
+   "message": "The wool markets abroad are closed: wool fetches less than half its price",
+   "reach": "region",
+   "end": "bad"
+  },
+  {
+   "name": "debt_jubilee",
+   "scope": "location",
+   "chance": 0.0,
+   "effects": {
+    "debt_cancel": 1.0
+   },
+   "duration": 1,
+   "months": null,
+   "group": null,
+   "repeat_chance": null,
+   "businesses": null,
+   "message": "The ruler cancels all debts",
+   "reach": "region",
+   "end": "bad"
+  },
+  {
+   "name": "granary_fire",
+   "scope": "location",
+   "chance": 0.01,
+   "effects": {
+    "granary_loss": [
+     0.1,
+     0.3
+    ]
+   },
+   "duration": 1,
+   "months": null,
+   "group": null,
+   "repeat_chance": null,
+   "businesses": null,
+   "message": "Fire or pests in the granary: stored food lost",
+   "reach": "village",
+   "end": "bad"
+  },
+  {
+   "name": "accident",
+   "scope": "person",
+   "chance": 0.005,
+   "effects": {
+    "health_delta": -30.0
+   },
+   "duration": 1,
+   "months": null,
+   "group": null,
+   "repeat_chance": null,
+   "businesses": null,
+   "message": "Accident or illness",
+   "reach": "village",
+   "end": "bad"
+  }
+ ],
+ "random_events": true,
+ "scheduled_events": []
+}

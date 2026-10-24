@@ -1,0 +1,3 @@
+# The Python model is written to 120 columns; the port follows it.
+max_width = 120
+use_small_heuristics = "Max"

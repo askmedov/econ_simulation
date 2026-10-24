@@ -1,0 +1,1180 @@
+{
+ "seed": 42,
+ "months": 36,
+ "start_month": 1,
+ "villages": [
+  {
+   "name": "Plain 1",
+   "population": 206,
+   "land": 72.1,
+   "initial_food_months": 5.0,
+   "x": 14.1,
+   "y": 13.84,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Forest 2",
+   "population": 269,
+   "land": 75.3,
+   "initial_food_months": 5.0,
+   "x": 1.14,
+   "y": 7.33,
+   "terrain": "forest",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Valley 3",
+   "population": 170,
+   "land": 68.4,
+   "initial_food_months": 5.0,
+   "x": 4.11,
+   "y": 7.61,
+   "terrain": "valley",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 4",
+   "population": 186,
+   "land": 65.1,
+   "initial_food_months": 5.0,
+   "x": 13.18,
+   "y": 1.87,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 5",
+   "population": 585,
+   "land": 204.8,
+   "initial_food_months": 5.0,
+   "x": 8.27,
+   "y": 14.21,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Upland 6",
+   "population": 185,
+   "land": 38.8,
+   "initial_food_months": 5.0,
+   "x": 3.91,
+   "y": 1.43,
+   "terrain": "upland",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 7",
+   "population": 155,
+   "land": 54.2,
+   "initial_food_months": 5.0,
+   "x": 8.29,
+   "y": 2.23,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 8",
+   "population": 714,
+   "land": 249.9,
+   "initial_food_months": 5.0,
+   "x": 11.04,
+   "y": 14.2,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Valley 9",
+   "population": 396,
+   "land": 159.4,
+   "initial_food_months": 5.0,
+   "x": 11.35,
+   "y": 8.21,
+   "terrain": "valley",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Forest 10",
+   "population": 182,
+   "land": 51.0,
+   "initial_food_months": 5.0,
+   "x": 4.85,
+   "y": 9.91,
+   "terrain": "forest",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Valley 11",
+   "population": 525,
+   "land": 211.3,
+   "initial_food_months": 5.0,
+   "x": 11.38,
+   "y": 10.32,
+   "terrain": "valley",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Valley 12",
+   "population": 188,
+   "land": 75.7,
+   "initial_food_months": 5.0,
+   "x": 7.01,
+   "y": 5.07,
+   "terrain": "valley",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 13",
+   "population": 196,
+   "land": 68.6,
+   "initial_food_months": 5.0,
+   "x": 10.53,
+   "y": 2.36,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 14",
+   "population": 277,
+   "land": 96.9,
+   "initial_food_months": 5.0,
+   "x": 6.86,
+   "y": 11.24,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 15",
+   "population": 179,
+   "land": 62.6,
+   "initial_food_months": 5.0,
+   "x": 12.65,
+   "y": 4.39,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Upland 16",
+   "population": 126,
+   "land": 26.5,
+   "initial_food_months": 5.0,
+   "x": 1.78,
+   "y": 0.69,
+   "terrain": "upland",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Upland 17",
+   "population": 197,
+   "land": 41.4,
+   "initial_food_months": 5.0,
+   "x": 4.3,
+   "y": 13.61,
+   "terrain": "upland",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 18",
+   "population": 146,
+   "land": 51.1,
+   "initial_food_months": 5.0,
+   "x": 10.55,
+   "y": 5.22,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Upland 19",
+   "population": 156,
+   "land": 32.8,
+   "initial_food_months": 5.0,
+   "x": 1.4,
+   "y": 3.71,
+   "terrain": "upland",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Plain 20",
+   "population": 242,
+   "land": 84.7,
+   "initial_food_months": 5.0,
+   "x": 13.98,
+   "y": 9.93,
+   "terrain": "plain",
+   "kind": "village",
+   "border": false
+  },
+  {
+   "name": "Town 1",
+   "population": 720,
+   "land": 0.0,
+   "initial_food_months": 0.0,
+   "x": 8.75,
+   "y": 8.71,
+   "terrain": "valley",
+   "kind": "town",
+   "border": true
+  }
+ ],
+ "demography": {
+  "adult_age": 15,
+  "retirement_age": 60,
+  "fertile_ages": [
+   15,
+   45
+  ],
+  "annual_birth_chance": 0.26,
+  "fertility_by_age": [
+   [
+    15,
+    1.0
+   ],
+   [
+    30,
+    0.9
+   ],
+   [
+    35,
+    0.75
+   ],
+   [
+    40,
+    0.4
+   ]
+  ],
+  "female_share_at_birth": 0.5,
+  "marriage_chance": 0.041666666666666664,
+  "bride_ages": [
+   15,
+   35
+  ],
+  "groom_ages": [
+   18,
+   45
+  ],
+  "widow_ages": [
+   45,
+   55
+  ],
+  "crowded_marriage_factor": 0.5,
+  "wage_cover_for_marriage": [
+   1.0,
+   1.4
+  ],
+  "annual_mortality": [
+   [
+    0,
+    0.28
+   ],
+   [
+    1,
+    0.07
+   ],
+   [
+    5,
+    0.02
+   ],
+   [
+    10,
+    0.01
+   ],
+   [
+    15,
+    0.012
+   ],
+   [
+    25,
+    0.016
+   ],
+   [
+    40,
+    0.022
+   ],
+   [
+    50,
+    0.035
+   ],
+   [
+    60,
+    0.07
+   ],
+   [
+    70,
+    0.14
+   ],
+   [
+    80,
+    0.3
+   ]
+  ],
+  "initial_age_decay": 0.03,
+  "max_initial_age": 75
+ },
+ "food": {
+  "adult_need": 1.0,
+  "child_need": 0.6,
+  "labor_share": 0.7,
+  "seasonality": [
+   0.2,
+   0.2,
+   0.4,
+   0.6,
+   0.8,
+   1.0,
+   1.2,
+   2.0,
+   2.6,
+   1.8,
+   0.6,
+   0.6
+  ],
+  "spoilage": 0.02,
+  "planning_months": 12,
+  "reserve_margin": 0.1,
+  "normal_cover": 1.3,
+  "price_elasticity": 2.5,
+  "price_adjustment": 0.3,
+  "output_noise": 0.1,
+  "seed_per_plot": 6.0,
+  "seed_months": [
+   8,
+   9,
+   10
+  ],
+  "max_seed_share": 0.4,
+  "foraging": 0.15
+ },
+ "health": {
+  "initial": [
+   80.0,
+   100.0
+  ],
+  "maximum": 100.0,
+  "starvation_ration": 0.4,
+  "recovery": 10.0,
+  "hunger_damage": 40.0,
+  "danger_threshold": 50.0,
+  "max_extra_mortality": 0.08,
+  "work_at_zero_health": 0.5,
+  "fertility_health": [
+   60.0,
+   95.0
+  ]
+ },
+ "skill": {
+  "mean": 1.0,
+  "sd": 0.15,
+  "minimum": 0.5,
+  "maximum": 1.5
+ },
+ "money": {
+  "food_price": 1.0,
+  "initial_savings_months": 4.0,
+  "initial_business_cash_per_worker": 1.0,
+  "wage_payout": 0.9,
+  "sharing_threshold_months": 2.0,
+  "sharing_rate": 0.25,
+  "gift_share": 0.5
+ },
+ "needs": {
+  "firewood": [
+   0.6,
+   0.6,
+   0.45,
+   0.3,
+   0.15,
+   0.1,
+   0.1,
+   0.1,
+   0.15,
+   0.3,
+   0.45,
+   0.6
+  ],
+  "cold_damage": 10.0,
+  "savings_months": 3.0,
+  "spare_spending": 0.3,
+  "gathering": 0.8,
+  "other_fuels": 0.5
+ },
+ "trade": {
+  "tool_wear": 0.03,
+  "buying_budget": 1.0,
+  "stock_target_months": 4.0,
+  "orders_memory": 0.1,
+  "markup_speed": 0.5,
+  "max_markup_change": 0.1,
+  "markup_range": [
+   0.5,
+   3.0
+  ],
+  "hiring_rate": 0.05,
+  "hiring_price_response": 0.5,
+  "pay_memory": 0.2,
+  "wage_adjustment": 0.01,
+  "money_months": 12.0
+ },
+ "land": {
+  "landless_share": 0.3,
+  "holding_spread": 0.8,
+  "keep_months": 1.0,
+  "partible": true
+ },
+ "livestock": {
+  "per_plot": 0.25,
+  "farm_boost": 0.3,
+  "growth": 0.15,
+  "winter_capacity_per_plot": 0.3,
+  "meat_rations": 5.0,
+  "wool": 3.0,
+  "shearing_month": 6,
+  "drought_losses": 0.6,
+  "winter_losses": 0.3,
+  "value_months": 6.0,
+  "buyers_spend": 0.5,
+  "lowest_price": 0.2
+ },
+ "credit": {
+  "enabled": true,
+  "interest": 0.2,
+  "lend_share": 0.5,
+  "loan_to_value": 0.5,
+  "personal_months": 2.0,
+  "repay_share": 0.5,
+  "grain_repay_share": 0.5,
+  "grain_kept_months": 2.0,
+  "foreclose_at": 0.9,
+  "default_at": 2.0,
+  "years_purchase": 15.0,
+  "buyers_spend": 0.5,
+  "lowest_price": 0.3
+ },
+ "lord": {
+  "enabled": true,
+  "demesne": 0.25,
+  "labour_service": 0.1,
+  "carted_away": 0.2,
+  "sells": 0.3,
+  "spends_locally": 0.05,
+  "to_town": 0.4,
+  "spends_in_town": 0.25,
+  "servants": 0.5,
+  "charity_in_famine": false
+ },
+ "state": {
+  "enabled": true,
+  "collection_month": 11,
+  "hearth_tax_months": 0.5,
+  "land_tax": 0.1,
+  "remit_in_famine": false
+ },
+ "town": {
+  "enabled": true,
+  "transport": 0.3,
+  "capacity": 0.15,
+  "seasonal": 0.1,
+  "dearest_month": 6,
+  "swing_sd": 0.03,
+  "swing_memory": 0.97,
+  "regional_share": 0.4,
+  "coins_lost_a_year": 0.005,
+  "mortality": 1.25,
+  "craft_skill": 1.3,
+  "woods": 0.1,
+  "money_months": 2.5,
+  "store_elasticity": 0.5,
+  "dealers_months": 3.0,
+  "keep_months": 1.0,
+  "dealers_payout": 0.5,
+  "outside_transport": 0.15,
+  "outside_capacity": 0.5
+ },
+ "migration": {
+  "enabled": true,
+  "usual_prospects": 1.1,
+  "memory_months": 24.0,
+  "hunger_weight": 4.0,
+  "danger_weight": 6.0,
+  "normal_mortality": 0.045,
+  "plunder_weight": 0.25,
+  "small_village": 50.0,
+  "size_exponent": 0.5,
+  "land_range": [
+   0.7,
+   1.5
+  ],
+  "usual_take": 0.11,
+  "burden_exponent": 0.5,
+  "burden_range": [
+   0.6,
+   1.25
+  ],
+  "young_ages": [
+   15,
+   29
+  ],
+  "leave_chance": 0.025,
+  "family_leave_chance": 0.002,
+  "rooted": 0.2,
+  "push": 3.0,
+  "chain": 10.0,
+  "flee_below": 0.5,
+  "flee_chance": 0.05,
+  "flee_danger": 0.03,
+  "stay_in_region": 0.5,
+  "distance_km": 15.0,
+  "to_town": 0.5,
+  "welcome": 1.2,
+  "arrive_rate": 5.0,
+  "max_pull": 1.0,
+  "settle_rate": 0.02,
+  "settle_appeal": 0.9
+ },
+ "work": {
+  "enabled": true,
+  "harvest_months": [
+   7,
+   8,
+   9,
+   10
+  ],
+  "craft_help": 0.3,
+  "helper_ages": [
+   10,
+   14
+  ],
+  "old_helper_age": 69,
+  "helper_effort": 0.3,
+  "home_cloth": 0.1,
+  "kin_share": 0.5
+ },
+ "environment": {
+  "enabled": true,
+  "woods_years": 40.0,
+  "regrowth": 0.15,
+  "reach_exponent": 0.5,
+  "people_per_plot": 2.9,
+  "overcropping": 0.2,
+  "fertility_range": [
+   0.6,
+   1.1
+  ],
+  "soil_recovery": 0.1
+ },
+ "council": {
+  "enabled": true,
+  "forms_at_population": 500,
+  "forms_after_months": 6,
+  "established_at_start": true,
+  "tax_rate": 0.1,
+  "treasury_months": 6.0,
+  "officials_per_1000": 4.0,
+  "official_pay": 1.2,
+  "grain_levy": 0.05,
+  "reserve_months": 2.0,
+  "relief": true
+ },
+ "healthcare": {
+  "enabled": true,
+  "healers_per_1000": 5.0,
+  "healer_pay": 1.2,
+  "patients_per_healer": 30.0,
+  "min_risk": 0.003,
+  "treatment_recovery": 10.0,
+  "treatment_mortality": 0.85
+ },
+ "map": {
+  "enabled": true,
+  "roads": [
+   [
+    0,
+    7
+   ],
+   [
+    0,
+    10
+   ],
+   [
+    0,
+    19
+   ],
+   [
+    1,
+    2
+   ],
+   [
+    1,
+    9
+   ],
+   [
+    1,
+    15
+   ],
+   [
+    1,
+    18
+   ],
+   [
+    2,
+    9
+   ],
+   [
+    2,
+    11
+   ],
+   [
+    3,
+    12
+   ],
+   [
+    3,
+    14
+   ],
+   [
+    3,
+    17
+   ],
+   [
+    4,
+    7
+   ],
+   [
+    4,
+    13
+   ],
+   [
+    4,
+    16
+   ],
+   [
+    5,
+    6
+   ],
+   [
+    5,
+    15
+   ],
+   [
+    5,
+    18
+   ],
+   [
+    6,
+    11
+   ],
+   [
+    6,
+    12
+   ],
+   [
+    6,
+    17
+   ],
+   [
+    7,
+    10
+   ],
+   [
+    8,
+    10
+   ],
+   [
+    8,
+    17
+   ],
+   [
+    8,
+    19
+   ],
+   [
+    8,
+    20
+   ],
+   [
+    9,
+    13
+   ],
+   [
+    9,
+    16
+   ],
+   [
+    10,
+    19
+   ],
+   [
+    10,
+    20
+   ],
+   [
+    11,
+    17
+   ],
+   [
+    12,
+    14
+   ],
+   [
+    12,
+    17
+   ],
+   [
+    13,
+    16
+   ],
+   [
+    13,
+    20
+   ],
+   [
+    14,
+    17
+   ],
+   [
+    15,
+    18
+   ],
+   [
+    17,
+    20
+   ]
+  ],
+  "rivers": [
+   [
+    2,
+    11
+   ],
+   [
+    11,
+    20
+   ],
+   [
+    20,
+    8
+   ],
+   [
+    8,
+    10
+   ]
+  ],
+  "handling": 0.15,
+  "road_per_km": 0.01,
+  "river_per_km": 0.005,
+  "weather_km": 250.0,
+  "capacity": 0.2,
+  "full_load_margin": 0.1,
+  "relief_capacity": 0.5,
+  "town_capacity": 0.3,
+  "water_capacity": 3.0,
+  "wholesale_handling": 0.05,
+  "terrains": [
+   {
+    "name": "plain",
+    "carriage": 1.0,
+    "pasture": 1.0,
+    "woods": 1.0,
+    "forage": 1.0,
+    "arable": 1.0
+   },
+   {
+    "name": "valley",
+    "carriage": 1.0,
+    "pasture": 1.3,
+    "woods": 0.8,
+    "forage": 1.2,
+    "arable": 1.15
+   },
+   {
+    "name": "upland",
+    "carriage": 1.6,
+    "pasture": 3.5,
+    "woods": 0.7,
+    "forage": 0.8,
+    "arable": 0.6
+   },
+   {
+    "name": "forest",
+    "carriage": 1.3,
+    "pasture": 1.25,
+    "woods": 2.5,
+    "forage": 1.5,
+    "arable": 0.8
+   },
+   {
+    "name": "coast",
+    "carriage": 1.0,
+    "pasture": 1.0,
+    "woods": 0.8,
+    "forage": 1.5,
+    "arable": 0.9
+   }
+  ]
+ },
+ "products": [
+  {
+   "name": "food",
+   "use": "food",
+   "carriage": 1.0
+  },
+  {
+   "name": "firewood",
+   "use": "heating",
+   "carriage": 2.0
+  },
+  {
+   "name": "clothing",
+   "use": "comfort",
+   "carriage": 0.25
+  },
+  {
+   "name": "tools",
+   "use": "tool",
+   "carriage": 0.25
+  }
+ ],
+ "businesses": [
+  {
+   "name": "farming",
+   "product": "food",
+   "output": 1.72,
+   "tool_boost": 0.25,
+   "inputs": [],
+   "uses_land": true,
+   "initial_share": 0.8
+  },
+  {
+   "name": "woodcutting",
+   "product": "firewood",
+   "output": 6.0,
+   "tool_boost": 0.3,
+   "inputs": [],
+   "uses_land": false,
+   "initial_share": 0.1
+  },
+  {
+   "name": "weaving",
+   "product": "clothing",
+   "output": 2.0,
+   "tool_boost": 0.0,
+   "inputs": [],
+   "uses_land": false,
+   "initial_share": 0.07
+  },
+  {
+   "name": "smithing",
+   "product": "tools",
+   "output": 1.0,
+   "tool_boost": 0.0,
+   "inputs": [
+    [
+     "firewood",
+     2.0
+    ]
+   ],
+   "uses_land": false,
+   "initial_share": 0.03
+  }
+ ],
+ "events": [
+  {
+   "name": "good_weather",
+   "scope": "location",
+   "chance": 0.15,
+   "effects": {
+    "production_mult": 1.25
+   },
+   "duration": 6,
+   "months": [
+    4
+   ],
+   "group": "weather",
+   "repeat_chance": 0.3,
+   "businesses": [
+    "farming"
+   ],
+   "message": "Good weather: a rich growing season ahead",
+   "reach": "weather",
+   "end": "good"
+  },
+  {
+   "name": "drought",
+   "scope": "location",
+   "chance": 0.1,
+   "effects": {
+    "production_mult": 0.6
+   },
+   "duration": 6,
+   "months": [
+    4
+   ],
+   "group": "weather",
+   "repeat_chance": 0.3,
+   "businesses": [
+    "farming"
+   ],
+   "message": "Drought: harvests will be poor this season",
+   "reach": "weather",
+   "end": "bad"
+  },
+  {
+   "name": "cold_years",
+   "scope": "location",
+   "chance": 0.005,
+   "effects": {
+    "production_mult": 0.7,
+    "heating_mult": 1.2
+   },
+   "duration": 18,
+   "months": [
+    4
+   ],
+   "group": "weather",
+   "repeat_chance": null,
+   "businesses": [
+    "farming"
+   ],
+   "message": "The sun is veiled: cold summers and failed harvests for two years",
+   "reach": "region",
+   "end": "bad"
+  },
+  {
+   "name": "harsh_winter",
+   "scope": "location",
+   "chance": 0.15,
+   "effects": {
+    "health_delta": -3.0,
+    "mortality_mult": 1.3,
+    "heating_mult": 1.5
+   },
+   "duration": 3,
+   "months": [
+    12
+   ],
+   "group": null,
+   "repeat_chance": null,
+   "businesses": null,
+   "message": "Harsh winter: cold weather weakens the village",
+   "reach": "weather",
+   "end": "bad"
+  },
+  {
+   "name": "forest_fire",
+   "scope": "location",
+   "chance": 0.02,
+   "effects": {
+    "production_mult": 0.4,
+    "woods_burned": [
+     0.01,
+     0.04
+    ]
+   },
+   "duration": [
+    2,
+    3
+   ],
+   "months": [
+    6,
+    7,
+    8
+   ],
+   "group": null,
+   "repeat_chance": null,
+   "businesses": [
+    "woodcutting"
+   ],
+   "message": "Forest fire: little wood can be cut, and part of the woods is lost",
+   "reach": "village",
+   "end": "bad"
+  },
+  {
+   "name": "disease",
+   "scope": "location",
+   "chance": 0.02,
+   "effects": {
+    "health_delta": -8.0,
+    "mortality_mult": 2.5,
+    "production_mult": 0.85
+   },
+   "duration": [
+    2,
+    3
+   ],
+   "months": null,
+   "group": "epidemic",
+   "repeat_chance": null,
+   "businesses": null,
+   "message": "Disease outbreak",
+   "reach": "village",
+   "end": "bad"
+  },
+  {
+   "name": "plague",
+   "scope": "location",
+   "chance": 0.003,
+   "effects": {
+    "health_delta": -10.0,
+    "mortality_mult": [
+     6.0,
+     10.0
+    ],
+    "production_mult": 0.7
+   },
+   "duration": [
+    4,
+    8
+   ],
+   "months": null,
+   "group": "epidemic",
+   "repeat_chance": null,
+   "businesses": null,
+   "message": "Plague: a deadly epidemic sweeps the village",
+   "reach": "village",
+   "end": "bad"
+  },
+  {
+   "name": "army",
+   "scope": "location",
+   "chance": 0.003,
+   "effects": {
+    "requisition": [
+     0.2,
+     0.4
+    ],
+    "health_delta": -5.0
+   },
+   "duration": 1,
+   "months": null,
+   "group": "soldiers",
+   "repeat_chance": null,
+   "businesses": null,
+   "message": "An army passes through: soldiers take grain and animals",
+   "reach": "village",
+   "end": "bad"
+  },
+  {
+   "name": "raid",
+   "scope": "location",
+   "chance": 0.002,
+   "effects": {
+    "requisition": [
+     0.1,
+     0.3
+    ],
+    "mortality_mult": 1.5,
+    "health_delta": -5.0
+   },
+   "duration": 1,
+   "months": null,
+   "group": "soldiers",
+   "repeat_chance": null,
+   "businesses": null,
+   "message": "Raiders strike: grain and animals taken, people killed",
+   "reach": "village",
+   "end": "bad"
+  },
+  {
+   "name": "debasement",
+   "scope": "location",
+   "chance": 0.0,
+   "effects": {
+    "debase": 0.25
+   },
+   "duration": 1,
+   "months": null,
+   "group": null,
+   "repeat_chance": null,
+   "businesses": null,
+   "message": "The ruler debases the coinage: coins are worth less",
+   "reach": "region",
+   "end": "bad"
+  },
+  {
+   "name": "wool_slump",
+   "scope": "location",
+   "chance": 0.0,
+   "effects": {
+    "wool_price": 0.4
+   },
+   "duration": 12,
+   "months": null,
+   "group": null,
+   "repeat_chance": null,
+   "businesses": null,
+   "message": "The wool markets abroad are closed: wool fetches less than half its price",
+   "reach": "region",
+   "end": "bad"
+  },
+  {
+   "name": "debt_jubilee",
+   "scope": "location",
+   "chance": 0.0,
+   "effects": {
+    "debt_cancel": 1.0
+   },
+   "duration": 1,
+   "months": null,
+   "group": null,
+   "repeat_chance": null,
+   "businesses": null,
+   "message": "The ruler cancels all debts",
+   "reach": "region",
+   "end": "bad"
+  },
+  {
+   "name": "granary_fire",
+   "scope": "location",
+   "chance": 0.01,
+   "effects": {
+    "granary_loss": [
+     0.1,
+     0.3
+    ]
+   },
+   "duration": 1,
+   "months": null,
+   "group": null,
+   "repeat_chance": null,
+   "businesses": null,
+   "message": "Fire or pests in the granary: stored food lost",
+   "reach": "village",
+   "end": "bad"
+  },
+  {
+   "name": "accident",
+   "scope": "person",
+   "chance": 0.005,
+   "effects": {
+    "health_delta": -30.0
+   },
+   "duration": 1,
+   "months": null,
+   "group": null,
+   "repeat_chance": null,
+   "businesses": null,
+   "message": "Accident or illness",
+   "reach": "village",
+   "end": "bad"
+  }
+ ],
+ "random_events": true,
+ "scheduled_events": []
+}

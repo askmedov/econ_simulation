@@ -1495,3 +1495,64 @@ takes 2.1 s.
 - **How open the region is.** A border or port with an outside price, or
   a closed country (a closed one drains its coin through taxes, as the
   village without a town showed).
+
+## Rust engine
+
+The engine is being moved to Rust (`rust/`), so that it runs about ten
+times faster and so that households can later have minds of their own
+(the hand-off and the reasons: [docs/RUST_HANDOFF.md](docs/RUST_HANDOFF.md)).
+The Python model stays the reference the Rust engine is checked against.
+Exact agreement number for number is not the goal (numpy's draws can't be
+reproduced cheaply); statistical agreement is, plus exact agreement on the
+deterministic functions and on the invariants.
+
+### 1. Scaffolding (built)
+
+- **Layout.** A Cargo workspace in `rust/`: `econ-core` (the library: one
+  module per Python module, with the same names, so the two can be read
+  side by side) and `econ-cli` (the command line). The first pass ported
+  every module at once (about 6,000 lines of Rust against 7,300 of
+  Python); the milestones after this one are about checking that port.
+- **Python stays the one source of numbers.** `scripts/export_config.py`
+  writes `dataclasses.asdict(config)` to `rust/configs/`: the default
+  village (`village.json`, also built into the engine), the regions the
+  checks use (`regions/`), and every setting of the sanity check and the
+  stress test with its whole config (`sanity.json`, `stress.json`), so the
+  Rust checks run exactly what the Python ones run. The Rust config is a
+  serde mirror with `deny_unknown_fields`: a parameter added in Python and
+  not in Rust fails loudly, and so does one missing.
+  `tests/test_rust_export.py` checks that the checked-in files match a
+  fresh export. Regions are read from these files, not generated in Rust
+  (their layout comes from numpy's draws).
+- **Randomness.** One stream per rule, with Python's stream names, seeded
+  from (seed, crc32(name)): xoshiro256++ through SplitMix64, with
+  `rand_distr` for binomial, normal and Poisson draws (a binomial of one
+  person is a plain roll). The draws differ from numpy's; their
+  distributions don't.
+- **Golden fixtures.** `scripts/export_fixtures.py` runs five settings for
+  some months (a village at harvest; a village in a famine after two
+  droughts, deep in debt; a hamlet of 20; a small region with three towns
+  and a city, in a shearing month and later with a drought over part of
+  it), then calls every deterministic function on that state the way the
+  month calls it, and saves the arguments, what it returned and what it
+  changed (`rust/fixtures/`, 9 MB). Plus the map built from every exported
+  region (carriage, market towns, the routes between towns and their share
+  by water, the cost to the border) and the normal distribution function
+  the weather uses. **All 850 cases of 109 functions match Python to a
+  relative 1e-9**, and a one-character change to a rule makes them fail.
+  Like the configs, the fixtures are checked against a fresh export.
+- **Choices.** Numbers are `f64` as in Python; indices `u32`; a row's
+  `count` is kept (step 12's weighted sample needs it). Divisions are
+  guarded explicitly where Python uses `np.divide(..., where=...)`.
+  Results do not depend on threads (each run is one thread; runs go in
+  parallel). `cargo fmt` at 120 columns as the Python; `cargo clippy -- -D
+  warnings` with index loops allowed (the rules read parallel arrays by
+  place or family, as Python does).
+- **A Python bug found while porting.** In a shearing month on a map with
+  towns, `Simulation.step` names the wool's price per animal `worth`, the
+  name it gave the animals' worth, so the foreclosures and the credit
+  limit that come after value animals at their wool (about 2-3 coins)
+  instead of six months' wage (6 coins or more) that month. The Rust port
+  does the same for now, so that the two engines can be compared; it is
+  for the user to decide whether to fix it in both (the fix changes
+  Python's region results).
