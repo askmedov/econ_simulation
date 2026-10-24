@@ -27,6 +27,10 @@ enum Command {
     Records(RunArgs),
     /// The starting state of each run, one line of JSON each
     World(RunArgs),
+    /// Each run's measures per place, one line of JSON each (with --event, both arms)
+    Places(RunArgs),
+    /// Each run's log of notable happenings (with the forced events)
+    Logs(RunArgs),
 }
 
 fn threads(workers: Option<usize>) {
@@ -41,6 +45,14 @@ fn main() {
         Some(Command::Records(args)) => {
             threads(args.workers);
             args.config().and_then(|config| dump::records(&config, &args.forced()?, args.runs))
+        }
+        Some(Command::Places(args)) => {
+            threads(args.workers);
+            args.config().and_then(|config| dump::places(&config, &args.forced()?, args.runs))
+        }
+        Some(Command::Logs(args)) => {
+            threads(args.workers);
+            args.config().and_then(|config| dump::logs(&config, &args.forced()?, args.runs))
         }
         Some(Command::World(args)) => {
             threads(args.workers);

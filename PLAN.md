@@ -1593,3 +1593,64 @@ deterministic functions and on the invariants.
   so the Rust test asks that most runs recover (Python: 82% of 200 runs
   eat above 80% of their need in every month of their fifth year; Rust:
   87%).
+
+### 3. One village's month (built)
+
+- **The month** (`simulation.rs`) follows `Simulation.step` step by step,
+  in the same order, with the same streams, the map's branches kept as in
+  Python. The places where Python changes a column of a table in place
+  (the farms' grain is a view of the stock) are written back explicitly.
+- **Invariants every month** (`tests/simulation.rs`): land conserved,
+  debts and claims balance, nothing negative or not-a-number, couples,
+  households and kin consistent, and coins conserved, in six settings
+  (default, five villages, no council, one disaster after another, heirs
+  keep the land, a hamlet); every ration and every person accounted for
+  month by month; the same seed gives the same history, and paired runs
+  are identical until the event's month. 31 more tests port Python's
+  behaviour over whole runs (`tests/scenarios.rs`, `tests/behaviour.rs`:
+  a drought raises the price and hits the poorest hardest, a council's
+  relief softens it, healers blunt an epidemic, bad years bring debt and
+  land sales, a jubilee wipes the slate, a small village with a harsh lord
+  can empty out and a big one doesn't, a debasement raises prices in coins,
+  results are the same on one thread or four, and so on).
+- **Statistical parity** (`scripts/parity.py village`): 22 to 30 measures
+  per run (population at the end, births, deaths, leavers and newcomers,
+  weddings, grain price, wage, ration, the poorest fifth's and the
+  landless ration, underfed share, health, treasury, reserve, food in
+  store, debt, animals, land sold, coins, the worst month, the price peak,
+  grain sent to town; for paired settings the event's effect), plus the
+  monthly means of 12 series month by month. **Every measure agrees in
+  every setting** (Python against Rust; |t| is the largest over the
+  setting's measures; "monthly" counts month-measures beyond 3 standard
+  errors, about 0.3% by chance, more in runs of neighbouring months):
+
+| Setting (runs) | Largest \|t\| | Monthly | Population at the end | Deaths | Grain price | Extra deaths |
+|---|---|---|---|---|---|---|
+| Default village (100) | 2.0 | 1 of 427 | 948 / 974 | 139 / 128 | 1.22 / 1.19 | |
+| Drought in April, paired (100) | 2.0 | 1 of 427 | | | | 29.0 / 37.5 |
+| No council (100) | 1.8 | 1 of 428 | 937 / 962 | 152 / 139 | 1.16 / 1.13 | |
+| No lord (100) | 2.5 | 0 of 426 | 1,000 / 1,011 | 131 / 128 | 1.12 / 1.09 | |
+| No town (100) | 2.0 | 2 of 426 | 969 / 985 | 135 / 127 | 1.10 / 1.07 | |
+| No migration (100) | 1.8 | 0 of 391 | 981 / 995 | 143 / 132 | 1.23 / 1.19 | |
+| Village of 100 (100) | 2.2 | 0 of 428 | 91.7 / 95.4 | 16.0 / 14.6 | 1.24 / 1.18 | |
+| 40 years (40) | 2.8 | 21 of 5,754 | 877 / 909 | 1,618 / 1,572 | 1.02 / 1.00 | |
+| No random events, 5 years (100) | 2.3 | 6 of 710 | 1,015 / 1,018 | 187 / 186 | 1.04 / 1.04 | |
+| Drought alone, no random events, paired (100) | 1.7 | 0 of 422 | 1,007 / 1,010 | 112 / 111 | 1.04 / 1.04 | -1.8 / -1.0 |
+
+- **Reading these tables: the settings share seeds** (42 to 141), so a
+  seed that brings Python an early plague brings it in every setting:
+  Python's runs end a little smaller in all of the first eight settings,
+  which looks systematic but isn't. With 1,000 fresh seeds (10,000 on) the
+  default village agrees on every measure with |t| at most 1.2 (deaths
+  131.4 / 133.1, leavers 31.7 / 32.4, population at the end 963 / 960),
+  and event starts counted over 16,000 in 200 villages for ten years agree
+  kind by kind (|z| at most 1.5). Without random events, where runs differ
+  far less, the month agrees as closely: 300 runs over five years, the
+  largest |t| over the hundred columns of the record is 2.4.
+- **Two artefacts found on the way**: a measure that doesn't vary between
+  runs (the first month's grain price, the herds before any event) shows
+  enormous t from rounding alone, so means that agree to 1e-9 count as
+  equal, and the `records` output carries every digit (Python's CSV
+  rounds to 3 decimals).
+- **Speed so far**: a 36-month run of the default village takes 20 ms
+  (Python: 225 ms).

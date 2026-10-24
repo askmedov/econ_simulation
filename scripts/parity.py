@@ -68,6 +68,11 @@ def village_settings() -> list[Setting]:
         Setting("no migration", replace(base, migration=MigrationConfig(enabled=False))),
         Setting("small village", replace(base, villages=(VillageConfig(population=100, land=35),))),
         Setting("40 years", replace(base, months=480), runs=40),
+        # Without random events the runs vary far less (no plague or famine in
+        # some seeds and not others), so these are the sharpest checks of the
+        # month itself, and of what a drought alone does.
+        Setting("no random events, 5 years", replace(base, months=60, random_events=False)),
+        Setting("drought@4 alone, paired", replace(base, random_events=False), (ScheduledEvent("drought", 4),)),
     ]
 
 
@@ -145,15 +150,17 @@ def _python_world(config: Config) -> dict:
     return python_state(Simulation(config).world)
 
 
-def _python_records(job) -> list[dict]:
+def _python_records(job) -> tuple[list[dict], list[dict]]:
+    """One seed's records (and per-place series), both arms if paired."""
     config, forced = job
-    rows = []
+    rows, places = [], []
     for arm, c in [("base", config)] + ([("event", replace(config, scheduled_events=config.scheduled_events + forced))]
                                        if forced else []):
         sim = Simulation(c)
         sim.run()
         rows += [{"arm": arm, "seed": c.seed, **flat(r)} for r in sim.records]
-    return rows
+        places.append({"arm": arm, "seed": c.seed, "places": {k: v.tolist() for k, v in sim.place_series().items()}})
+    return rows, places
 
 
 def python_worlds(setting: Setting) -> list[dict]:
@@ -162,10 +169,20 @@ def python_worlds(setting: Setting) -> list[dict]:
         return pool.map(_python_world, configs)
 
 
-def python_records(setting: Setting) -> list[dict]:
+def python_runs(setting: Setting) -> tuple[list[dict], list[dict]]:
+    """Every month of every run, and each run's per-place series."""
     jobs = [(replace(setting.config, seed=setting.config.seed + i), setting.forced) for i in range(setting.runs)]
     with Pool() as pool:
-        return [row for rows in pool.map(_python_records, jobs, chunksize=1) for row in rows]
+        results = pool.map(_python_records, jobs, chunksize=1)
+    return [row for rows, _ in results for row in rows], [p for _, places in results for p in places]
+
+
+def python_records(setting: Setting) -> list[dict]:
+    return python_runs(setting)[0]
+
+
+def rust_places(setting: Setting) -> list[dict]:
+    return [json.loads(line) for line in rust("places", setting).splitlines()]
 
 
 def rust_records(setting: Setting) -> list[dict]:
@@ -301,6 +318,58 @@ def paired_measures(base: list[dict], event: list[dict]) -> dict[str, float]:
     }
 
 
+def place_groups(config: Config, forced: tuple[ScheduledEvent, ...]) -> dict[str, np.ndarray]:
+    """Groups of places to compare: villages and towns, villages by
+    terrain, and with a drought over part of the map, where it struck."""
+    kind = np.array([v.kind for v in config.villages])
+    terrain = np.array([v.terrain for v in config.villages])
+    x = np.array([v.x for v in config.villages])
+    y = np.array([v.y for v in config.villages])
+    groups = {"villages": kind == "village", "towns": kind == "town"}
+    for t in dict.fromkeys(terrain[kind == "village"]):
+        groups[f"{t} villages"] = (kind == "village") & (terrain == t)
+    struck = np.zeros(len(kind), dtype=bool)
+    for e in forced:
+        if e.near is not None:
+            struck |= np.hypot(x - e.near[0], y - e.near[1]) <= e.near[2]
+    if struck.any() and not struck.all():
+        groups["struck places"] = struck
+        groups["places elsewhere"] = ~struck
+    return {name: mine for name, mine in groups.items() if mine.any()}
+
+
+def place_measures(runs: list[dict], config: Config, forced: tuple[ScheduledEvent, ...]) -> list[dict[str, float]]:
+    """Per run (and pair): deaths, the worst month, the grain price, leavers,
+    grain sent to town and wool coins, for each group of places."""
+    groups = place_groups(config, forced)
+    start = np.array([v.population for v in config.villages], dtype=np.float64)
+    by_seed: dict[tuple[str, float], dict] = {(r["arm"], float(r["seed"])): r["places"] for r in runs}
+    out = []
+    for (arm, seed), series in sorted(by_seed.items()):
+        if arm != "base":
+            continue
+        s_ = {k: np.asarray(v, dtype=np.float64) for k, v in series.items()}
+        m: dict[str, float] = {}
+        for name, mine in groups.items():
+            people = s_["population"][:, mine]
+            w = np.maximum(people, 1e-9)
+            per_1000 = 1000.0 / start[mine].sum()
+            m[f"deaths per 1,000, {name}"] = s_["deaths"][:, mine].sum() * per_1000
+            m[f"people at the end, {name}"] = people[-1].sum()
+            m[f"worst month, {name}"] = ((s_["ration"][:, mine] * w).sum(axis=1) / w.sum(axis=1)).min()
+            m[f"grain price, {name}"] = ((s_["food_price"][:, mine] * w).sum(axis=1) / w.sum(axis=1)).mean()
+            m[f"left per 1,000, {name}"] = s_["left"][:, mine].sum() * per_1000
+            if "town" not in name:
+                years = s_["sent"].shape[0] / 12
+                m[f"grain sent per head a year, {name}"] = s_["sent"][:, mine].sum() / start[mine].sum() / years
+                m[f"wool coins per head a year, {name}"] = s_["wool"][:, mine].sum() / start[mine].sum() / years
+            if forced:
+                e = {k: np.asarray(v, dtype=np.float64) for k, v in by_seed[("event", seed)].items()}
+                m[f"extra deaths per 1,000, {name}"] = (e["deaths"][:, mine].sum() - s_["deaths"][:, mine].sum()) * per_1000
+        out.append(m)
+    return out
+
+
 def by_run(rows: list[dict]) -> dict[tuple[str, float], list[dict]]:
     runs: dict[tuple[str, float], list[dict]] = {}
     for r in rows:
@@ -323,6 +392,33 @@ def measures_of(rows: list[dict], paired: bool) -> list[dict[str, float]]:
 
 # ---------------------------------------------------------------------------
 # Comparing
+
+
+MONTHLY = ("population", "births", "deaths", "ration", "food_price", "wage", "avg_health", "food_stock", "savings",
+           "debt", "animals", "emigrants")
+
+
+def monthly(rows: list[dict]) -> dict[str, np.ndarray]:
+    """Each of the MONTHLY series as (runs x months), baseline runs only."""
+    runs = [r for (arm, _), r in sorted(by_run(rows).items()) if arm == "base"]
+    return {name: np.array([[float(m[name]) for m in run] for run in runs]) for name in MONTHLY}
+
+
+def compare_monthly(python: dict[str, np.ndarray], rust_: dict[str, np.ndarray]) -> tuple[int, int, list[str]]:
+    """Month by month: how many (measure, month) means differ by more than
+    3 standard errors, of how many, and which."""
+    beyond, total, which = 0, 0, []
+    for name in MONTHLY:
+        for month in range(python[name].shape[1]):
+            a, b = python[name][:, month], rust_[name][:, month]
+            if not a.any() and not b.any():
+                continue
+            total += 1
+            t = welch(a, b)
+            if abs(t) > 3:
+                beyond += 1
+                which.append(f"{name} month {month + 1} (t {t:+.1f})")
+    return beyond, total, which
 
 
 def welch(a: np.ndarray, b: np.ndarray) -> float:
@@ -382,10 +478,22 @@ def main() -> int:
             rust_ = [setup_measures(json.loads(line), setting.config) for line in rust("world", setting).splitlines()]
             rows = compare(python, rust_, skip_zero=False)
         else:
-            python = measures_of(python_records(setting), bool(setting.forced))
-            rust_ = measures_of(rust_records(setting), bool(setting.forced))
-            rows = compare(python, rust_)
+            python_rows, python_places = python_runs(setting)
+            rust_rows = rust_records(setting)
+            rows = compare(measures_of(python_rows, bool(setting.forced)), measures_of(rust_rows, bool(setting.forced)))
+            if args.what == "region":
+                rows += compare(place_measures(python_places, setting.config, setting.forced),
+                                place_measures(rust_places(setting), setting.config, setting.forced))
         failed += show(setting.name, rows, setting.runs, args.markdown)
+        if args.what != "setup":
+            # Monthly means: by chance about 0.3% lie beyond 3 standard
+            # errors; months follow each other, so they come in runs.
+            beyond, total, which = compare_monthly(monthly(python_rows), monthly(rust_rows))
+            share = beyond / max(total, 1)
+            ok = share <= 0.02
+            failed += not ok
+            note = f"  monthly means: {beyond} of {total} beyond 3 standard errors ({share:.1%})"
+            print(note + ("" if ok else "  FAIL") + (f": {', '.join(which[:6])}" if which else ""))
     print(f"\n{'all measures agree' if not failed else f'{failed} measures differ'} (|t| <= 3)")
     return 1 if failed else 0
 

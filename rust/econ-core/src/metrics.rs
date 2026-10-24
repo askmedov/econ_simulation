@@ -25,6 +25,15 @@ impl Cell {
         }
     }
 
+    /// In full: floats with every digit needed to read them back exactly.
+    pub fn full(&self) -> String {
+        match self {
+            Cell::Int(v) => v.to_string(),
+            Cell::Float(v) => python_float(*v),
+            Cell::Text(t) => csv_text(t),
+        }
+    }
+
     /// As Python's CSV writer shows it: floats rounded to 3 decimals.
     pub fn csv(&self) -> String {
         match self {

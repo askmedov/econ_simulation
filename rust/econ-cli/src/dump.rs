@@ -9,8 +9,9 @@ use econ_core::world::World;
 use econ_core::Simulation;
 use serde_json::{json, Value};
 
-/// Every month of every run as CSV on standard output: `arm` is "base" or
-/// "event" (the paired run with the forced events), `seed` the run's seed.
+/// Every month of every run as CSV on standard output, numbers in full:
+/// `arm` is "base" or "event" (the paired run with the forced events),
+/// `seed` the run's seed.
 pub fn records(config: &Config, forced: &[econ_core::config::ScheduledEvent], runs: usize) -> Result<(), String> {
     let arms: Vec<(&str, Vec<Run>)> = if forced.is_empty() {
         vec![("base", scenarios::run_batch(config, runs)?)]
@@ -30,7 +31,7 @@ pub fn records(config: &Config, forced: &[econ_core::config::ScheduledEvent], ru
                     writeln!(out, "arm,seed,{}", names.join(",")).map_err(|e| e.to_string())?;
                     header = true;
                 }
-                let row: Vec<String> = flat.iter().map(|(_, v)| v.csv()).collect();
+                let row: Vec<String> = flat.iter().map(|(_, v)| v.full()).collect();
                 writeln!(out, "{arm},{},{}", run.config.seed, row.join(",")).map_err(|e| e.to_string())?;
             }
         }
@@ -97,4 +98,41 @@ pub fn state(world: &World, seed: i64) -> Value {
         "unhealthy": world.unhealthy,
         "skill": rows(&world.skill),
     })
+}
+
+/// Each run's measures per place (`simulation::PLACE_SERIES`, months x
+/// places), one line of JSON per run: `arm` is "base" or "event".
+pub fn places(config: &Config, forced: &[econ_core::config::ScheduledEvent], runs: usize) -> Result<(), String> {
+    let arms: Vec<(&str, Vec<Run>)> = if forced.is_empty() {
+        vec![("base", scenarios::run_batch(config, runs)?)]
+    } else {
+        let pairs = scenarios::compare(config, forced, runs)?;
+        vec![("base", pairs.baseline), ("event", pairs.scenario)]
+    };
+    let stdout = std::io::stdout();
+    let mut out = std::io::BufWriter::new(stdout.lock());
+    for (arm, runs) in &arms {
+        for run in runs {
+            let series: serde_json::Map<String, Value> =
+                run.places.iter().map(|(name, values)| (name.to_string(), json!(values))).collect();
+            writeln!(out, "{}", json!({"arm": arm, "seed": run.config.seed, "places": series}))
+                .map_err(|e| e.to_string())?;
+        }
+    }
+    out.flush().map_err(|e| e.to_string())
+}
+
+/// Each run's log of notable happenings, run after run.
+pub fn logs(config: &Config, forced: &[econ_core::config::ScheduledEvent], runs: usize) -> Result<(), String> {
+    let mut with = config.clone();
+    with.scheduled_events.extend_from_slice(forced);
+    let stdout = std::io::stdout();
+    let mut out = std::io::BufWriter::new(stdout.lock());
+    for run in scenarios::run_batch(&with, runs)? {
+        writeln!(out, "Seed {}:", run.config.seed).map_err(|e| e.to_string())?;
+        for line in &run.log {
+            writeln!(out, "  {line}").map_err(|e| e.to_string())?;
+        }
+    }
+    out.flush().map_err(|e| e.to_string())
 }
