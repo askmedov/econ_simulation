@@ -287,118 +287,128 @@ pub struct MonthRecord {
 }
 
 impl MonthRecord {
-    /// The record as one flat row: prices and jobs become price_<product> and jobs_<business>.
+    /// Each field in order with its name, as one flat row: prices and jobs
+    /// become price_<product> and jobs_<business>.
+    pub fn visit(&self, mut f: impl FnMut(&str, Cell)) {
+        f("month_number", Cell::Int(self.month_number));
+        f("year", Cell::Int(self.year));
+        f("month", Cell::Int(self.month));
+        f("population", Cell::Int(self.population));
+        f("children", Cell::Int(self.children));
+        f("workers", Cell::Int(self.workers));
+        f("elderly", Cell::Int(self.elderly));
+        f("households", Cell::Int(self.households));
+        f("weddings", Cell::Int(self.weddings));
+        f("births", Cell::Int(self.births));
+        f("deaths", Cell::Int(self.deaths));
+        f("food_produced", Cell::Float(self.food_produced));
+        f("food_needed", Cell::Float(self.food_needed));
+        f("food_eaten", Cell::Float(self.food_eaten));
+        f("own_food", Cell::Float(self.own_food));
+        f("foraged", Cell::Float(self.foraged));
+        f("grain_sold", Cell::Float(self.grain_sold));
+        f("ration", Cell::Float(self.ration));
+        f("food_spoiled", Cell::Float(self.food_spoiled));
+        f("food_lost", Cell::Float(self.food_lost));
+        f("food_levied", Cell::Float(self.food_levied));
+        f("food_to_seed", Cell::Float(self.food_to_seed));
+        f("meat", Cell::Float(self.meat));
+        f("seed_store", Cell::Float(self.seed_store));
+        f("sown", Cell::Float(self.sown));
+        f("animals", Cell::Float(self.animals));
+        f("animals_lost", Cell::Float(self.animals_lost));
+        f("animals_sold", Cell::Float(self.animals_sold));
+        f("animal_price", Cell::Float(self.animal_price));
+        f("debt", Cell::Float(self.debt));
+        f("debtors", Cell::Int(self.debtors));
+        f("interest", Cell::Float(self.interest));
+        f("borrowed", Cell::Float(self.borrowed));
+        f("repaid", Cell::Float(self.repaid));
+        f("repaid_in_grain", Cell::Float(self.repaid_in_grain));
+        f("debts_cancelled", Cell::Float(self.debts_cancelled));
+        f("debts_written_off", Cell::Float(self.debts_written_off));
+        f("land_sold", Cell::Float(self.land_sold));
+        f("land_foreclosed", Cell::Float(self.land_foreclosed));
+        f("animals_foreclosed", Cell::Float(self.animals_foreclosed));
+        f("land_price", Cell::Float(self.land_price));
+        f("food_rent", Cell::Float(self.food_rent));
+        f("lord_carted", Cell::Float(self.lord_carted));
+        f("lord_sold", Cell::Float(self.lord_sold));
+        f("lord_relief", Cell::Float(self.lord_relief));
+        f("lord_barn", Cell::Float(self.lord_barn));
+        f("lord_purse", Cell::Float(self.lord_purse));
+        f("state_tax", Cell::Float(self.state_tax));
+        f("tax_grain", Cell::Float(self.tax_grain));
+        f("state_purse", Cell::Float(self.state_purse));
+        f("food_requisitioned", Cell::Float(self.food_requisitioned));
+        f("town_price", Cell::Float(self.town_price));
+        f("grain_exported", Cell::Float(self.grain_exported));
+        f("grain_imported", Cell::Float(self.grain_imported));
+        f("town_purse", Cell::Float(self.town_purse));
+        f("town_people", Cell::Int(self.town_people));
+        f("town_ration", Cell::Float(self.town_ration));
+        f("market_price", Cell::Float(self.market_price));
+        f("dealers_grain", Cell::Float(self.dealers_grain));
+        f("dealers_cash", Cell::Float(self.dealers_cash));
+        f("grain_beyond", Cell::Float(self.grain_beyond));
+        f("grain_between_towns", Cell::Float(self.grain_between_towns));
+        f("wool_sold", Cell::Float(self.wool_sold));
+        f("coins_lost", Cell::Float(self.coins_lost));
+        f("emigrants", Cell::Int(self.emigrants));
+        f("immigrants", Cell::Int(self.immigrants));
+        f("families_left", Cell::Int(self.families_left));
+        f("moved_within", Cell::Int(self.moved_within));
+        f("appeal", Cell::Float(self.appeal));
+        f("empty_villages", Cell::Int(self.empty_villages));
+        f("food_emigrated", Cell::Float(self.food_emigrated));
+        f("food_stock", Cell::Float(self.food_stock));
+        f("food_margin", Cell::Float(self.food_margin));
+        f("food_cover", Cell::Float(self.food_cover));
+        f("wage_cover", Cell::Float(self.wage_cover));
+        f("food_price", Cell::Float(self.food_price));
+        f("wage", Cell::Float(self.wage));
+        f("savings", Cell::Float(self.savings));
+        f("money_months", Cell::Float(self.money_months));
+        f("business_cash", Cell::Float(self.business_cash));
+        f("treasury", Cell::Float(self.treasury));
+        f("councils", Cell::Int(self.councils));
+        f("officials", Cell::Int(self.officials));
+        f("taxes", Cell::Float(self.taxes));
+        f("food_reserve", Cell::Float(self.food_reserve));
+        f("relief", Cell::Float(self.relief));
+        f("cash_relief", Cell::Float(self.cash_relief));
+        f("healers", Cell::Int(self.healers));
+        f("treated", Cell::Int(self.treated));
+        f("shared", Cell::Float(self.shared));
+        f("underfed", Cell::Int(self.underfed));
+        f("landless", Cell::Int(self.landless));
+        f("landless_ration", Cell::Float(self.landless_ration));
+        f("poorest_fifth_ration", Cell::Float(self.poorest_fifth_ration));
+        f("warmth", Cell::Float(self.warmth));
+        f("clothing", Cell::Float(self.clothing));
+        f("homespun", Cell::Float(self.homespun));
+        f("harvest_help", Cell::Float(self.harvest_help));
+        f("kin_help", Cell::Float(self.kin_help));
+        f("woods", Cell::Float(self.woods));
+        f("woods_burned", Cell::Float(self.woods_burned));
+        f("soil", Cell::Float(self.soil));
+        f("job_changes", Cell::Int(self.job_changes));
+        for (k, v) in &self.prices {
+            f(&format!("price_{k}"), Cell::Float(*v));
+        }
+        for (k, v) in &self.jobs {
+            f(&format!("jobs_{k}"), Cell::Int(*v));
+        }
+        f("avg_health", Cell::Float(self.avg_health));
+        f("poor_health", Cell::Int(self.poor_health));
+        f("accidents", Cell::Int(self.accidents));
+        f("events", Cell::Text(self.events.clone()));
+    }
+
+    /// The record as one flat row of (name, value).
     pub fn flat(&self) -> Vec<(String, Cell)> {
-        let mut row: Vec<(String, Cell)> = Vec::with_capacity(128);
-        row.push(("month_number".into(), Cell::Int(self.month_number)));
-        row.push(("year".into(), Cell::Int(self.year)));
-        row.push(("month".into(), Cell::Int(self.month)));
-        row.push(("population".into(), Cell::Int(self.population)));
-        row.push(("children".into(), Cell::Int(self.children)));
-        row.push(("workers".into(), Cell::Int(self.workers)));
-        row.push(("elderly".into(), Cell::Int(self.elderly)));
-        row.push(("households".into(), Cell::Int(self.households)));
-        row.push(("weddings".into(), Cell::Int(self.weddings)));
-        row.push(("births".into(), Cell::Int(self.births)));
-        row.push(("deaths".into(), Cell::Int(self.deaths)));
-        row.push(("food_produced".into(), Cell::Float(self.food_produced)));
-        row.push(("food_needed".into(), Cell::Float(self.food_needed)));
-        row.push(("food_eaten".into(), Cell::Float(self.food_eaten)));
-        row.push(("own_food".into(), Cell::Float(self.own_food)));
-        row.push(("foraged".into(), Cell::Float(self.foraged)));
-        row.push(("grain_sold".into(), Cell::Float(self.grain_sold)));
-        row.push(("ration".into(), Cell::Float(self.ration)));
-        row.push(("food_spoiled".into(), Cell::Float(self.food_spoiled)));
-        row.push(("food_lost".into(), Cell::Float(self.food_lost)));
-        row.push(("food_levied".into(), Cell::Float(self.food_levied)));
-        row.push(("food_to_seed".into(), Cell::Float(self.food_to_seed)));
-        row.push(("meat".into(), Cell::Float(self.meat)));
-        row.push(("seed_store".into(), Cell::Float(self.seed_store)));
-        row.push(("sown".into(), Cell::Float(self.sown)));
-        row.push(("animals".into(), Cell::Float(self.animals)));
-        row.push(("animals_lost".into(), Cell::Float(self.animals_lost)));
-        row.push(("animals_sold".into(), Cell::Float(self.animals_sold)));
-        row.push(("animal_price".into(), Cell::Float(self.animal_price)));
-        row.push(("debt".into(), Cell::Float(self.debt)));
-        row.push(("debtors".into(), Cell::Int(self.debtors)));
-        row.push(("interest".into(), Cell::Float(self.interest)));
-        row.push(("borrowed".into(), Cell::Float(self.borrowed)));
-        row.push(("repaid".into(), Cell::Float(self.repaid)));
-        row.push(("repaid_in_grain".into(), Cell::Float(self.repaid_in_grain)));
-        row.push(("debts_cancelled".into(), Cell::Float(self.debts_cancelled)));
-        row.push(("debts_written_off".into(), Cell::Float(self.debts_written_off)));
-        row.push(("land_sold".into(), Cell::Float(self.land_sold)));
-        row.push(("land_foreclosed".into(), Cell::Float(self.land_foreclosed)));
-        row.push(("animals_foreclosed".into(), Cell::Float(self.animals_foreclosed)));
-        row.push(("land_price".into(), Cell::Float(self.land_price)));
-        row.push(("food_rent".into(), Cell::Float(self.food_rent)));
-        row.push(("lord_carted".into(), Cell::Float(self.lord_carted)));
-        row.push(("lord_sold".into(), Cell::Float(self.lord_sold)));
-        row.push(("lord_relief".into(), Cell::Float(self.lord_relief)));
-        row.push(("lord_barn".into(), Cell::Float(self.lord_barn)));
-        row.push(("lord_purse".into(), Cell::Float(self.lord_purse)));
-        row.push(("state_tax".into(), Cell::Float(self.state_tax)));
-        row.push(("tax_grain".into(), Cell::Float(self.tax_grain)));
-        row.push(("state_purse".into(), Cell::Float(self.state_purse)));
-        row.push(("food_requisitioned".into(), Cell::Float(self.food_requisitioned)));
-        row.push(("town_price".into(), Cell::Float(self.town_price)));
-        row.push(("grain_exported".into(), Cell::Float(self.grain_exported)));
-        row.push(("grain_imported".into(), Cell::Float(self.grain_imported)));
-        row.push(("town_purse".into(), Cell::Float(self.town_purse)));
-        row.push(("town_people".into(), Cell::Int(self.town_people)));
-        row.push(("town_ration".into(), Cell::Float(self.town_ration)));
-        row.push(("market_price".into(), Cell::Float(self.market_price)));
-        row.push(("dealers_grain".into(), Cell::Float(self.dealers_grain)));
-        row.push(("dealers_cash".into(), Cell::Float(self.dealers_cash)));
-        row.push(("grain_beyond".into(), Cell::Float(self.grain_beyond)));
-        row.push(("grain_between_towns".into(), Cell::Float(self.grain_between_towns)));
-        row.push(("wool_sold".into(), Cell::Float(self.wool_sold)));
-        row.push(("coins_lost".into(), Cell::Float(self.coins_lost)));
-        row.push(("emigrants".into(), Cell::Int(self.emigrants)));
-        row.push(("immigrants".into(), Cell::Int(self.immigrants)));
-        row.push(("families_left".into(), Cell::Int(self.families_left)));
-        row.push(("moved_within".into(), Cell::Int(self.moved_within)));
-        row.push(("appeal".into(), Cell::Float(self.appeal)));
-        row.push(("empty_villages".into(), Cell::Int(self.empty_villages)));
-        row.push(("food_emigrated".into(), Cell::Float(self.food_emigrated)));
-        row.push(("food_stock".into(), Cell::Float(self.food_stock)));
-        row.push(("food_margin".into(), Cell::Float(self.food_margin)));
-        row.push(("food_cover".into(), Cell::Float(self.food_cover)));
-        row.push(("wage_cover".into(), Cell::Float(self.wage_cover)));
-        row.push(("food_price".into(), Cell::Float(self.food_price)));
-        row.push(("wage".into(), Cell::Float(self.wage)));
-        row.push(("savings".into(), Cell::Float(self.savings)));
-        row.push(("money_months".into(), Cell::Float(self.money_months)));
-        row.push(("business_cash".into(), Cell::Float(self.business_cash)));
-        row.push(("treasury".into(), Cell::Float(self.treasury)));
-        row.push(("councils".into(), Cell::Int(self.councils)));
-        row.push(("officials".into(), Cell::Int(self.officials)));
-        row.push(("taxes".into(), Cell::Float(self.taxes)));
-        row.push(("food_reserve".into(), Cell::Float(self.food_reserve)));
-        row.push(("relief".into(), Cell::Float(self.relief)));
-        row.push(("cash_relief".into(), Cell::Float(self.cash_relief)));
-        row.push(("healers".into(), Cell::Int(self.healers)));
-        row.push(("treated".into(), Cell::Int(self.treated)));
-        row.push(("shared".into(), Cell::Float(self.shared)));
-        row.push(("underfed".into(), Cell::Int(self.underfed)));
-        row.push(("landless".into(), Cell::Int(self.landless)));
-        row.push(("landless_ration".into(), Cell::Float(self.landless_ration)));
-        row.push(("poorest_fifth_ration".into(), Cell::Float(self.poorest_fifth_ration)));
-        row.push(("warmth".into(), Cell::Float(self.warmth)));
-        row.push(("clothing".into(), Cell::Float(self.clothing)));
-        row.push(("homespun".into(), Cell::Float(self.homespun)));
-        row.push(("harvest_help".into(), Cell::Float(self.harvest_help)));
-        row.push(("kin_help".into(), Cell::Float(self.kin_help)));
-        row.push(("woods".into(), Cell::Float(self.woods)));
-        row.push(("woods_burned".into(), Cell::Float(self.woods_burned)));
-        row.push(("soil".into(), Cell::Float(self.soil)));
-        row.push(("job_changes".into(), Cell::Int(self.job_changes)));
-        row.extend(self.prices.iter().map(|(k, v)| (format!("price_{k}"), Cell::Float(*v))));
-        row.extend(self.jobs.iter().map(|(k, v)| (format!("jobs_{k}"), Cell::Int(*v))));
-        row.push(("avg_health".into(), Cell::Float(self.avg_health)));
-        row.push(("poor_health".into(), Cell::Int(self.poor_health)));
-        row.push(("accidents".into(), Cell::Int(self.accidents)));
-        row.push(("events".into(), Cell::Text(self.events.clone())));
+        let mut row = Vec::with_capacity(128);
+        self.visit(|name, cell| row.push((name.to_string(), cell)));
         row
     }
 }
@@ -406,11 +416,23 @@ impl MonthRecord {
 impl MonthRecord {
     /// A measure by name, including flattened ones like "price_firewood" or "jobs_farming".
     pub fn value(&self, name: &str) -> f64 {
-        self.flat()
-            .into_iter()
-            .find(|(n, _)| n == name)
-            .map(|(_, v)| v.as_f64())
-            .unwrap_or_else(|| panic!("no measure named {name:?}"))
+        // (looked up thousands of times for a report: without building the row)
+        let named = |list: &[(String, f64)], key: &str| list.iter().find(|(k, _)| k == key).map(|&(_, v)| v);
+        if let Some(found) = name.strip_prefix("price_").and_then(|product| named(&self.prices, product)) {
+            return found;
+        }
+        if let Some(business) = name.strip_prefix("jobs_") {
+            if let Some(&(_, v)) = self.jobs.iter().find(|(k, _)| k == business) {
+                return v as f64;
+            }
+        }
+        let mut found = None;
+        self.visit(|n, cell| {
+            if found.is_none() && n == name {
+                found = Some(cell.as_f64());
+            }
+        });
+        found.unwrap_or_else(|| panic!("no measure named {name:?}"))
     }
 }
 

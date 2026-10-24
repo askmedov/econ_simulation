@@ -3,6 +3,7 @@
 
 use clap::Args;
 use econ_core::config::{default_config, Config, ScheduledEvent};
+use econ_core::region::{region, RegionSettings};
 
 #[derive(Args, Clone, Debug, Default)]
 pub struct RunArgs {
@@ -65,12 +66,23 @@ pub struct RunArgs {
     /// A drought (or good year) doesn't make another the next year likelier
     #[arg(long)]
     pub no_drought_runs: bool,
-    /// Villagers at the start (one village, not a region)
+    /// Villagers at the start; in a region, people in an average village of the plain
     #[arg(long)]
     pub population: Option<i64>,
     /// Farmland in plots (one village, not a region)
     #[arg(long)]
     pub land: Option<f64>,
+    /// A region of this many villages on a map, with hills, woods, a river,
+    /// market towns and roads (laid out by the Rust engine: the same kind of
+    /// region as Python's, not the same map; for Python's map use --config)
+    #[arg(long, value_name = "VILLAGES")]
+    pub region: Option<usize>,
+    /// Market towns in the region (default: one for every 25 villages)
+    #[arg(long)]
+    pub towns: Option<usize>,
+    /// Lay out a different region
+    #[arg(long, default_value_t = 1)]
+    pub map_seed: i64,
     /// Months of food in store at the start
     #[arg(long)]
     pub food_months: Option<f64>,
@@ -101,7 +113,25 @@ impl RunArgs {
         if let Some(s) = self.start_month {
             config.start_month = s;
         }
-        if self.population.is_some() || self.land.is_some() {
+        if let Some(villages) = self.region {
+            if self.land.is_some() {
+                return Err("--land sets one village's land; in a region each village has land for its size".into());
+            }
+            let settings = RegionSettings {
+                villages,
+                towns: self.towns,
+                seed: self.map_seed,
+                mean_size: self.population.map_or(RegionSettings::default().mean_size, |p| p as f64),
+                ..RegionSettings::default()
+            };
+            // Villages get land at the usual density for their size.
+            let mut usual = default_config().villages[0].clone();
+            if let Some(f) = self.food_months {
+                usual.initial_food_months = f;
+            }
+            config.villages = vec![usual];
+            config = region(&settings, &config)?;
+        } else if self.population.is_some() || self.land.is_some() {
             if config.villages.len() != 1 {
                 return Err(
                     "--population and --land set one village's size; in a region each village has its own".into()

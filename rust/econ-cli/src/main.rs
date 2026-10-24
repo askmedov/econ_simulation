@@ -1,10 +1,13 @@
 //! The command line: runs and paired what-ifs as Python's
 //! (`python -m econ_sim`), and tools for checking the engine.
 
+mod bench;
 mod dump;
 mod options;
 mod report;
 mod run;
+mod sanity;
+mod stress;
 
 use clap::{Parser, Subcommand};
 use options::RunArgs;
@@ -27,12 +30,64 @@ struct Cli {
 enum Command {
     /// Every month of every run, as CSV on standard output (with --event, both arms of each pair)
     Records(RunArgs),
+    /// The config these options describe, as JSON (e.g. a region laid out by
+    /// --region), to keep and run again with --config
+    Config(RunArgs),
     /// The starting state of each run, one line of JSON each
     World(RunArgs),
     /// Each run's measures per place, one line of JSON each (with --event, both arms)
     Places(RunArgs),
     /// Each run's log of notable happenings (with the forced events)
     Logs(RunArgs),
+    /// Run many seeds and settings and flag outcomes no real village would show (as scripts/sanity_check.py)
+    Sanity {
+        /// Many more seeds
+        #[arg(long)]
+        full: bool,
+        /// Threads to use (default: all cores)
+        #[arg(long)]
+        workers: Option<usize>,
+    },
+    /// How fast the engine is, from 1,000 to 10,000,000 people (as scripts/benchmark.py)
+    Bench {
+        /// Only up to 100,000 people
+        #[arg(long)]
+        quick: bool,
+        /// Up to 10,000,000 people
+        #[arg(long)]
+        country: bool,
+        /// Months to time at each size: a year, as months differ
+        #[arg(long, default_value_t = 12)]
+        months: i64,
+        /// Threads for the projections
+        #[arg(long, default_value_t = 4)]
+        workers: usize,
+        /// Time this one size only
+        #[arg(long)]
+        people: Option<usize>,
+    },
+    /// Run the village through many scenarios for decades and look for drift (as scripts/stress_test.py)
+    Stress {
+        /// 100 years, 16 seeds
+        #[arg(long)]
+        full: bool,
+        #[arg(long)]
+        years: Option<usize>,
+        #[arg(long)]
+        seeds: Option<usize>,
+        /// Run only scenarios whose name contains this
+        #[arg(long, default_value = "")]
+        only: String,
+        #[arg(long, default_value = "output/stress")]
+        out: String,
+        /// Threads to use (default: all cores)
+        #[arg(long)]
+        workers: Option<usize>,
+        /// Print each seed's yearly measures, one line of JSON each, instead
+        /// of the table (to compare runs with Python's)
+        #[arg(long)]
+        each_seed: bool,
+    },
 }
 
 fn threads(workers: Option<usize>) {
@@ -56,6 +111,44 @@ fn main() {
             threads(args.workers);
             args.config().and_then(|config| dump::logs(&config, &args.forced()?, args.runs))
         }
+        Some(Command::Bench { quick, country, months, workers, people }) => {
+            let sizes: Vec<usize> = match people {
+                Some(p) => vec![p],
+                None if quick => vec![1_000, 10_000, 100_000],
+                None if country => vec![1_000, 10_000, 100_000, 1_000_000, 10_000_000],
+                None => vec![1_000, 10_000, 100_000, 1_000_000],
+            };
+            match bench::run(&sizes, months, workers) {
+                Ok(true) => Ok(()),
+                Ok(false) => std::process::exit(1),
+                Err(e) => Err(e),
+            }
+        }
+        Some(Command::Sanity { full, workers }) => {
+            threads(workers);
+            match sanity::run(full) {
+                Ok(0) => Ok(()),
+                Ok(_) => std::process::exit(1),
+                Err(e) => Err(e),
+            }
+        }
+        Some(Command::Stress { full, years, seeds, only, out, workers, each_seed }) => {
+            threads(workers);
+            let years = years.unwrap_or(if full { 100 } else { 40 });
+            let seeds = seeds.unwrap_or(if full { 16 } else { 6 });
+            if each_seed {
+                stress::each_seed(years, seeds, &only)
+            } else {
+                match stress::run(years, seeds, &only, &out) {
+                    Ok(0) => Ok(()),
+                    Ok(_) => std::process::exit(1),
+                    Err(e) => Err(e),
+                }
+            }
+        }
+        Some(Command::Config(args)) => args.config().and_then(|config| {
+            serde_json::to_string_pretty(&config).map(|text| println!("{text}")).map_err(|e| e.to_string())
+        }),
         Some(Command::World(args)) => {
             threads(args.workers);
             args.config().and_then(|config| dump::worlds(&config, args.runs))

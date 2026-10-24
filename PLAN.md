@@ -1522,8 +1522,9 @@ deterministic functions and on the invariants.
   serde mirror with `deny_unknown_fields`: a parameter added in Python and
   not in Rust fails loudly, and so does one missing.
   `tests/test_rust_export.py` checks that the checked-in files match a
-  fresh export. Regions are read from these files, not generated in Rust
-  (their layout comes from numpy's draws).
+  fresh export. The parity checks read their regions from these files,
+  so both engines run the very same map (`econ-sim --region` lays out its
+  own, milestone 5).
 - **Randomness.** One stream per rule, with Python's stream names, seeded
   from (seed, crc32(name)): xoshiro256++ through SplitMix64, with
   `rand_distr` for binomial, normal and Poisson draws (a binomial of one
@@ -1709,3 +1710,66 @@ deterministic functions and on the invariants.
   1.517 / 1.517, grain between towns 27,770 / 27,970 rations, wool coins
   46,990 / 46,940. (With 30 runs its population sat 3 standard errors high
   for nine months running, by 0.1%; with 100 runs it doesn't.)
+
+### 5. The runner and CLI (built)
+
+- **The command line** (`econ-sim`, in `rust/econ-cli`) takes Python's
+  options (`python -m econ_sim`) under the same names, prints the same
+  report (the header, the months or the paired comparison, the effect with
+  its 80% range, places by kind, terrain, carting cost and where the forced
+  events struck, the outlook, the events) and writes the same files
+  (`run1.csv`, `run1_with_event.csv`, `summary.csv`, `log.txt`, and
+  `places.csv` on a map), with Python's columns and the csv module's CRLF
+  lines. `--config FILE` runs any exported config; `econ-sim config`
+  prints the config the options describe, to keep and run again.
+  Python's `tests/test_cli.py` is ported (`econ-cli/tests/cli.rs`, 11
+  tests). `--plot` is not ported (the chart is Python's matplotlib).
+- **Paired what-ifs on threads.** Each seed's two arms run on rayon's
+  threads. Every rule draws from its own named stream, seeded from the
+  run's seed, so the results don't depend on the thread count: a test
+  runs the same seeds on one thread and on four and compares every record
+  and the log.
+- **Regions laid out in Rust** (`--region N`, `--towns`, `--map-seed`;
+  `region.rs`). Python's `geography.region`, step for step, with its
+  default settings exported (`region_settings.json`). The draws are Rust's
+  own, so a map seed gives the same kind of region, not the same map. I
+  checked the layouts over 500 map seeds at 20, 60, 100 and 300 villages,
+  on 17 measures each: people in villages and towns, the largest town and
+  village, villages by terrain, land per person, roads and their length,
+  river legs, the width, the distance to the nearest town. The largest
+  \|t\| of the 68 is 2.2. For Python's very map, export it
+  (`scripts/export_config.py --region N`) and pass `--config`, as the
+  parity checks do.
+- **The sanity check** (`econ-sim sanity [--full]`) runs the settings of
+  `scripts/sanity_check.py` (exported whole to `sanity.json`) and flags
+  what Python's flags. `--full`: 3,010 runs, every setting passes in both
+  engines, in 33 s on 4 cores in Rust and 13 min in Python (Python's time
+  is inflated: it shared the cores with another check for part of it).
+- **The stress test** (`econ-sim stress`, as `scripts/stress_test.py`):
+  67 scenarios × 6 seeds × 40 years. 0 of 67 drift in either engine, and
+  each flags 9 expected outcomes in its extreme scenarios. Rust takes 41 s
+  on 4 cores, Python 8 min 13 s.
+  - The two tables differ by more than their own spread suggests: Rust's
+    last five years show fewer deaths (45 against 52 per 1,000 averaged
+    over the scenarios) and cheaper grain.
+  - The six seeds are the same in every scenario, so the tables share
+    their luck. Python's baseline seeds, for instance, happen to have bad
+    years 37 to 40 (47 to 64 deaths per 1,000, against about 40). Over all 40 years the gaps shrink (deaths 44.1 /
+    45.3 per 1,000).
+  - Seed by seed (`econ-sim stress --each-seed`), the baseline over 160
+    seeds agrees on all 45 yearly measures, both over the 40 years and in
+    the last five; the largest \|t\| is 1.5. Money inequality, which at
+    40 seeds read 0.02 lower in Rust (\|t\| 1.8), is 0.754 / 0.753.
+- **Speed of a what-if**, on this machine (4 cores, 2.8 GHz Xeon):
+
+| What-if | Rust, 1 thread | Rust, 4 | Python, 1 worker | Python, 4 |
+|---|---|---|---|---|
+| Default village, drought@4, 100 pairs of 36 months | 4.1 s | 1.3 s | 70 s | 24 s |
+| Region of 20 villages (Python's map), drought@4, 20 pairs | 4.8 s | 1.3 s | 29 s | 9.0 s |
+
+  A village runs 17 times faster than in Python; the region runs only 6
+  times faster, because numpy's whole-array steps pay off on more
+  people. Milestone 6 is about that.
+  - One bottleneck was in the report: looking up a measure in a month's
+    record built the whole 109-field row each time. That took 30% of a
+    run; the fix leaves every output byte for byte the same.

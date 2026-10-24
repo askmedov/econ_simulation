@@ -1,0 +1,25 @@
+{
+ "settings": {
+  "villages": 30,
+  "mean_size": 400.0,
+  "size_spread": 0.5,
+  "smallest": 40,
+  "spacing_km": 3.0,
+  "towns": null,
+  "town_share": 0.12,
+  "smallest_town": 300,
+  "city": 1.5,
+  "upland": 0.2,
+  "forest": 0.15,
+  "river": true,
+  "coast": false,
+  "seed": 1
+ },
+ "size_by_terrain": {
+  "plain": 1.0,
+  "valley": 1.3,
+  "upland": 0.6,
+  "forest": 0.7,
+  "coast": 0.9
+ }
+}

@@ -25,6 +25,7 @@ pub mod market;
 pub mod metrics;
 pub mod migration;
 pub mod population;
+pub mod region;
 pub mod rng;
 pub mod rules;
 pub mod scenarios;

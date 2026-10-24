@@ -25,7 +25,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from econ_sim.config import Config  # noqa: E402
-from econ_sim.geography import RegionSettings, region  # noqa: E402
+from econ_sim.geography import SIZE_BY_TERRAIN, RegionSettings, region  # noqa: E402
 
 CONFIGS = ROOT / "rust" / "configs"
 
@@ -74,9 +74,15 @@ def stress_suite() -> list[dict]:
     ]
 
 
+def region_settings() -> dict:
+    """What `geography.region` lays a region out from by default (the Rust
+    engine's region generator reads its numbers here)."""
+    return {"settings": json.loads(json.dumps(dataclasses.asdict(RegionSettings()))), "size_by_terrain": SIZE_BY_TERRAIN}
+
+
 def standard_files() -> dict[str, object]:
     """Every file in rust/configs/, by its path there."""
-    files: dict[str, object] = {"village.json": as_json(Config())}
+    files: dict[str, object] = {"village.json": as_json(Config()), "region_settings.json": region_settings()}
     for name, settings in REGIONS.items():
         files[f"regions/{name}.json"] = as_json(region(settings, Config()))
     files["sanity.json"] = sanity_suite()
