@@ -1,0 +1,318 @@
+# Project status
+
+Written for whoever picks this project up next. Read this first, then
+[PLAN.md](PLAN.md) (design, every step's measurements and the roadmap) and
+[README.md](README.md) (how to run it). The hand-off for porting the model to
+Rust is [docs/RUST_HANDOFF.md](docs/RUST_HANDOFF.md).
+
+Last updated: October 2026, at the end of Phase 3 step 4.
+
+## What this is
+
+A month-by-month simulation of a pre-industrial economy (peasant families,
+their land, grain, animals, coins and debts, village businesses, a lord, the
+state, market towns and the trade between them), built to answer one kind of
+question: **"what happens over the next 12 to 60 months if this event
+hits?"** The product is the **paired what-if**: two runs with the same
+seed, one with a forced event (a drought in month 4, a plague, a debasement,
+a wool slump), one without. Every rule draws from its own named random
+stream, so the two runs share the same luck until the event starts, and the
+gap between them is the event's effect, not chance. Repeating over many
+seeds gives the average effect and its range.
+
+It started as one village of 1,000 people, is now a region on a map
+(villages, market towns, a city, roads and a river), and is meant to grow to
+provinces and a country (1 to 10 million people), calibrated to **England
+around 1300**, with the Great Famine of 1315-17 and the Black Death as
+validation runs.
+
+## Where things stand
+
+- **Code:** Python 3.13 + numpy, package `econ_sim/` (about 7,300 lines in
+  27 modules), `tests/` (about 3,200 lines, 305 tests), `scripts/`
+  (benchmark, sanity check, stress test).
+- **Latest work:** branch `claude/trade-network`, commit `a238613` ("PLAN:
+  the trade network, measured"). `claude/busy-mendel-edwts2` is the
+  designated hand-off branch and is kept fast-forwarded to the latest work.
+  This file was added on `claude/project-status`.
+- **No pull requests** have been opened; work is on a chain of branches,
+  one per step (`claude/village-model` ... `claude/trade-network`), each
+  built on the one before.
+- **All checks pass** at `a238613`: 305 tests (about 4 minutes), the full
+  sanity check (3,010 runs over many settings, including regions), the
+  stress test (67 scenarios of 40 years, 0 drifting), and runs without a
+  map give number-for-number the same results as before the map existed.
+- **Phase 1 and 2/2b are done, Phase 3 steps 1-4 of 13 are done.** Next in
+  the plan is step 5 (regional migration). The user's latest direction is
+  to **continue the project in Rust** (see below).
+
+## What is built
+
+### Phase 1: a village that feeds itself
+Farming by season, a food store, births, deaths and ageing at pre-modern
+rates, health from food and warmth, random events (drought, good weather,
+cold years, harsh winter, forest fire, disease, plague, army, raid,
+debasement, debt jubilee, granary fire, accident; a wool slump on a map),
+paired what-ifs over many seeds, charts and CSVs.
+
+### Phase 2: a village economy
+A village of 1,000 in about 200 families (households with marriages,
+remarriage, heirs, kin); money and a food market; four businesses
+(farming, woodcutting, weaving, smithing) making four products (food,
+firewood, clothing, tools) with stocks, supplies, tools, wages and
+mark-ups; a council that forms, taxes, keeps a grain reserve, gives famine
+relief and pays healers; basic healthcare.
+
+### Phase 2b: a peasant village
+Families hold land and grain and live off their own store (the harvest is
+shared in kind); seed grain and livestock (plough animals, herds, the
+November cull); debt, distress sales and a land market (foreclosure); a lord
+(demesne, labour, barn) and the state (an annual tax in coin); a regional
+grain market and coins that are metal, flowing in and out with trade;
+everyone at harvest, cloth made at home, kin who give grain; woods that
+thin, soil that tires, weather with a memory (droughts come in runs).
+Checked thoroughly (PLAN.md, "Checking Phase 2b").
+
+### Phase 3 so far
+1. **Speed.** Group-by operations instead of loops over villages, one
+   compaction a month, vectorised setup, runs in parallel processes. A
+   month of 1,000,000 people takes about 1.5-2.1 s on one core; one paired
+   three-year run at a million takes about a minute on 4 cores.
+   (`scripts/benchmark.py`.)
+2. **Migration by how good a place is.** People leave or come by a
+   village's *appeal*: its livelihood (wage, or land yield per person after
+   seed and the lord's share), safety (remembered hunger and danger), size,
+   land to spare, and the lord's take. Chain migration, flight in famine.
+   Small or struck villages can empty out; villages thinned by famine fill
+   up again.
+3. **A region on a map** (`geography.py`). Places with coordinates and
+   terrain (plain, valley, upland, forest, coast), roads and rivers, the
+   cost of carting grain to the cheapest market town (Dijkstra), weather
+   that falls on the map (a smooth random field, about 250 km across), so
+   neighbours share droughts and good years; region-wide events (cold years
+   after a volcano, debasement); a generator that lays out N villages from a
+   few settings (`RegionSettings`, `--region N`).
+4. **Market towns** (`towns.py`). Towns are places with people (crafts,
+   no farmland, 1.25x death rates, more skilful craftsmen), grain dealers
+   with a store and coins, and a grain price set by what the villages
+   bring and the town eats (delivered price, marked up as the dealers'
+   store runs low); merchants cart grain and goods both ways on
+   consignment; lords sell their grain in town and spend their rents there
+   (paying townsfolk as servants); only a border town trades with the world
+   beyond at an outside price.
+5. **A trade network.** Towns trade grain and goods with their six nearest
+   towns along roads and rivers (a river carries three times as much); the
+   river town is a city when there are several towns; wool shorn each June
+   and sold beyond the border (a wool slump is a lever); specialisation by
+   terrain (valleys are the granary, hills the wool country).
+
+### Findings worth knowing (measured, written up in PLAN.md)
+- Weather on the map makes regional famines possible. Three region-wide
+  droughts in a row kill 15%, 25% and 13% of people: **too deadly** (the
+  Great Famine killed perhaps 10-15%). That is for calibration (step 11).
+- Towns keep about 12% of a region's people, stable over 40 years. In a
+  region-wide drought towns lose 86 per 1,000 against 14 in villages.
+- Trade between towns trims a struck area's grain price (2.06 against 2.16,
+  peak 2.42 against 2.62) but saves no lives the runs can detect (12.6 vs
+  12.2 extra deaths per 1,000): grain crosses three legs of carting. What
+  would save lives is step 7 (public granaries, relief, export bans).
+- Wool coins (a third to nine-tenths of a coin a head a year) offset the
+  coins the state's tax drains out of the countryside.
+
+## How the code is laid out
+
+| Module | What it holds |
+|---|---|
+| `config.py` | Every parameter, as frozen dataclasses (`Config` and its parts: demography, food, health, money, land, livestock, credit, lord, state, town, migration, work, environment, council, healthcare, map, products, businesses, events). About 1,000 lines; the single source of numbers. |
+| `world.py` | `World`, the whole state, and `create_world` (setup from a config). |
+| `simulation.py` | `Simulation.step()`: the monthly loop, the same steps in the same order every month; records and per-place series. |
+| `population.py` | The people table (one row per person; columns below). |
+| `households.py` | Families: forming them, land, kin links, weddings. |
+| `rules.py` | Deaths, births, ageing, health. |
+| `economy.py`, `market.py`, `work.py` | Businesses and jobs; buying and selling with coins, wages; harvest labour, home weaving, kin help. |
+| `farms.py` | Sharing the harvest in kind; families living off their stores. |
+| `credit.py` | Loans, repayment, foreclosure, land sales. |
+| `livestock.py` | Herds, plough animals, the winter cull, shearing. |
+| `lords.py` | The lord and the state: rent, labour, barn, tax, spending in town. |
+| `council.py`, `healthcare.py` | The village council; healers. |
+| `environment.py` | Woods and soil. |
+| `events.py` | Random and scheduled events: starting, ending, combining effects; weather on the map. |
+| `migration.py` | Appeal, who leaves, where they go, who hosts them. |
+| `town.py` | The outside regional grain market (used when there is no map, and as the world beyond a border town). |
+| `geography.py` | The map, routes, carriage costs, weather field, the region generator. |
+| `towns.py` | Market towns: dealers, carts, consignment, trade between towns, the border. |
+| `metrics.py` | `MonthRecord`: monthly totals (never per-person logs). |
+| `scenarios.py` | Batches, paired comparisons, effects by place, CSV output; parallel runs. |
+| `checks.py` | Invariants that must hold every month. |
+| `rng.py` | Named random streams. |
+| `__main__.py`, `charts.py` | The command line; the overview chart. |
+
+### The state
+- **People** (`Population`, columns of numpy arrays): `count` (people a
+  row stands for, 1 today; kept for a weighted sample later), `age_months`,
+  `female`, `health` (0-100), `skill`, `location` (place index),
+  `household`, `job` (business index or `NO_JOB`), `married`, `couple`.
+  Rows emptied by deaths and departures are dropped once a month; the table
+  keeps spare room for newborns.
+- **Households**: `location`, `money` (coins), `land` (plots), `grain`
+  (rations), `animals`, `debt`, `lent`, `kin` (the family it came from).
+- **Places** (villages first, then towns): per-place arrays on `World`
+  (`land`, `wage_level`, `woods`, `soil`, `dealers_grain`, `dealers_cash`,
+  ...), and places x products / places x businesses arrays (`stock`,
+  `prices`, `markup`, `cash`, `tools`, `supplies`, `pay`, `orders`,
+  `skill`). The lord, council and town (outside market) are small
+  dataclasses of per-place arrays. `Geography` holds the map.
+
+### One month (`Simulation.step`), in order
+1. **Events** end and start (scheduled, then random, rolled by place, with
+   the weather field on a map); debts accrue; raiders take grain; the
+   outside price drifts, coins are debased or lost; fire and pests hit
+   stores; herds grow or die (the November cull); distress slaughter.
+2. **Production**: businesses make goods (farms by what was sown and the
+   plough animals); everyone helps at harvest; fair prices x mark-ups. On a
+   map, the town's grain price is the delivered price (cheapest of its
+   villages plus carriage, or a neighbouring town plus the route).
+3. **The year's cover** sets the grain price and whether it is a famine
+   year; merchants' carts are planned (`towns.carts`); the harvest is shared
+   in kind (council levy, seed, farms, plough owners, workers, holders);
+   the lord's share goes to his barn and part is carted away (sold to the
+   town's dealers on a map).
+4. **Families' needs**: they eat from their store, offer what they can
+   spare, set coins aside; kin help, the council helps; distress sales of
+   animals, borrowing, land sales.
+5. **Markets**, most needed first: grain (families, farms, merchants' grain,
+   the lord), then the rest; consignment carts settle (`towns.settle`);
+   towns trade grain with each other and the border (`between_towns`,
+   `border_trade`); the council's reserve, famine foods, firewood gathered
+   from the commons; woods regrow, soil tires or rests.
+6. **Wages**; dealers pay out; lords pay servants; wool sold in June; council
+   taxes and pays officials and healers; repayment and foreclosure; the
+   state's tax after harvest; the customary wage follows the money there is.
+7. **Spoilage; sowing.**
+8. **Health** from food and warmth; healers see the likeliest to die first.
+9. **Deaths, births, ageing**; council staff; businesses hire and fire;
+   weddings; **migration** (leaving and arriving by appeal).
+10. **Mark-ups** move with demand against supply (grain by how short the
+    year looks, a town's by its dealers' store).
+11. **Record** the month.
+
+### Randomness and pairing
+`RandomStreams(seed)[name]` is `np.random.default_rng([seed,
+crc32(name)])`: one stream per rule ("events", "weather", "deaths",
+"births", "migration", "marriage", "jobs", "production", "council",
+"setup", "land", "kin", ...). Adding a rule never shifts another rule's
+draws. A paired run is identical to its baseline until the event's month.
+Effects that only exist on a map (`MAP_ONLY_EFFECTS`, e.g. `wool_price`)
+are never rolled without one, so village runs keep their old draws.
+
+### Invariants (`checks.py`, checked every month in tests and the sanity check)
+Land conserved (families + demesne = village land); debts equal claims in
+every village; nothing negative or NaN (grain, coins, land, animals, stocks,
+barn, reserve, treasury, woods, dealers' grain and coins); soil in range;
+every person in a household of their own place; couples are one man and one
+woman, both married; kin links within the place. The tests also check that
+**coins are conserved** (only trade with the world beyond moves them, and
+that is booked in the outside purse) and that **people add up**
+(births - deaths - emigrants + immigrants).
+
+## How to run and check it
+
+```bash
+.venv/bin/python -m pytest -q                       # 305 tests, about 4 minutes
+.venv/bin/python scripts/sanity_check.py            # quick; --full: 3,010 runs, a few minutes on 4 cores
+.venv/bin/python scripts/stress_test.py             # 40-year drift check; --full, --only NAME
+.venv/bin/python scripts/benchmark.py --quick       # speed; --profile 200000 for where the time goes
+.venv/bin/python -m econ_sim --event drought@4 --runs 200 --plot
+.venv/bin/python -m econ_sim --region 50 --event drought@4@0,12,11 --runs 40
+.venv/bin/python -m econ_sim --list-events
+```
+
+Outputs go to `output/`: `run1.csv`, `run1_with_event.csv`, `summary.csv`
+(effects with ranges), `places.csv` (per place, in a region), `log.txt`,
+`overview.png`. `ECON_SIM_WORKERS` sets the number of cores.
+
+The machine this was built on: 4 cores, Python 3.13 / numpy 2.x in
+`.venv`, Rust 1.97 (`/root/.cargo/bin/cargo`), gcc 13, clang.
+
+## Conventions (keep them)
+
+- **A branch per step**, named `claude/<step>` (the user asked to "make new
+  branches often"), each built on the last; push with `git push -u origin
+  <branch>` (retry up to 4 times, 2/4/8/16 s, on network errors); keep
+  `claude/busy-mendel-edwts2` fast-forwarded to the latest work. **No pull
+  requests unless the user asks.** Commit and push before ending a turn.
+- **Commit messages** end with the `Co-Authored-By` and `Claude-Session`
+  trailer lines the session gives; no model names in commits, code or docs.
+- **Every step is verified the same way** before it is called built: the
+  tests; invariants every month; the sanity check (`--full`); the stress
+  test; runs without a map (or without the new feature) **number-for-number
+  identical** to the previous commit (run both in a git worktree and diff
+  the records); and the step's what-if measured and **written up in
+  PLAN.md** with numbers (what changed, what it does, what it doesn't).
+- **Style:** plain everyday words for names and comments (families, grain,
+  rations, coins, carts, "how good a place it is"), comments that say why,
+  tests named as sentences (`test_a_town_lives_on_its_villages_grain`),
+  parameters in `config.py`, never inline. Monthly totals only, no
+  per-person logs.
+- When a fix is a judgement call (a parameter that makes things plausible),
+  say so in PLAN.md and keep the measurement that motivated it.
+
+## Known issues and limits
+
+- **Multi-year famines too deadly** (above); adult mortality a little high;
+  grain only a little dearer before harvest than after; seed a seventh of
+  the harvest (medieval yields were 3-5 to 1); the lord, state and council
+  take about 15% of the harvest (25-50% was usual; no tithe yet). All for
+  calibration (step 11).
+- **Towns are about 90% weavers**: few products (food, firewood, clothing,
+  tools). A town bigger than about a fifth of its countryside can't be fed.
+- An ordinary village settles about 10% below its starting population.
+- Price levels across runs spread with the weather; the state's tax drains
+  coins until state spending exists (step 7).
+- A 50-village region shows some strain in its first years.
+- Relief of a local drought by trade is marginal (by design of the carting
+  costs; step 7 adds policies).
+- Speed: 2.1 s a month at 1,150,000 people (1,000 villages, 40 towns) on
+  one core, slightly over the one-minute paired-run target at a million.
+  10 million people needs a weighted sample (step 12) or a faster engine.
+
+## What's next
+
+Phase 3, remaining steps (details in PLAN.md, "Build order"):
+
+| Step | Adds |
+|---|---|
+| 5 | Regional migration: distance, towns as destinations, harvest labour, famine refugees |
+| 6 | Epidemics spreading within and between places; quarantine |
+| 7 | Provinces, tax quotas, a treasury, public granaries, famine policies, armies |
+| 8 | The tithe and parish relief; lords with several manors; mills |
+| 9 | Several crops, rotations, pasture, clearing woods |
+| 10 | Individual workshops (firms) instead of one business per trade |
+| 11 | Calibration to England c. 1300; validation against the Great Famine |
+| 12 | 10 million people: a weighted sample, checked against a full million |
+| 13 | A region dashboard: maps and side-by-side what-ifs |
+
+### The Rust direction (the user's latest request)
+The user asked whether the model could have **fewer people, each with a
+mind of their own**, and whether C or Rust would help, then asked for this
+project to **continue in Rust**. What was measured (a toy decision rule per
+person: an expected price learned from experience, fear from hunger, and a
+choice to sell, hoard or flee):
+
+| | ns per person-month |
+|---|---|
+| Pure Python, a loop over objects | 770 |
+| numpy, columns (as the model is written) | 32 |
+| Rust, a loop over structs, one core | 8.5 |
+
+So numpy is fine while every person follows the same rule on columns, but
+**decisions that differ by person, with branches and memory, are where
+Python loses** (a Python loop is 25x slower than numpy and about 90x slower
+than Rust). Rust over C: memory safety, `rayon` for parallel runs and
+places, `serde` for the config, a good test tool, and PyO3 if Python ever
+needs to call it. The recommendation: **port the engine to Rust
+incrementally, keep the Python model as the reference it is checked
+against**, then give households (not every person) minds: traits, memory
+and expectations, deciding to sell or hoard, borrow, stay or leave.
+The plan and the prompt for that are in
+[docs/RUST_HANDOFF.md](docs/RUST_HANDOFF.md).

@@ -28,7 +28,8 @@ rivers (barges carry more), the town on the river is the region's city,
 and the hill villages, with less farmland and more sheep, sell their wool
 beyond the region. A village council taxes, keeps
 a grain reserve, gives famine relief and pays healers. See [PLAN.md](PLAN.md) for the design and
-roadmap.
+roadmap, [STATUS.md](STATUS.md) for where the project stands, and
+[docs/RUST_HANDOFF.md](docs/RUST_HANDOFF.md) for the plan to move the engine to Rust.
 
 ## Setup
 
