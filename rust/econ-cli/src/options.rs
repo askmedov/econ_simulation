@@ -66,6 +66,10 @@ pub struct RunArgs {
     /// A drought (or good year) doesn't make another the next year likelier
     #[arg(long)]
     pub no_drought_runs: bool,
+    /// Families have minds of their own: traits, memory and expectations
+    /// (Rust only; see MindsConfig), instead of all following the rules
+    #[arg(long)]
+    pub minds: bool,
     /// Villagers at the start; in a region, people in an average village of the plain
     #[arg(long)]
     pub population: Option<i64>,
@@ -185,6 +189,9 @@ impl RunArgs {
         }
         if self.no_kin_help {
             config.work.kin_share = 0.0;
+        }
+        if self.minds {
+            config.minds.enabled = true;
         }
         if self.no_drought_runs {
             for event in config.events.iter_mut() {

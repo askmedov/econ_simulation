@@ -21,6 +21,11 @@ pub fn broken_invariants(world: &World) -> Vec<String> {
     let n_hh = hh.len();
     let per_place = |values: &[f64]| hh.by_place(n, |h| values[h]);
 
+    // Families with minds: one mind for each family.
+    if hh.minds.as_ref().is_some_and(|m| m.len() != n_hh) {
+        broken.push("not one mind for each family".into());
+    }
+
     // Land: families' holdings plus the lord's demesne are the place's land.
     let held: Vec<f64> = per_place(&hh.land).iter().zip(&world.lord.land).map(|(a, b)| a + b).collect();
     if !close(&held, &world.land, &world.land, 1.0) {

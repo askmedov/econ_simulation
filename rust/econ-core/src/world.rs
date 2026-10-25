@@ -11,6 +11,7 @@ use crate::households::{self, Households};
 use crate::livestock;
 use crate::lords::{self, Lords};
 use crate::migration::Memory;
+use crate::minds::Minds;
 use crate::population::{Population, NO_JOB};
 use crate::rng::{cumulative, RandomStreams, Rng};
 use crate::rules;
@@ -327,6 +328,9 @@ pub fn create_world(config: &Config, streams: &mut RandomStreams) -> Result<Worl
     };
     let woods_normal = woods.clone();
     population.sort_by_family();
+    if config.minds.enabled {
+        households.minds = Some(Minds::new(households.len(), &config.minds, streams.get("minds")));
+    }
     Ok(World {
         month: config.start_month - 1,
         population,

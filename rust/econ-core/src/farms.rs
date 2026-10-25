@@ -149,6 +149,7 @@ pub fn plan_family_food(
     let mut spare = Vec::with_capacity(n_hh);
     let mut want = Vec::with_capacity(n_hh);
     let kept_a_month = 1.0 - config.food.spoilage;
+    let decide = households.decide();
     for h in 0..n_hh {
         let v = households.location[h] as usize;
         let mine = shares[h] * after_deductions[v];
@@ -176,7 +177,8 @@ pub fn plan_family_food(
         };
         let eat = (ration * need_h).min(grain);
         let dear = markup.map_or(1.0, |m| m[v].max(1.0));
-        let margin = if households.debt[h] > 0.0 { 0.0 } else { config.land.keep_months }; // debtors sell it to pay
+        // (debtors sell it to pay)
+        let margin = if households.debt[h] > 0.0 { 0.0 } else { decide.grain_margin(h, config.land.keep_months) };
         let keep = to_keep + margin * need_h / dear;
         own.push(eat);
         spare.push((grain - keep.max(eat)).max(0.0));

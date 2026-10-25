@@ -1886,3 +1886,100 @@ year of months at each size:
     faster at ten million (4.4 s against 5.1 to 5.4 s). But it held 1.5
     GB more per run, and on ordinary hardware those faults cost about
     75 ms a month. Not adopted. mimalloc gained nothing.
+
+### 7. Households with minds (built; off by default)
+
+- **A mind is per family** (not per person):
+  - Traits drawn at set-up: caution, thrift, nerve, learning, attachment
+    to its place, patience. Each multiplies a decision of the rules and
+    is drawn as exp(normal(0, 0.3)), so the typical family decides as the
+    rules do. A family founded at a wedding takes its parent family's
+    traits, each a little changed; a family that moves keeps its mind.
+  - A memory: its hunger and its losses on loans, fading over a year,
+    and the grain price it last saw.
+  - An expectation: the monthly change in the grain price, learned from
+    the changes it sees.
+  - Settings: `MindsConfig`, in Python's config (Python ignores it) like
+    every other number; `minds.rs` in the engine.
+- **What a mind decides:**
+  - How much grain to hold back: its usual margin times its caution times
+    (expected rise over its horizon) ** speculation. It hoards when it
+    expects a dearth and sells when it expects plenty.
+  - How many months of coins to keep: times its thrift, and more after
+    hunger.
+  - How much of its spare coins to lend: over its caution, and less after
+    losses.
+  - Its chance of leaving: over its attachment, times its remembered
+    hunger over its nerve. It flees a famine below a share of its need
+    that depends on its nerve.
+  - Still by the rules: buying and selling animals and land, borrowing
+    when short, and where people go.
+- **One interface.** Both kinds decide through `Deciding`: `Rules` (every
+  family alike, the config's numbers, the default) and `Minds`; the
+  families give theirs with `households.decide()`. `--minds` switches a
+  run; `econ-sim minds` runs each seed four ways (rules and minds, without
+  and with the forced events) and compares them seed by seed.
+- **Checks.**
+  - With minds off, every output is byte for byte milestone 6's (five
+    settings).
+  - Minds with no spread and no responses give the rules' records and
+    log, run for run (a test, on a village and a region, both with a
+    drought).
+  - The invariants hold every month with minds, including one mind for
+    each family; money is conserved.
+- **What minds change** (paired runs, the same seeds: the drought's
+  effect, with it less without it):
+
+| Village, drought in month 4, 200 pairs | Rules | Minds | t |
+|---|---|---|---|
+| Extra deaths | +35.9 | +31.0 | −5.1 |
+| Highest grain price | +1.13 | +1.03 | −9.8 |
+| Grain sold in the 6 months from the drought | +337 | +229 | −36.8 |
+| Coins lent | +977 | +871 | −8.4 |
+| People who left | +51 | +49 | −1.6 |
+
+| Region of 20 villages, drought in month 4, 100 pairs | Rules | Minds | t |
+|---|---|---|---|
+| Extra deaths | +174 | +160 | −3.5 |
+| People who left | +205 | +327 | +10.2 |
+| Families who left | +52 | +77 | +9.3 |
+| Grain sold in the 6 months from the drought | +297 | −196 | −33.3 |
+| Coins lent | +3,444 | +2,885 | −6.9 |
+| Highest grain price | +1.33 | +1.32 | −3.7 |
+
+  Without the drought, minds change little in a village. In the region,
+  33% more people leave in three years (314 against 198; hunger is
+  commoner there, and remembered).
+- **Each channel alone** (the village's drought, minds less rules):
+  - Hoarding alone: 3.2 fewer deaths (t −4.4), the price peak 0.09 lower,
+    104 rations less sold. Twice the speculation: 4.0 fewer deaths, the
+    peak 0.14 lower.
+  - Fear of losses alone: 33 coins less lent (t −8.9), nothing else; in
+    three years almost no debt is written off, so there is little to
+    fear.
+  - Leaving alone, saving alone, and traits alone: nothing measurable.
+- **Did hoarding raise prices in 1315? In this model it can't, and the
+  reason is the price, not the minds.**
+  - The grain price follows how short the place's whole store looks
+    (`supply_cover`, from families' grain, the farms' store and the
+    dealers'), not what is offered for sale. Grain a family holds back
+    still counts as supply.
+  - The families it would have been sold to fall back on the council's
+    reserve, which the price doesn't count: in month 6, 112 rations less
+    were sold and 114 more were given in relief. Without a council they
+    fall back on famine foods (+50 rations in month 6).
+  - So holding back makes the place look better stocked. The price peaks
+    lower, deaths rise a little in the hungry months (+0.3 in months 6 to
+    8, no council) and fall more later (8 fewer over three years), and
+    hoarding works as storage.
+  - To ask the 1315 question, the price would have to follow what is
+    offered for sale (or family stores would count only as offered).
+    That changes what every grain price in the model means, so it is the
+    user's call.
+- **Speed:** minds cost 6% in a village (15.6 ms a run against 14.7) and
+  nothing measurable in a region or at a million people.
+- **Not the default.** The ported rules stay the default. Should minds
+  become it? My recommendation: not yet. Hoarding can't show its
+  historical effect while the price follows the whole store, and the
+  minds' settings are guesses until the calibration step. The user
+  decides.

@@ -1358,6 +1358,19 @@
    }
   ]
  },
+ "minds": {
+  "enabled": false,
+  "trait_spread": 0.3,
+  "inherited_spread": 0.1,
+  "memory_months": 12.0,
+  "learning": 0.3,
+  "horizon_months": 3.0,
+  "speculation": 2.0,
+  "hoard_limit": 4.0,
+  "hunger_saving": 4.0,
+  "loss_fear": 4.0,
+  "hunger_leaving": 4.0
+ },
  "products": [
   {
    "name": "food",

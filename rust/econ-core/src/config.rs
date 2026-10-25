@@ -381,6 +381,23 @@ pub struct HealthcareConfig {
     pub treatment_mortality: f64,
 }
 
+/// Families with minds of their own (see `minds.rs`; Python's `MindsConfig`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct MindsConfig {
+    pub enabled: bool,
+    pub trait_spread: f64,
+    pub inherited_spread: f64,
+    pub memory_months: f64,
+    pub learning: f64,
+    pub horizon_months: f64,
+    pub speculation: f64,
+    pub hoard_limit: f64,
+    pub hunger_saving: f64,
+    pub loss_fear: f64,
+    pub hunger_leaving: f64,
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct EventSpec {
@@ -434,6 +451,7 @@ pub struct Config {
     pub council: CouncilConfig,
     pub healthcare: HealthcareConfig,
     pub map: MapConfig,
+    pub minds: MindsConfig,
     pub products: Vec<ProductSpec>,
     pub businesses: Vec<BusinessSpec>,
     pub events: Vec<EventSpec>,

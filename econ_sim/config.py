@@ -760,6 +760,55 @@ class HealthcareConfig:
 
 
 @dataclass(frozen=True)
+class MindsConfig:
+    """Families with minds of their own (so far only in the Rust engine,
+    `rust/`; this model ignores it).
+
+    Off, every family follows the same rules, as the model is written. On,
+    each family has traits drawn at the start, remembers its hunger and its
+    losses on loans, and expects the grain price to keep moving the way it
+    has seen it move; how much grain it holds back, how many coins it keeps,
+    how much it lends and whether it leaves follow from those. With no
+    spread of traits and no responses (spread, speculation and the four
+    weights all 0), minds decide exactly as the rules do.
+    """
+
+    enabled: bool = False
+    # Traits (caution, thrift, nerve, learning, attachment, patience) each
+    # multiply a decision of the rules. Drawn per family as
+    # exp(normal(0, trait_spread)), so the typical family decides as the
+    # rules do. A family founded by a member of another takes that family's
+    # traits, each times exp(normal(0, inherited_spread)).
+    trait_spread: float = 0.3
+    inherited_spread: float = 0.1
+    # Hunger (the share of its need a family went without) and losses on
+    # loans (the share of its claims written off) fade over `memory_months`.
+    memory_months: float = 12.0
+    # Each month a family moves the monthly price change it expects by
+    # `learning` (times its learning trait) of the way to the change it has
+    # just seen, and looks `horizon_months` ahead (times its patience).
+    learning: float = 0.3
+    horizon_months: float = 3.0
+    # Grain: a family expecting grain to be dearer by a share x by the end
+    # of its horizon holds back its usual margin times its caution times
+    # (1 + x) ** speculation, within a factor of `hoard_limit` either way:
+    # hoarding when it expects a dearth, selling when it expects plenty.
+    speculation: float = 2.0
+    hoard_limit: float = 4.0
+    # Coins: a family keeps its usual months of savings times its thrift,
+    # times (1 + hunger_saving x its remembered hunger).
+    hunger_saving: float = 4.0
+    # Loans: a family lends its usual share of spare coins over its caution,
+    # times (1 - loss_fear x its remembered losses), and never below none.
+    loss_fear: float = 4.0
+    # Leaving: a family's yearly chance of leaving is the rules' over its
+    # attachment, times (1 + hunger_leaving x its remembered hunger / its
+    # nerve); in a famine it flees when eating less than `flee_below`
+    # (MigrationConfig) over its nerve.
+    hunger_leaving: float = 4.0
+
+
+@dataclass(frozen=True)
 class EventSpec:
     """A kind of random event, described as data.
 
@@ -984,6 +1033,7 @@ class Config:
     council: CouncilConfig = field(default_factory=CouncilConfig)
     healthcare: HealthcareConfig = field(default_factory=HealthcareConfig)
     map: MapConfig = field(default_factory=MapConfig)
+    minds: MindsConfig = field(default_factory=MindsConfig)
     products: tuple[ProductSpec, ...] = DEFAULT_PRODUCTS
     businesses: tuple[BusinessSpec, ...] = DEFAULT_BUSINESSES
     events: tuple[EventSpec, ...] = DEFAULT_EVENTS

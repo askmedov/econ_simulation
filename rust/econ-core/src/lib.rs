@@ -24,6 +24,7 @@ pub mod lords;
 pub mod market;
 pub mod metrics;
 pub mod migration;
+pub mod minds;
 pub mod population;
 pub mod region;
 pub mod rng;

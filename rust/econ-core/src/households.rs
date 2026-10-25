@@ -5,6 +5,7 @@
 //! and young people marry: the first of a family to marry stays and brings
 //! their spouse home (the heir), later ones set up a household of their own.
 
+use crate::minds::{Deciding, Minds, Rules};
 use serde::{Deserialize, Serialize};
 
 use crate::config::Config;
@@ -27,6 +28,10 @@ pub struct Households {
     pub debt: Vec<f64>,     // coins owed to the place's lenders
     pub lent: Vec<f64>,     // coins the family is owed (its claim on the place's borrowers)
     pub kin: Vec<i32>,      // the family this one came from (-1: none known)
+    /// Each family's own mind, when families have minds (`minds.enabled`);
+    /// otherwise they all follow the rules. (Not in Python's state.)
+    #[serde(skip)]
+    pub minds: Option<Minds>,
 }
 
 impl Households {
@@ -41,6 +46,15 @@ impl Households {
             debt: vec![0.0; n],
             lent: vec![0.0; n],
             kin: vec![-1; n],
+            minds: None,
+        }
+    }
+
+    /// How the families decide: each by its own mind, or all by the rules.
+    pub fn decide(&self) -> &dyn Deciding {
+        match &self.minds {
+            Some(minds) => minds,
+            None => &Rules,
         }
     }
 
@@ -62,6 +76,9 @@ impl Households {
         self.debt.push(0.0);
         self.lent.push(0.0);
         self.kin.push(-1);
+        if let Some(minds) = &mut self.minds {
+            minds.push_blank();
+        }
         self.len() - 1
     }
 
@@ -563,6 +580,9 @@ pub fn marry(
         if !at_groom[j] && !at_bride[j] {
             let founded = households.add(couples[j].2);
             households.kin[founded] = family_g[j] as i32;
+            if let Some(minds) = &mut households.minds {
+                minds.copy(family_g[j], founded); // its traits varied by the caller
+            }
         }
     }
     let move_shares = |held: &mut Vec<f64>| {

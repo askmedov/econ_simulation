@@ -3,6 +3,7 @@
 
 mod bench;
 mod dump;
+mod minds;
 mod options;
 mod report;
 mod run;
@@ -35,6 +36,9 @@ enum Command {
     Config(RunArgs),
     /// The starting state of each run, one line of JSON each
     World(RunArgs),
+    /// What minds change: each seed run by the rules and with minds of the
+    /// families' own, without and with the forced events, compared seed by seed
+    Minds(RunArgs),
     /// Each run's measures per place, one line of JSON each (with --event, both arms)
     Places(RunArgs),
     /// Each run's log of notable happenings (with the forced events)
@@ -149,6 +153,10 @@ fn main() {
         Some(Command::Config(args)) => args.config().and_then(|config| {
             serde_json::to_string_pretty(&config).map(|text| println!("{text}")).map_err(|e| e.to_string())
         }),
+        Some(Command::Minds(args)) => {
+            threads(args.workers);
+            minds::run(&args)
+        }
         Some(Command::World(args)) => {
             threads(args.workers);
             args.config().and_then(|config| dump::worlds(&config, args.runs))

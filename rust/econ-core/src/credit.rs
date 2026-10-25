@@ -107,8 +107,10 @@ pub fn borrow(
             short[h].max(0.0).min(room)
         })
         .collect();
-    let offered: Vec<f64> =
-        (0..n_hh).map(|h| if asked[h] <= 0.0 { cfg.lend_share * spare[h].max(0.0) } else { 0.0 }).collect();
+    let decide = households.decide();
+    let offered: Vec<f64> = (0..n_hh)
+        .map(|h| if asked[h] <= 0.0 { decide.lend_share(h, cfg.lend_share) * spare[h].max(0.0) } else { 0.0 })
+        .collect();
     let loc = &households.location;
     let wanted = by_village(&asked, loc, n);
     let available = by_village(&offered, loc, n);

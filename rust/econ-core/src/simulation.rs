@@ -502,9 +502,10 @@ impl Simulation {
         // Families keep coins for a few months of firewood and of whatever food
         // their own store won't cover, before they spend on comforts, lend, or
         // buy animals and land.
-        let months = config.needs.savings_months;
+        let decide = world.households.decide();
         let coin_target: Vec<f64> = (0..n_hh)
             .map(|h| {
+                let months = decide.savings_months(h, config.needs.savings_months);
                 let uncovered = (months * family_food[h] - world.households.grain[h]).max(0.0);
                 uncovered * price_at(h, food) + months * family_fuel[h] * price_at(h, fuel)
             })
@@ -739,6 +740,11 @@ impl Simulation {
             family_eaten[h] = fed + foraged[h];
             family_share[h] = div_or(family_eaten[h], family_food[h], 1.0);
         }
+        // Families with minds remember how they ate and what grain cost them.
+        if let Some(minds) = &mut world.households.minds {
+            let paid: Vec<f64> = (0..n_hh).map(|h| food_price[hh_loc[h] as usize]).collect();
+            minds.remember_month(&family_share, &paid);
+        }
         // Families who couldn't buy all their firewood gather some from the
         // commons: dung, straw and furze, and wood unless the woods have
         // burned or thinned.
@@ -895,7 +901,11 @@ impl Simulation {
                     + config.credit.personal_months * world.wage_level[hh_loc[h] as usize]
             })
             .collect();
+        let owed = world.households.minds.is_some().then(|| world.households.lent.clone());
         let written_off = credit::default(&mut world.households, &limit, n, config);
+        if let (Some(owed), Some(minds)) = (&owed, &mut world.households.minds) {
+            minds.remember_losses(owed, &world.households.lent);
+        }
         // The customary wage that fair prices are reckoned in rises slowly
         // while families hold more money than `money_months` of their coin
         // earnings (averaged over a year), and falls while they hold less:
@@ -1104,6 +1114,7 @@ impl Simulation {
         }
         let people_now = rules::people_by_location(&world.population, n);
         migration::remember_leaving(&mut world.memory, &moves.left, &people_now);
+        let families_before = world.households.len();
         let weddings = households::marry(
             &mut world.population,
             &mut world.households,
@@ -1111,9 +1122,20 @@ impl Simulation {
             self.streams.get("marriage"),
             Some(&willing),
         );
+        if let Some(minds) = &mut world.households.minds {
+            // New families have their parents' minds, a little changed.
+            let rng = self.streams.get("minds");
+            for founded in families_before..minds.len() {
+                minds.vary(founded, rng);
+            }
+        }
         let size = households::sizes(&world.population, world.households.len());
         let gone: Vec<bool> = size.iter().map(|&s| s == 0.0).collect();
+        let owed = world.households.minds.is_some().then(|| world.households.lent.clone());
         credit::write_off(&mut world.households, &gone, n);
+        if let (Some(owed), Some(minds)) = (&owed, &mut world.households.minds) {
+            minds.remember_losses(owed, &world.households.lent);
+        }
         households::pass_on_savings(&mut world.households, &size, &mut world.council.treasury, &world.council.formed);
         let to_reserve = households::pass_on_land_and_grain(
             &mut world.households,

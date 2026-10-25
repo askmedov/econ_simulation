@@ -242,16 +242,18 @@ pub fn move_people(
 
     // Whole families, the landless more readily, and the hungriest in a famine.
     let size = sizes(population, n_hh);
+    let decide = households.decide();
     let mut families = vec![false; n_hh];
     for h in 0..n_hh {
         let v = households.location[h] as usize;
         let rooted = if households.land[h] > 0.0 { cfg.rooted } else { 1.0 };
         let yearly = (cfg.family_leave_chance * rooted * ((1.0 + cfg.push * worse[v]) * follow[v])).min(1.0);
+        let yearly = decide.leave_chance(h, yearly);
         families[h] = size[h] > 0.0 && rng.random() < monthly_chance(yearly);
     }
     for h in 0..n_hh {
         let fled = rng.random() < cfg.flee_chance;
-        families[h] |= size[h] > 0.0 && family_share[h] < cfg.flee_below && fled;
+        families[h] |= size[h] > 0.0 && family_share[h] < decide.flees_below(h, cfg.flee_below) && fled;
     }
     for h in 0..n_hh {
         let fled = rng.random() < cfg.flee_danger * memory.danger_now[households.location[h] as usize];
@@ -342,6 +344,9 @@ pub fn move_people(
             beyond[h] = true;
         } else {
             let home = households.add(to_family[j] as u32);
+            if let Some(minds) = &mut households.minds {
+                minds.copy(h, home); // a family takes its mind with it
+            }
             households.money[home] = coins[h];
             households.grain[home] = grain[h];
             new_home[h] = home;

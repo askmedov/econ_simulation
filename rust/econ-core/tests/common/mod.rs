@@ -151,6 +151,7 @@ pub fn households(v: &Value) -> Households {
         debt: vecf(&v["debt"]),
         lent: vecf(&v["lent"]),
         kin: vecf(&v["kin"]).iter().map(|&x| x as i32).collect(),
+        minds: None, // (Python's families follow the rules)
     }
 }
 
