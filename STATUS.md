@@ -5,7 +5,8 @@ Written for whoever picks this project up next. Read this first, then
 [README.md](README.md) (how to run it). The hand-off for porting the model to
 Rust is [docs/RUST_HANDOFF.md](docs/RUST_HANDOFF.md).
 
-Last updated: October 2026, at the end of Phase 3 step 4.
+Last updated: October 2026, after the Rust engine's milestones 1-7 (the
+Python model at the end of Phase 3 step 4).
 
 ## What this is
 
@@ -43,8 +44,16 @@ validation runs.
   stress test (67 scenarios of 40 years, 0 drifting), and runs without a
   map give number-for-number the same results as before the map existed.
 - **Phase 1 and 2/2b are done, Phase 3 steps 1-4 of 13 are done.** Next in
-  the plan is step 5 (regional migration). The user's latest direction is
-  to **continue the project in Rust** (see below).
+  the plan is step 5 (regional migration), now in Rust.
+- **The Rust engine** (`rust/`, about 10,000 lines) is built through the
+  hand-off's seven milestones, one branch each
+  (`claude/rust-scaffolding` ... `claude/rust-minds`, latest `cceeb20`,
+  also on `claude/busy-mendel-edwts2`). It agrees with the Python model
+  statistically: setup, village and region parity, 879 measures. It also
+  matches exactly on every deterministic function (golden fixtures). It
+  runs about 17 times faster on a village and 3.3 times on a million
+  people, and families can have minds of their own (off by default). The
+  Python model stays the reference; details in PLAN.md, "Rust engine".
 
 ## What is built
 
@@ -217,6 +226,20 @@ that is booked in the outside purse) and that **people add up**
 
 ## How to run and check it
 
+The Rust engine (`cd rust`; the binary is `target/release/econ-sim`):
+
+```bash
+cargo build --release && cargo test --release       # 114 tests
+econ-sim --event drought@4 --runs 200               # Python's options and report
+econ-sim --region 50 --event drought@4@0,12,11 --runs 40
+econ-sim minds --event drought@4 --runs 200         # minds against the rules
+econ-sim sanity --full; econ-sim stress; econ-sim bench --country
+python ../scripts/parity.py village                 # parity with Python (also setup, region)
+python ../scripts/export_config.py                  # after changing config.py: re-export
+```
+
+The Python model:
+
 ```bash
 .venv/bin/python -m pytest -q                       # 305 tests, about 4 minutes
 .venv/bin/python scripts/sanity_check.py            # quick; --full: 3,010 runs, a few minutes on 4 cores
@@ -272,13 +295,31 @@ The machine this was built on: 4 cores, Python 3.13 / numpy 2.x in
 - A 50-village region shows some strain in its first years.
 - Relief of a local drought by trade is marginal (by design of the carting
   costs; step 7 adds policies).
-- Speed: 2.1 s a month at 1,150,000 people (1,000 villages, 40 towns) on
-  one core, slightly over the one-minute paired-run target at a million.
-  10 million people needs a weighted sample (step 12) or a faster engine.
+- Speed (Python): 2.1 s a month at 1,150,000 people (1,000 villages, 40
+  towns) on one core. The Rust engine takes 0.41 s for a million (target
+  0.2 s, missed: memory-bound; see PLAN.md) and meets every paired-run
+  target, ten million included (4.0 min).
+- **The grain price follows the place's whole store**, family grain
+  included, not what is offered for sale. So in this model hoarding can't
+  raise prices (PLAN.md, Rust milestone 7).
+- **The sanity check's century setting fails about every other time** it
+  runs with new seeds, in either engine. Its two "nonsense" checks
+  (population up half in 3 years, a price twentyfold) fire in 1-2% of
+  century runs.
+- **A Python bug, mirrored in Rust:** in a shearing month on a map with
+  towns, `worth` is overwritten by the wool's worth, so foreclosure and
+  the credit limit value animals at their wool price. Fixing it in both
+  engines is the user's call.
 
 ## What's next
 
-Phase 3, remaining steps (details in PLAN.md, "Build order"):
+**Waiting on the user:** whether minds become the default (recommended:
+not yet); whether the grain price should follow what is offered for sale
+(needed to ask whether hoarding raised prices in 1315); whether to fix
+the wool `worth` bug; whether to loosen the century sanity checks; and
+whether to restructure the Rust month for the 0.2 s target.
+
+Phase 3, remaining steps, now in Rust (details in PLAN.md, "Build order"):
 
 | Step | Adds |
 |---|---|
