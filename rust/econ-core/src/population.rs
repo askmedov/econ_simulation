@@ -78,27 +78,62 @@ impl Population {
         if self.count.iter().all(|&c| c > 0) {
             return;
         }
-        let kept: Vec<bool> = self.count.iter().map(|&c| c > 0).collect();
-        fn keep<T: Copy>(column: &mut Vec<T>, kept: &[bool]) {
-            let mut at = 0;
-            for i in 0..column.len() {
-                if kept[i] {
-                    column[at] = column[i];
-                    at += 1;
+        // The runs of rows kept, as (from, to, length): few, as rows empty
+        // here and there, so each column moves in a few block copies.
+        let mut runs = Vec::new();
+        let (mut i, mut at) = (0, 0);
+        while i < self.count.len() {
+            if self.count[i] == 0 {
+                i += 1;
+                continue;
+            }
+            let from = i;
+            while i < self.count.len() && self.count[i] > 0 {
+                i += 1;
+            }
+            runs.push((from, at, i - from));
+            at += i - from;
+        }
+        fn keep<T: Copy>(column: &mut Vec<T>, runs: &[(usize, usize, usize)], kept: usize) {
+            for &(from, to, length) in runs {
+                if from != to {
+                    column.copy_within(from..from + length, to);
                 }
             }
-            column.truncate(at);
+            column.truncate(kept);
         }
-        keep(&mut self.count, &kept);
-        keep(&mut self.age_months, &kept);
-        keep(&mut self.female, &kept);
-        keep(&mut self.health, &kept);
-        keep(&mut self.skill, &kept);
-        keep(&mut self.location, &kept);
-        keep(&mut self.household, &kept);
-        keep(&mut self.job, &kept);
-        keep(&mut self.married, &kept);
-        keep(&mut self.couple, &kept);
+        keep(&mut self.count, &runs, at);
+        keep(&mut self.age_months, &runs, at);
+        keep(&mut self.female, &runs, at);
+        keep(&mut self.health, &runs, at);
+        keep(&mut self.skill, &runs, at);
+        keep(&mut self.location, &runs, at);
+        keep(&mut self.household, &runs, at);
+        keep(&mut self.job, &runs, at);
+        keep(&mut self.married, &runs, at);
+        keep(&mut self.couple, &runs, at);
+    }
+
+    /// Put the rows in order of place, then family (keeping their order
+    /// within a family). Rows carry no meaning in their order; this one
+    /// keeps a family's members side by side, so the many rules that go
+    /// from people to their families read memory in order rather than
+    /// jumping about it.
+    pub fn sort_by_family(&mut self) {
+        let order = stable_order(&self.location, &stable_order(&self.household, &(0..self.len()).collect::<Vec<_>>()));
+        fn gather<T: Copy>(column: &mut Vec<T>, order: &[usize]) {
+            *column = order.iter().map(|&i| column[i]).collect();
+        }
+        gather(&mut self.count, &order);
+        gather(&mut self.age_months, &order);
+        gather(&mut self.female, &order);
+        gather(&mut self.health, &order);
+        gather(&mut self.skill, &order);
+        gather(&mut self.location, &order);
+        gather(&mut self.household, &order);
+        gather(&mut self.job, &order);
+        gather(&mut self.married, &order);
+        gather(&mut self.couple, &order);
     }
 
     /// Separate `take[i]` people out of each row i, e.g. those hit by an event.
@@ -135,9 +170,41 @@ impl Population {
     }
 }
 
+/// `order` rearranged by `keys` (a counting sort, so rows with equal keys
+/// keep their order in `order`).
+fn stable_order(keys: &[u32], order: &[usize]) -> Vec<usize> {
+    let groups = keys.iter().map(|&k| k as usize + 1).max().unwrap_or(0);
+    let mut start = vec![0usize; groups + 1];
+    for &i in order {
+        start[keys[i] as usize + 1] += 1;
+    }
+    for g in 0..groups {
+        start[g + 1] += start[g];
+    }
+    let mut sorted = vec![0usize; order.len()];
+    for &i in order {
+        let g = keys[i] as usize;
+        sorted[start[g]] = i;
+        start[g] += 1;
+    }
+    sorted
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn rows_sorted_by_family_sit_by_place_then_family_and_keep_their_people() {
+        let mut p = people(&[1, 1, 1, 1, 1]);
+        p.location = vec![1, 0, 1, 0, 1];
+        p.household = vec![7, 2, 3, 2, 7];
+        p.age_months = vec![10, 20, 30, 40, 50];
+        p.sort_by_family();
+        assert_eq!(p.location, [0, 0, 1, 1, 1]);
+        assert_eq!(p.household, [2, 2, 3, 7, 7]);
+        assert_eq!(p.age_months, [20, 40, 30, 10, 50]);
+    }
 
     fn people(counts: &[u32]) -> Population {
         let n = counts.len();

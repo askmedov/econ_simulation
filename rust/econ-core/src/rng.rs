@@ -120,6 +120,17 @@ impl Rng {
             items.swap(i, j);
         }
     }
+
+    /// `k` of `items` at random, in random order (the first `k` of a
+    /// shuffle, without shuffling the rest).
+    pub fn choose_some<'a, T>(&mut self, items: &'a mut [T], k: usize) -> &'a [T] {
+        let k = k.min(items.len());
+        for i in 0..k {
+            let j = self.0.gen_range(i..items.len());
+            items.swap(i, j);
+        }
+        &items[..k]
+    }
 }
 
 /// Running sums of `weights`, for `Rng::choose_weighted`.

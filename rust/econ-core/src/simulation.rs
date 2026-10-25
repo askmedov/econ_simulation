@@ -1125,6 +1125,10 @@ impl Simulation {
             levied[v] += to_reserve[v];
         }
         world.population.remove_empty(); // rows emptied by deaths and departures, once a month
+        if month_of_year == 12 {
+            // Births and weddings put people out of family order: once a year, back in it.
+            world.population.sort_by_family();
+        }
 
         // 10. Mark-ups move with the gap between demand and supply: for most
         // goods, what was asked for against what was made this month plus any

@@ -73,11 +73,7 @@ impl Households {
 
 /// People in each household.
 pub fn sizes(population: &Population, n_households: usize) -> Vec<f64> {
-    let mut size = vec![0.0; n_households];
-    for (i, &h) in population.household.iter().enumerate() {
-        size[h as usize] += population.count[i] as f64;
-    }
-    size
+    crate::grid::sum_by(n_households, &population.household, |i| population.count[i] as f64)
 }
 
 /// Group the starting villagers into families and set `household`,
@@ -433,27 +429,32 @@ pub fn marry(
     let mut any_bride = false;
     let mut any_groom = false;
     for i in 0..population.len() {
-        if population.count[i] != 1 {
-            continue;
-        }
-        let single = !population.married[i];
-        widowed[i] = population.married[i] && !partnered[i];
+        // Who may marry, worked out without branching (sex, marriage and
+        // age look random from row to row, and mispredicted branches are
+        // what a pass over a million rows costs): rows of one person only.
+        let one = population.count[i] == 1;
+        let married = population.married[i];
+        let single = !married;
+        widowed[i] = one & married & !partnered[i];
         let a = age(i);
-        if population.female[i] {
-            let may = (single && a <= demo.bride_ages.1) || (widowed[i] && a <= demo.widow_ages.0);
-            if may && a >= demo.bride_ages.0 {
-                let chance = demo.marriage_chance * willingness.map_or(1.0, |w| w[population.location[i] as usize]);
-                if rng.random() < chance {
-                    brides_by_place[population.location[i] as usize].push(i);
-                    any_bride = true;
-                }
+        let female = population.female[i];
+        let bride = one
+            & female
+            & ((single & (a <= demo.bride_ages.1)) | (widowed[i] & (a <= demo.widow_ages.0)))
+            & (a >= demo.bride_ages.0);
+        let groom = one
+            & !female
+            & ((single & (a <= demo.groom_ages.1)) | (widowed[i] & (a <= demo.widow_ages.1)))
+            & (a >= demo.groom_ages.0);
+        if bride {
+            let chance = demo.marriage_chance * willingness.map_or(1.0, |w| w[population.location[i] as usize]);
+            if rng.random() < chance {
+                brides_by_place[population.location[i] as usize].push(i);
+                any_bride = true;
             }
-        } else {
-            let may = (single && a <= demo.groom_ages.1) || (widowed[i] && a <= demo.widow_ages.1);
-            if may && a >= demo.groom_ages.0 {
-                grooms_by_place[population.location[i] as usize].push(i);
-                any_groom = true;
-            }
+        } else if groom {
+            grooms_by_place[population.location[i] as usize].push(i);
+            any_groom = true;
         }
     }
     if !any_bride || !any_groom {
@@ -493,14 +494,19 @@ pub fn marry(
     // A family takes in a couple (at most one a month) if it holds no more
     // than one couple and the newlywed is a generation (15 years) younger
     // than its married members; so heirs stay, their brothers and sisters leave.
-    let mut married = vec![0.0; n];
+    let married = crate::grid::sum_by(n, &population.household, |i| {
+        if population.married[i] {
+            population.count[i] as f64
+        } else {
+            0.0
+        }
+    });
     let mut elder = vec![-1i64; n];
     for i in 0..population.len() {
-        if population.married[i] {
-            let h = population.household[i] as usize;
-            married[h] += population.count[i] as f64;
-            elder[h] = elder[h].max(age(i));
-        }
+        // (without a branch: married or not is as good as random)
+        let h = population.household[i] as usize;
+        let older = if population.married[i] { age(i) } else { -1 };
+        elder[h] = elder[h].max(older);
     }
     let mut room: Vec<bool> = married.iter().map(|&m| m <= 2.0).collect();
     let can_stay = |room: &[bool], person: usize, family: usize| {

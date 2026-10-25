@@ -326,6 +326,7 @@ pub fn create_world(config: &Config, streams: &mut RandomStreams) -> Result<Worl
         food_prices.iter().sum::<f64>() / n as f64 / (1.0 - config.town.transport)
     };
     let woods_normal = woods.clone();
+    population.sort_by_family();
     Ok(World {
         month: config.start_month - 1,
         population,

@@ -154,9 +154,20 @@ impl Grid3 {
 /// `bincount(group, weights=...)`).
 #[inline]
 pub fn sum_by(n: usize, group: &[u32], value: impl Fn(usize) -> f64) -> Vec<f64> {
+    // Rows of a group mostly come together (a family's members, a place's
+    // families): the running sum stays in hand while the group lasts, so an
+    // addition doesn't wait for the last one to be stored. The same
+    // additions in the same order: the same sums to the last bit.
     let mut sums = vec![0.0; n];
-    for (i, &g) in group.iter().enumerate() {
-        sums[g as usize] += value(i);
+    let mut i = 0;
+    while i < group.len() {
+        let g = group[i];
+        let mut sum = sums[g as usize];
+        while i < group.len() && group[i] == g {
+            sum += value(i);
+            i += 1;
+        }
+        sums[g as usize] = sum;
     }
     sums
 }

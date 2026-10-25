@@ -474,12 +474,12 @@ pub fn poorest_fifth_ration(money: &[f64], size: &[f64], eaten: &[f64], need: &[
     if lived.is_empty() {
         return 1.0;
     }
-    let mut order = lived.clone();
-    order
-        .sort_by(|&a, &b| (money[a] / size[a]).partial_cmp(&(money[b] / size[b])).unwrap_or(std::cmp::Ordering::Equal));
+    // Poorest first by coins a head (a stable sort: equals in family order).
+    let mut order: Vec<(f64, usize)> = lived.iter().map(|&h| (money[h] / size[h], h)).collect();
+    order.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
     let people: f64 = lived.iter().map(|&h| size[h]).sum();
     let (mut before, mut got, mut wanted) = (0.0, 0.0, 0.0);
-    for &h in &order {
+    for &(_, h) in &order {
         if before >= 0.2 * people {
             break;
         }

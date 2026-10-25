@@ -12,7 +12,7 @@ use crate::grid::{clip, div_or, Grid};
 use crate::households::Households;
 use crate::market::by_village;
 use crate::population::Population;
-use crate::rules::{plan_ration_one, season_factors, stock_to_keep_one};
+use crate::rules::season_factors;
 
 /// Each household's share of its place's harvest (after deductions), and
 /// the lord's share per place.
@@ -148,16 +148,36 @@ pub fn plan_family_food(
     let mut own = Vec::with_capacity(n_hh);
     let mut spare = Vec::with_capacity(n_hh);
     let mut want = Vec::with_capacity(n_hh);
+    let kept_a_month = 1.0 - config.food.spoilage;
     for h in 0..n_hh {
         let v = households.location[h] as usize;
         let mine = shares[h] * after_deductions[v];
-        let outlook = |m: usize| village_outlook.get(v, m) * mine;
         let grain = households.grain[h];
-        let ration = plan_ration_one(grain, need[h], months, outlook, config, 1.0);
-        let eat = (ration * need[h]).min(grain);
+        let need_h = need[h];
+        // plan_ration_one (at most a full ration) and stock_to_keep_one, in
+        // one pass over the coming months: the same steps, side by side.
+        let (ration, to_keep) = if config.food.planning_months <= 0 {
+            (1.0, need_h)
+        } else {
+            let mut available = grain;
+            let mut required = need_h;
+            let mut affordable = if required > 0.0 { available / required } else { 1.0 };
+            let (mut income, mut kept, mut smallest) = (0.0, 1.0, need_h);
+            for m in 0..months {
+                let coming = village_outlook.get(v, m) * mine;
+                available = available * kept_a_month + coming;
+                required = required * kept_a_month + need_h;
+                affordable = affordable.min(if required > 0.0 { available / required } else { 1.0 });
+                income = income * kept_a_month + coming;
+                kept *= kept_a_month;
+                smallest = smallest.max((required - income) / kept);
+            }
+            (clip(affordable, 0.0, 1.0), smallest.max(0.0))
+        };
+        let eat = (ration * need_h).min(grain);
         let dear = markup.map_or(1.0, |m| m[v].max(1.0));
         let margin = if households.debt[h] > 0.0 { 0.0 } else { config.land.keep_months }; // debtors sell it to pay
-        let keep = stock_to_keep_one(need[h], months, outlook, config) + margin * need[h] / dear;
+        let keep = to_keep + margin * need_h / dear;
         own.push(eat);
         spare.push((grain - keep.max(eat)).max(0.0));
         want.push((need[h] - eat).max(0.0));

@@ -1773,3 +1773,116 @@ deterministic functions and on the invariants.
   - One bottleneck was in the report: looking up a measure in a month's
     record built the whole 109-field row each time. That took 30% of a
     run; the fix leaves every output byte for byte the same.
+
+### 6. Speed (built)
+
+- **The benchmark** (`econ-sim bench [--quick | --country]`) ports
+  `scripts/benchmark.py`: regions of villages of 1,000 without a map, from
+  June. It times set-up and a year of months on one thread at each size,
+  then two and four runs at once, as paired what-ifs run them. Runs side
+  by side share the memory bus, so the targets for paired runs are
+  projected from those timings, not from one run alone.
+
+On this machine (4 cores of a 2.8 GHz Xeon, 33 MB of cache, 15 GB), a
+year of months at each size:
+
+| People | Python, set-up | Python, a month | Rust, set-up | Rust, a month | Rust, two at once | Rust, peak memory |
+|---|---|---|---|---|---|---|
+| 1,000 | 0.0 s | 0.008 s | 0.0 s | 0.0004 s | | 5 MB |
+| 10,000 | 0.0 s | 0.016 s | 0.0 s | 0.0034 s | | 7 MB |
+| 100,000 | 0.1 s | 0.119 s | 0.03 s | 0.037 s | 0.045 s | 32 MB |
+| 1,000,000 | 1.4 s | 1.37 s | 0.40 s | 0.41 s | 0.45 s | 277 MB |
+| 10,000,000 | 85 s | 28 s (3 months) | 7.7 s | 5.2 s | 6.4 s | 2,336 MB |
+
+| Target (runs of 36 months, 4 cores) | Rust | Python |
+|---|---|---|
+| Region: 100 paired runs of 100,000 people under 10 min | 1.6 min | 3.6 min |
+| Province: a month of 1,000,000 people on one core under 0.2 s | **0.41 s (missed)** | 1.37 s |
+| Province: 1 paired run of 1,000,000 under 1 min | 0.3 min | 0.8 min |
+| Province: 20 paired runs of 1,000,000 under 20 min | 2.9 min | 8.5 min |
+| Country: 1 paired run of 10,000,000 under 5 min | 4.0 min | about 18 min |
+
+- **One target is missed: a month of a million people on one core** takes
+  0.41 s against 0.2 s. That is 3.3 times Python, not the ten times hoped
+  for; it took 0.59 s at milestone 5. (A village is 20 times Python, and
+  ten million people 5 times.) Every target on paired runs is met,
+  including the country: a paired three-year run of ten million people
+  takes 4.0 min on two cores, against 5 (Python: about 18).
+- **Why not faster: memory.** A million people take 40 MB of columns and
+  their families 14 MB, more than the 33 MB cache. So every pass over
+  them streams from memory, which one core reads at 7 GB/s here (18 GB/s
+  from the cache). The month makes about fifty such passes over people
+  and families, because each rule is ported on its own, in Python's
+  order, as numpy needs. Passes that test things which look random from
+  row to row (sex, marriage, age) also pay for mispredicted branches.
+  Reaching 0.2 s would need one of these:
+  - merge the rules' passes (deaths, births, ageing and the search for
+    brides and grooms in one loop over people, say), which gives up
+    reading the engine rule by rule against Python;
+  - narrower columns (health and skill as 32-bit floats: 32 bytes a
+    person instead of 40);
+  - a month split across cores by village.
+  The hand-off asks to keep the code readable, so I stopped here.
+- **What made it faster** (profiled with callgrind and with timers on each
+  step of the month at a million people):
+  - Grouped sums keep the running total in a register while a group's
+    rows last. A family's members and a place's families come together,
+    so an addition no longer waits for the last one to be stored.
+  - Counting workers by trade reads the rows directly, instead of
+    building the whole workforce three times a month.
+  - Mortality by age is a table lookup, not a search. Each age band's
+    birth chance is worked out once, not a `powf` per woman a month.
+  - The poorest fifth is sorted on precomputed coins a head, not two
+    divisions per comparison.
+  - Emptied rows are dropped in block copies.
+  - The family food plan runs its two 12-month sums side by side.
+  - Kin help skips the links where nothing can move.
+  - Weddings and births test who may marry or conceive without branching.
+  - The whole engine is optimised as one unit (fat LTO, one codegen
+    unit): about a tenth.
+  - Each of these changes leaves every output the same to the last bit.
+    I checked that against the milestone-5 binary on five settings
+    (village what-ifs, ten years, a region with a drought, a city, a
+    hamlet).
+- **Three changes keep only the distribution of results**, so the parity
+  checks ran again:
+  - **Rows are sorted by place and family**, at set-up and once a year.
+    Rows had come out of set-up in no family order: 46% of neighbouring
+    rows belonged to unrelated families. Row order carries no meaning;
+    it only decides which person meets which random draw.
+  - **Only young single people roll to leave**, not every row.
+  - **Hiring a council's staff picks the few it needs at random** instead
+    of shuffling every candidate in the village.
+
+  Parity after these changes:
+  - Set-up: all 38 measures agree on each of the three settings (largest
+    \|t\| 2.3).
+  - Village: all ten settings agree (largest \|t\| 2.4; monthly means
+    beyond 3 standard errors at 0 to 0.2%).
+  - Region: all seven settings agree, 522 measures (largest \|t\| 2.9).
+  - Sanity `--full`: the century setting failed on 2 runs of 60 where the
+    population rose by half in 3 years and 1 where a price moved twentyfold.
+    These flags are rare in both engines: over 600 century runs the
+    milestone-5 binary shows them in 4 and 8 runs, this one in 5 and 13,
+    and Python, over 400, in 4 and 9. At 1 to 2% a run, 60 seeds show one about
+    half the time, in Python as in Rust: the earlier passes were luck. The
+    century setting will fail about every other time it is run with new
+    seeds, in either engine. Whether to loosen those two checks for a
+    century is a question about the sanity check, not about this port.
+  - Stress: "drought every other year", whose village falls to a seventh
+    of its size, showed land inequality still trending (6 seeds). With 30
+    seeds it doesn't. That scenario's last five years at 30 seeds: people
+    168 / 188 / 194 (this binary / Python / milestone 5), deaths 74 / 66 /
+    56 per 1,000, ration 0.90 / 0.92 / 0.94. The noise of a hamlet's
+    worth of survivors.
+- **Ten million people, and this machine's memory.** In the first month
+  of a run at ten million, the system spent 10 s clearing pages
+  (520,000 faults at 19 µs each). The virtual machine's memory is backed
+  by its host on first touch. Later months fault a few thousand times.
+  - glibc gives freed blocks over 32 MB back to the system, so arrays of
+    a value per person (80 MB at that size) are faulted in afresh each
+    month: about 300,000 faults a month.
+  - An allocator that keeps freed large blocks made steady months 14%
+    faster at ten million (4.4 s against 5.1 to 5.4 s). But it held 1.5
+    GB more per run, and on ordinary hardware those faults cost about
+    75 ms a month. Not adopted. mimalloc gained nothing.

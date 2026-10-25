@@ -135,9 +135,17 @@ pub fn kin_help(
     if links.is_empty() {
         return moved;
     }
-    let pairs: Vec<(usize, usize)> =
-        links.iter().map(|&(p, c)| (p, c)).chain(links.iter().map(|&(p, c)| (c, p))).collect(); // (giver, taker)
-    let asked: Vec<f64> = pairs.iter().map(|&(g, t)| if spare[g] > 0.0 { short[t].max(0.0) } else { 0.0 }).collect();
+    // (giver, taker, asked): only where the giver has grain to spare and the
+    // taker is short does anything move, so the other pairs are left out.
+    let (pairs, asked): (Vec<(usize, usize)>, Vec<f64>) = links
+        .iter()
+        .map(|&(p, c)| (p, c))
+        .chain(links.iter().map(|&(p, c)| (c, p)))
+        .filter_map(|(g, t)| {
+            let asked = if spare[g] > 0.0 { short[t].max(0.0) } else { 0.0 };
+            (asked > 0.0).then_some(((g, t), asked))
+        })
+        .unzip();
     let mut asked_of = vec![0.0; n];
     for (k, &(g, _)) in pairs.iter().enumerate() {
         asked_of[g] += asked[k];

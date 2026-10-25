@@ -229,16 +229,15 @@ pub fn move_people(
     // Young single people.
     let single_chance: Vec<f64> =
         (0..n).map(|v| monthly_chance(cfg.leave_chance) * (1.0 + cfg.push * worse[v]) * follow[v]).collect();
+    // (only they roll: rows emptied this month, dropped at its end, don't)
     let mut goes = vec![false; population.len()];
     for i in 0..population.len() {
-        if population.count[i] == 0 {
-            continue; // (rows emptied this month are dropped at its end)
-        }
-        let roll = rng.random();
         let age = population.age_years(i) as i64;
         let young =
-            population.count[i] == 1 && !population.married[i] && age >= cfg.young_ages.0 && age <= cfg.young_ages.1;
-        goes[i] = young && roll < single_chance[population.location[i] as usize];
+            (population.count[i] == 1) & !population.married[i] & (age >= cfg.young_ages.0) & (age <= cfg.young_ages.1);
+        if young {
+            goes[i] = rng.random() < single_chance[population.location[i] as usize];
+        }
     }
 
     // Whole families, the landless more readily, and the hungriest in a famine.

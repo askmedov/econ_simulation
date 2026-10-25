@@ -13,18 +13,21 @@ use crate::rng::Rng;
 /// Married people whose husband or wife is still living (per row). In a
 /// row standing for many people, married people count as couples.
 pub fn spouse_alive(population: &Population) -> Vec<bool> {
+    // Living rows of each couple, at couple + 1 (slot 0 gathers the rows of
+    // no couple; what it holds is never used). Written without branches:
+    // whether a row is married or alive is as good as random from row to row.
     let largest = population.couple.iter().cloned().max().unwrap_or(-1);
-    let mut living = vec![0u32; (largest + 1).max(0) as usize];
-    for (i, &c) in population.couple.iter().enumerate() {
-        if c >= 0 && population.count[i] > 0 {
-            living[c as usize] += 1;
-        }
+    let mut living = vec![0u32; (largest + 2).max(1) as usize];
+    for (&c, &count) in population.couple.iter().zip(&population.count) {
+        let slot = (c + 1).max(0) as usize;
+        living[slot] = living[slot].wrapping_add((count > 0) as u32);
     }
     (0..population.len())
         .map(|i| {
             let c = population.couple[i];
-            let alive = if c >= 0 { living[c as usize] >= 2 } else { population.count[i] > 1 };
-            alive && population.married[i]
+            let by_couple = living[(c + 1).max(0) as usize] >= 2;
+            let alive = (c >= 0) & by_couple | (c < 0) & (population.count[i] > 1);
+            alive & population.married[i]
         })
         .collect()
 }
@@ -242,22 +245,34 @@ pub fn update_health(
 pub struct MortalityTable {
     from_ages: Vec<i32>,
     rates: Vec<f64>,
+    by_age: Vec<f64>, // the rate at each age up to the last band's first
 }
 
 impl MortalityTable {
     pub fn new(config: &Config) -> MortalityTable {
         let table = &config.demography.annual_mortality;
-        MortalityTable {
+        let mut mortality = MortalityTable {
             from_ages: table.iter().map(|&(age, _)| age as i32).collect(),
             rates: table.iter().map(|&(_, rate)| monthly_chance(rate)).collect(),
-        }
+            by_age: Vec::new(),
+        };
+        let last = mortality.from_ages.last().copied().unwrap_or(0).max(0);
+        mortality.by_age = (0..=last).map(|age| mortality.band_rate(age)).collect();
+        mortality
+    }
+
+    fn band_rate(&self, age_years: i32) -> f64 {
+        let band = self.from_ages.partition_point(|&a| a <= age_years);
+        // (below the first band numpy wraps to the last; ages start at 0, so never)
+        self.rates[if band == 0 { self.rates.len() - 1 } else { band - 1 }]
     }
 
     #[inline]
     pub fn rate(&self, age_years: i32) -> f64 {
-        let band = self.from_ages.partition_point(|&a| a <= age_years);
-        // (below the first band numpy wraps to the last; ages start at 0, so never)
-        self.rates[if band == 0 { self.rates.len() - 1 } else { band - 1 }]
+        match self.by_age.get(age_years as usize) {
+            Some(&rate) if age_years >= 0 => rate,
+            _ => self.band_rate(age_years),
+        }
     }
 }
 
@@ -298,8 +313,10 @@ pub fn deaths(
     let mut by_village = vec![0.0; n_locations];
     for (i, &p) in chance.iter().enumerate() {
         let died = rng.binomial(population.count[i] as u64, p) as u32;
-        by_village[population.location[i] as usize] += died as f64;
-        population.count[i] -= died;
+        if died > 0 {
+            by_village[population.location[i] as usize] += died as f64;
+            population.count[i] -= died;
+        }
     }
     by_village
 }
@@ -350,20 +367,21 @@ pub fn births(
     let (youngest, oldest) = demo.fertile_ages;
     let (low, high) = config.health.fertility_health;
     let from_ages: Vec<i64> = demo.fertility_by_age.iter().map(|&(a, _)| a).collect();
+    // Each age band's monthly chance, worked out once.
+    let band_chance: Vec<f64> =
+        demo.fertility_by_age.iter().map(|&(_, by_age)| monthly_chance(demo.annual_birth_chance * by_age)).collect();
     let partnered = spouse_alive(population);
     let mut by_village = vec![0.0; n_locations];
     let mut mothers: Vec<(usize, u32)> = Vec::new();
     for i in 0..population.len() {
         let age = population.age_years(i) as i64;
-        if !(population.female[i] && age >= youngest && age <= oldest && population.count[i] > 0 && partnered[i]) {
+        // (tested without branching: see households::marry)
+        if !(population.female[i] & (age >= youngest) & (age <= oldest) & (population.count[i] > 0) & partnered[i]) {
             continue;
         }
         let band = from_ages.partition_point(|&a| a <= age).max(1) - 1;
-        let by_age = demo.fertility_by_age[band].1;
         let health_factor = clip((population.health[i] - low) / (high - low), 0.0, 1.0);
-        let chance = monthly_chance(demo.annual_birth_chance * by_age)
-            * health_factor
-            * fertility_mult[population.location[i] as usize];
+        let chance = band_chance[band] * health_factor * fertility_mult[population.location[i] as usize];
         let babies = rng.binomial(population.count[i] as u64, chance) as u32;
         if babies > 0 {
             by_village[population.location[i] as usize] += babies as f64;

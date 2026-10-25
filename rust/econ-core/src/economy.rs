@@ -79,7 +79,18 @@ pub fn workforce(population: &Population, n_locations: usize, config: &Config) -
 pub fn headcount(population: &Population, n_locations: usize, config: &Config, force: Option<&Workforce>) -> Grid {
     match force {
         Some(force) => force.by_business(|i| population.count[i] as f64),
-        None => workforce(population, n_locations, config).by_business(|i| population.count[i] as f64),
+        None => {
+            // (counted straight off the rows: as by_business, row by row)
+            let nb = config.businesses.len();
+            let mut counts = Grid::zeros(n_locations, nb);
+            for i in 0..population.len() {
+                let job = population.job[i];
+                if in_business(job, config) {
+                    counts.data[population.location[i] as usize * nb + job as usize] += population.count[i] as f64;
+                }
+            }
+            counts
+        }
     }
 }
 
@@ -406,6 +417,7 @@ pub fn move_workers(population: &mut Population, wanted: &Grid, config: &Config,
     let surplus = workers.zip_map(wanted, |w, x| (w - x).max(0.0));
     let shortfall = wanted.zip_map(&workers, |x, w| (x - w).max(0.0));
     let rate = config.trade.hiring_rate;
+    let chance = surplus.zip_map(&workers, |s, w| clip(div_or(rate * s, w, 0.0), 0.0, 1.0));
     let mut leaving = vec![0u32; population.len()];
     let mut any = 0u64;
     for i in 0..population.len() {
@@ -413,9 +425,8 @@ pub fn move_workers(population: &mut Population, wanted: &Grid, config: &Config,
         if !in_business(job, config) {
             continue;
         }
-        let loc = population.location[i] as usize;
-        let chance = clip(div_or(rate * surplus.get(loc, job as usize), workers.get(loc, job as usize), 0.0), 0.0, 1.0);
-        leaving[i] = rng.binomial(population.count[i] as u64, chance) as u32;
+        leaving[i] =
+            rng.binomial(population.count[i] as u64, chance.get(population.location[i] as usize, job as usize)) as u32;
         any += leaving[i] as u64;
     }
     if any == 0 {
@@ -468,11 +479,15 @@ pub fn assign_new_workers(population: &mut Population, wanted: &Grid, config: &C
         let best: Vec<usize> = (0..n)
             .map(|r| (1..wanted.cols).fold(0, |best, b| if short(r, b) > short(r, best) { b } else { best }))
             .collect();
+        // (the new join, then the old retire: in one pass)
         for i in 0..population.len() {
-            if population.job[i] == NO_JOB && is_working_age(population, i, config) {
+            if !is_working_age(population, i, config) {
+                population.job[i] = NO_JOB;
+            } else if population.job[i] == NO_JOB {
                 population.job[i] = best[population.location[i] as usize] as i16;
             }
         }
+        return;
     }
     for i in 0..population.len() {
         if !is_working_age(population, i, config) {

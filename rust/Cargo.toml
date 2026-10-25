@@ -21,6 +21,9 @@ clap = { version = "4", features = ["derive"] }
 
 [profile.release]
 debug = 1
+# The whole engine optimised as one unit: about a tenth faster.
+lto = "fat"
+codegen-units = 1
 
 [profile.test]
 opt-level = 2

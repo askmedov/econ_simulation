@@ -58,15 +58,14 @@ pub fn staff(
     rng: &mut Rng,
 ) {
     let n = councils.formed.len();
-    let mut people = vec![0.0; n];
-    let mut have = vec![0.0; n];
-    for i in 0..population.len() {
-        let v = population.location[i] as usize;
-        people[v] += population.count[i] as f64;
-        if population.job[i] == job && population.count[i] > 0 {
-            have[v] += population.count[i] as f64;
+    let people = crate::grid::sum_by(n, &population.location, |i| population.count[i] as f64);
+    let have = crate::grid::sum_by(n, &population.location, |i| {
+        if population.job[i] == job {
+            population.count[i] as f64
+        } else {
+            0.0
         }
-    }
+    });
     let wanted: Vec<f64> = (0..n)
         .map(|v| if councils.formed[v] { (per_1000 * people[v] / 1000.0).round_ties_even() } else { 0.0 })
         .collect();
@@ -90,8 +89,7 @@ pub fn staff(
         if have[v] > wanted[v] {
             let mut current: Vec<usize> =
                 rows.iter().cloned().filter(|&i| population.job[i] == job && population.count[i] > 0).collect();
-            rng.shuffle(&mut current);
-            for &i in current.iter().take((have[v] - wanted[v]) as usize) {
+            for &i in rng.choose_some(&mut current, (have[v] - wanted[v]) as usize) {
                 population.job[i] = NO_JOB; // they rejoin a trade next month
             }
         } else {
@@ -100,8 +98,7 @@ pub fn staff(
                 .cloned()
                 .filter(|&i| in_business(population.job[i], config) && population.count[i] == 1)
                 .collect();
-            rng.shuffle(&mut pool);
-            for &i in pool.iter().take((wanted[v] - have[v]) as usize) {
+            for &i in rng.choose_some(&mut pool, (wanted[v] - have[v]) as usize) {
                 population.job[i] = job;
             }
         }
