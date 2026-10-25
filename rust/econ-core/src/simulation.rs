@@ -781,7 +781,7 @@ impl Simulation {
         // Families with minds remember how they ate and what grain cost them.
         if let Some(minds) = &mut world.households.minds {
             let paid: Vec<f64> = (0..n_hh).map(|h| food_price[hh_loc[h] as usize]).collect();
-            minds.remember_month(&family_share, &paid);
+            minds.remember_month(&family_share, &paid, &hh_loc, &members);
         }
         // Families who couldn't buy all their firewood gather some from the
         // commons: dung, straw and furze, and wood unless the woods have

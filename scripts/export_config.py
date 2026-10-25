@@ -30,12 +30,14 @@ from econ_sim.geography import SIZE_BY_TERRAIN, RegionSettings, region  # noqa: 
 CONFIGS = ROOT / "rust" / "configs"
 
 # Regions the Rust engine is checked on (the sanity check's, the stress
-# test's, and a bigger one for parity per place).
+# test's, and a bigger one for parity per place), and its standard one.
 REGIONS = {
     "region20": RegionSettings(villages=20, mean_size=300),
     "region20_seed2": RegionSettings(villages=20, mean_size=300, seed=2),
     "city3": RegionSettings(villages=45, mean_size=250, towns=3, seed=3),
     "region100": RegionSettings(villages=100, seed=1),
+    # The standard setting of the Rust engine: about 100,000 people.
+    "region100k": RegionSettings(villages=240, seed=1),
 }
 
 

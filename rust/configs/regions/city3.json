@@ -1370,16 +1370,21 @@
   "memory_months": 6.0
  },
  "minds": {
-  "enabled": false,
-  "trait_spread": 0.3,
+  "enabled": true,
+  "trait_spread": 0.25,
+  "trait_limit": 2.0,
   "inherited_spread": 0.1,
   "memory_months": 12.0,
-  "learning": 0.3,
+  "normal_months": 24.0,
+  "learning": 0.2,
   "horizon_months": 3.0,
-  "speculation": 2.0,
-  "hoard_limit": 4.0,
-  "hunger_saving": 4.0,
-  "loss_fear": 4.0,
+  "reversion": 0.25,
+  "expectation_limit": 0.25,
+  "speculation": 1.0,
+  "inertia": 0.3,
+  "hunger_saving": 1.0,
+  "loss_fear": 2.0,
+  "least_lending": 0.5,
   "hunger_leaving": 4.0
  },
  "products": [

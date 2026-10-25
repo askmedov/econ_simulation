@@ -113,8 +113,11 @@ def setup_settings() -> list[Setting]:
 
 
 def write_config(config: Config) -> str:
+    """The config for the Rust engine, with its families following the rules:
+    this model has no minds, so parity is checked without them."""
     handle = tempfile.NamedTemporaryFile("w", suffix=".json", delete=False)
-    json.dump(json.loads(json.dumps(dataclasses.asdict(config))), handle)
+    rules = replace(config, minds=replace(config.minds, enabled=False))
+    json.dump(json.loads(json.dumps(dataclasses.asdict(rules))), handle)
     handle.close()
     return handle.name
 

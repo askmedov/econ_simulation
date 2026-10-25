@@ -43,7 +43,7 @@ impl Switch {
 }
 
 /// What is measured in each run, by name.
-const MEASURES: [&str; 20] = [
+const MEASURES: [&str; 23] = [
     "deaths",
     "births",
     "people at the end",
@@ -64,6 +64,9 @@ const MEASURES: [&str; 20] = [
     "people in towns at the end",
     "deaths in towns",
     "towns' worst month",
+    "grain price swing, month to month",
+    "grain sold swing, month to month",
+    "people who left, worst month",
 ];
 
 fn measures(run: &Run, event_month: usize) -> Vec<f64> {
@@ -94,7 +97,23 @@ fn measures(run: &Run, event_month: usize) -> Vec<f64> {
         last.town_people as f64,
         town_deaths(run),
         least(&|r| r.town_ration),
+        swing(records, |r| r.food_price, true),
+        swing(records, |r| r.grain_sold, false),
+        records.iter().map(|r| r.emigrants as f64).fold(0.0, f64::max),
     ]
+}
+
+/// How much a measure moves from one month to the next, on average: as a
+/// share of the month before (`relative`), or of its own average.
+fn swing(records: &[MonthRecord], value: impl Fn(&MonthRecord) -> f64, relative: bool) -> f64 {
+    let values: Vec<f64> = records.iter().map(value).collect();
+    let steps = values.len().saturating_sub(1).max(1) as f64;
+    let moved: f64 = values
+        .windows(2)
+        .map(|w| if relative { (w[1] / w[0].max(1e-9) - 1.0).abs() } else { (w[1] - w[0]).abs() })
+        .sum();
+    let scale = if relative { 1.0 } else { values.iter().sum::<f64>() / values.len().max(1) as f64 };
+    moved / steps / scale.max(1e-9)
 }
 
 fn town_deaths(run: &Run) -> f64 {

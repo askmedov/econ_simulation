@@ -406,14 +406,19 @@ pub struct RefugeesConfig {
 pub struct MindsConfig {
     pub enabled: bool,
     pub trait_spread: f64,
+    pub trait_limit: f64,
     pub inherited_spread: f64,
     pub memory_months: f64,
+    pub normal_months: f64,
     pub learning: f64,
     pub horizon_months: f64,
+    pub reversion: f64,
+    pub expectation_limit: f64,
     pub speculation: f64,
-    pub hoard_limit: f64,
+    pub inertia: f64,
     pub hunger_saving: f64,
     pub loss_fear: f64,
+    pub least_lending: f64,
     pub hunger_leaving: f64,
 }
 
@@ -534,6 +539,14 @@ pub const DEFAULT_CONFIG_JSON: &str = include_str!("../../configs/village.json")
 /// The default village, as Python's `Config()`.
 pub fn default_config() -> Config {
     Config::from_json(DEFAULT_CONFIG_JSON).expect("rust/configs/village.json matches the parameters")
+}
+
+pub const STANDARD_REGION_JSON: &str = include_str!("../../configs/regions/region100k.json");
+
+/// The engine's standard setting: a region of about 100,000 people (240
+/// villages and 10 market towns, laid out by Python's `geography.region`).
+pub fn standard_region() -> Config {
+    Config::from_json(STANDARD_REGION_JSON).expect("rust/configs/regions/region100k.json matches the parameters")
 }
 
 /// The folder of checked-in configs exported from Python (`rust/configs`),

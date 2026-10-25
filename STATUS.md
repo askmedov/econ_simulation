@@ -47,6 +47,14 @@ validation runs.
   (regional migration: harvest hands, famine refugees) is the first built
   in Rust only, switched off by default, on `claude/regional-migration`.
   Next in the plan is step 6 (epidemics that spread).
+- **Families have minds by default** in the Rust engine (the user's
+  direction), and the standard setting is a region of 100,000 people
+  (`rust/configs/regions/region100k.json`; a plain `econ-sim` runs it).
+  Minds were recalibrated to be steady: in ordinary years they match the
+  rules on every measure within chance, and over 40 years they don't
+  drift. Families still differ: the middle 80% decide 0.7 to 1.4 times
+  the rules' amounts. Branch `claude/minds-default`; PLAN.md, "Rust
+  engine", section 8. Next, per the user: more people.
 - **The Rust engine** (`rust/`, about 10,000 lines) is built through the
   hand-off's seven milestones, one branch each
   (`claude/rust-scaffolding` ... `claude/rust-minds`, latest `cceeb20`,
@@ -231,8 +239,9 @@ that is booked in the outside purse) and that **people add up**
 The Rust engine (`cd rust`; the binary is `target/release/econ-sim`):
 
 ```bash
-cargo build --release && cargo test --release       # 119 tests
-econ-sim --event drought@4 --runs 200               # Python's options and report
+cargo build --release && cargo test --release       # 123 tests
+econ-sim --event drought@4 --runs 100               # the standard region of 100,000, with minds (2 min)
+econ-sim --population 1000 --event drought@4 --runs 200   # one village
 econ-sim --region 50 --event drought@4@0,12,11 --runs 40
 econ-sim minds --event drought@4 --runs 200         # minds against the rules
 econ-sim compare refugees --config configs/regions/city3.json --event drought@4 --runs 60
@@ -316,8 +325,7 @@ The machine this was built on: 4 cores, Python 3.13 / numpy 2.x in
 
 ## What's next
 
-**Waiting on the user:** whether minds become the default (recommended:
-not yet); whether the grain price should follow what is offered for sale
+**Waiting on the user:** whether the grain price should follow what is offered for sale
 (needed to ask whether hoarding raised prices in 1315); whether to fix
 the wool `worth` bug; whether to loosen the century sanity checks; and
 whether to restructure the Rust month for the 0.2 s target.

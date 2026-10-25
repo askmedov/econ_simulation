@@ -107,7 +107,26 @@ fn threads(workers: Option<usize>) {
     }
 }
 
+/// Output piped into a program that stops reading (`econ-sim | head`) ends
+/// the run quietly, as any command-line tool does, instead of panicking.
+#[cfg(unix)]
+fn quiet_on_broken_pipe() {
+    extern "C" {
+        fn signal(signum: i32, handler: usize) -> usize;
+    }
+    const SIGPIPE: i32 = 13;
+    const DEFAULT: usize = 0;
+    // SAFETY: restoring the default action of one signal at start-up, before any thread exists.
+    unsafe {
+        signal(SIGPIPE, DEFAULT);
+    }
+}
+
+#[cfg(not(unix))]
+fn quiet_on_broken_pipe() {}
+
 fn main() {
+    quiet_on_broken_pipe();
     let cli = Cli::parse();
     let result = match cli.command {
         Some(Command::Records(args)) => {

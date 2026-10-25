@@ -801,50 +801,65 @@ class RefugeesConfig:
 
 @dataclass(frozen=True)
 class MindsConfig:
-    """Families with minds of their own (so far only in the Rust engine,
-    `rust/`; this model ignores it).
+    """Families with minds of their own: the Rust engine's way (`rust/`),
+    on by default there. This model ignores it: its families all follow
+    the rules, which minds reduce to with no spread of traits and no
+    responses (spread, speculation and the four weights all 0).
 
-    Off, every family follows the same rules, as the model is written. On,
-    each family has traits drawn at the start, remembers its hunger and its
-    losses on loans, and expects the grain price to keep moving the way it
-    has seen it move; how much grain it holds back, how many coins it keeps,
-    how much it lends and whether it leaves follow from those. With no
-    spread of traits and no responses (spread, speculation and the four
-    weights all 0), minds decide exactly as the rules do.
+    Each family has traits drawn at the start, remembers its hunger and its
+    losses on loans, and expects a grain price from what it has paid; how
+    much grain it holds back, how many coins it keeps, how much it lends
+    and whether it leaves follow from those. They are made to be steady:
+    the typical family decides as the rules do, hunger pushes a family away
+    only beyond its neighbours', expected prices are anchored to the price
+    a family thinks normal, and decisions change by habit, not at once.
     """
 
-    enabled: bool = False
-    # Traits (caution, thrift, nerve, learning, attachment, patience) each
-    # multiply a decision of the rules. Drawn per family as
-    # exp(normal(0, trait_spread)), so the typical family decides as the
-    # rules do. A family founded by a member of another takes that family's
-    # traits, each times exp(normal(0, inherited_spread)).
-    trait_spread: float = 0.3
+    enabled: bool = True
+    # Traits (caution, thrift, nerve, learning, attachment, patience): each
+    # family is z standard deviations from the typical one, z drawn normal
+    # and kept within +-trait_limit. A decision multiplies the rules' by
+    # exp(trait_spread x z) (or divides by it), scaled so that the average
+    # over families is 1. A family founded by a member of another takes
+    # that family's z, plus normal(0, inherited_spread / trait_spread).
+    trait_spread: float = 0.25
+    trait_limit: float = 2.0
     inherited_spread: float = 0.1
     # Hunger (the share of its need a family went without) and losses on
     # loans (the share of its claims written off) fade over `memory_months`.
+    # The price a family thinks normal follows what it pays over
+    # `normal_months`.
     memory_months: float = 12.0
+    normal_months: float = 24.0
     # Each month a family moves the monthly price change it expects by
     # `learning` (times its learning trait) of the way to the change it has
-    # just seen, and looks `horizon_months` ahead (times its patience).
-    learning: float = 0.3
+    # just seen. Over `horizon_months` ahead (times its patience) it expects
+    # that change to go on, pulled back toward the normal price by
+    # `reversion` of the gap, and never more than `expectation_limit` (a
+    # share) up or down.
+    learning: float = 0.2
     horizon_months: float = 3.0
-    # Grain: a family expecting grain to be dearer by a share x by the end
-    # of its horizon holds back its usual margin times its caution times
-    # (1 + x) ** speculation, within a factor of `hoard_limit` either way:
-    # hoarding when it expects a dearth, selling when it expects plenty.
-    speculation: float = 2.0
-    hoard_limit: float = 4.0
+    reversion: float = 0.25
+    expectation_limit: float = 0.25
+    # Grain: a family holds back its usual margin times its caution times
+    # (1 + the rise it expects) ** speculation.
+    speculation: float = 1.0
+    # How much grain it holds back and how much it lends move toward what
+    # it wants by `inertia` of the way each month (habits change slowly).
+    inertia: float = 0.3
     # Coins: a family keeps its usual months of savings times its thrift,
     # times (1 + hunger_saving x its remembered hunger).
-    hunger_saving: float = 4.0
+    hunger_saving: float = 1.0
     # Loans: a family lends its usual share of spare coins over its caution,
-    # times (1 - loss_fear x its remembered losses), and never below none.
-    loss_fear: float = 4.0
-    # Leaving: a family's yearly chance of leaving is the rules' over its
-    # attachment, times (1 + hunger_leaving x its remembered hunger / its
-    # nerve); in a famine it flees when eating less than `flee_below`
-    # (MigrationConfig) over its nerve.
+    # times (1 - loss_fear x its remembered losses), and never less than
+    # `least_lending` of that.
+    loss_fear: float = 2.0
+    least_lending: float = 0.5
+    # Leaving: of a place's families, those hungrier than their neighbours
+    # (by exp(hunger_leaving x the gap / their nerve)) and less attached to
+    # it are likelier to be the ones who leave; as many leave on average as
+    # by the rules. In a famine a family flees at the rules' chance over its
+    # nerve.
     hunger_leaving: float = 4.0
 
 

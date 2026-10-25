@@ -40,6 +40,19 @@ fn with_minds(mut c: Config) -> Config {
     c
 }
 
+/// Every family by the rules (minds off).
+fn by_rules(mut c: Config) -> Config {
+    c.minds.enabled = false;
+    c
+}
+
+#[test]
+fn families_have_minds_unless_switched_off() {
+    assert!(default_config().minds.enabled);
+    assert!(Simulation::new(config(1, 1)).unwrap().world.households.minds.is_some());
+    assert!(Simulation::new(by_rules(config(1, 1))).unwrap().world.households.minds.is_none());
+}
+
 fn run(c: Config) -> Simulation {
     let mut sim = Simulation::new(c).unwrap();
     sim.run();
@@ -55,7 +68,7 @@ fn minds_with_no_spread_and_no_responses_decide_exactly_as_the_rules() {
     region.months = 24;
     region.scheduled_events = vec![drought(4)];
     for c in [village, region] {
-        let rules = run(c.clone());
+        let rules = run(by_rules(c.clone()));
         let minds = run(neutral(c));
         assert_eq!(rules.records, minds.records);
         assert_eq!(rules.log, minds.log);
@@ -66,7 +79,7 @@ fn minds_with_no_spread_and_no_responses_decide_exactly_as_the_rules() {
 fn minds_change_what_happens() {
     let mut c = config(3, 36);
     c.scheduled_events = vec![drought(4)];
-    assert_ne!(run(c.clone()).records, run(with_minds(c)).records);
+    assert_ne!(run(by_rules(c.clone())).records, run(with_minds(c)).records);
 }
 
 #[test]

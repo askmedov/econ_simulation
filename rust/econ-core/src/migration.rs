@@ -266,8 +266,8 @@ pub fn move_people(
     }
     let mut refugee = vec![false; n_hh];
     for h in 0..n_hh {
-        let fled = rng.random() < cfg.flee_chance;
-        refugee[h] = size[h] > 0.0 && family_share[h] < decide.flees_below(h, cfg.flee_below) && fled;
+        let fled = rng.random() < decide.flee_chance(h, cfg.flee_chance);
+        refugee[h] = size[h] > 0.0 && family_share[h] < cfg.flee_below && fled;
         families[h] |= refugee[h];
     }
     for h in 0..n_hh {

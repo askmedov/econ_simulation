@@ -32,9 +32,19 @@ fn files(out: &Path) -> Vec<String> {
 }
 
 #[test]
-fn a_single_run_writes_its_files() {
+fn the_standard_run_is_a_region_of_100000_people() {
+    let out = folder("standard");
+    let report = run(&["--months", "2"], &out);
+    assert!(report.starts_with("Region of 240 villages"));
+    assert!(report.contains("10 market towns"));
+    assert_eq!(files(&out), ["log.txt", "places.csv", "run1.csv", "summary.csv"]);
+}
+
+#[test]
+fn a_single_village_run_writes_its_files() {
     let out = folder("single");
-    let report = run(&["--months", "12"], &out);
+    let report = run(&["--population", "1000", "--months", "12"], &out);
+    assert!(report.starts_with("Village of 1000 people"));
     assert!(report.contains("After 12 months"));
     assert_eq!(files(&out), ["log.txt", "run1.csv", "summary.csv"]);
 }
@@ -42,7 +52,7 @@ fn a_single_run_writes_its_files() {
 #[test]
 fn an_event_comparison_reports_the_effect() {
     let out = folder("event");
-    let report = run(&["--months", "18", "--runs", "5", "--event", "drought@4"], &out);
+    let report = run(&["--population", "1000", "--months", "18", "--runs", "5", "--event", "drought@4"], &out);
     assert!(report.contains("Effect of drought in month 4 over 18 months"));
     assert!(report.contains("Extra deaths"));
     assert!(out.join("run1_with_event.csv").exists());
@@ -74,14 +84,14 @@ fn the_events_can_be_listed() {
 #[test]
 fn a_council_can_form_during_the_run() {
     let out = folder("council");
-    let report = run(&["--months", "8", "--council-forms-later"], &out);
+    let report = run(&["--population", "1000", "--months", "8", "--council-forms-later"], &out);
     assert!(report.contains("A council forms once") && report.contains("formed a council"));
 }
 
 #[test]
 fn drought_runs_can_be_switched_off() {
     let out = folder("drought-runs");
-    assert!(run(&["--months", "6", "--no-drought-runs"], &out).contains("Village of"));
+    assert!(run(&["--population", "1000", "--months", "6", "--no-drought-runs"], &out).contains("Village of"));
 }
 
 #[test]

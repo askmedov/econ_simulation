@@ -1,20 +1,28 @@
-//! Families with minds of their own.
+//! Families with minds of their own (on by default).
 //!
-//! The model as written has every family follow the same rules: keep this
-//! many months of grain beyond the plan, that many months of coins, lend
-//! half of what is spare. Here each family can instead have traits drawn
-//! at the start, a memory of what happened to it, and expectations of the
-//! grain price; how much grain it holds back, how many coins it keeps, how
-//! much it lends and whether it leaves follow from them. (Settings:
+//! The model as written (and the Python model) has every family follow the
+//! same rules: keep this many months of grain beyond the plan, that many
+//! months of coins, lend half of what is spare. Here each family has traits
+//! drawn at the start, a memory of what happened to it, and expectations of
+//! the grain price; how much grain it holds back, how many coins it keeps,
+//! how much it lends and whether it leaves follow from them. (Settings:
 //! `MindsConfig`, exported from Python, which doesn't use them.)
 //!
-//! Both kinds decide through one interface, `Deciding`. The rules are one
-//! kind of mind (every family alike: the config's numbers) and the default;
-//! `Minds` is the other. A setting switches with `minds.enabled`, and paired
-//! runs compare the two. With no spread of traits and no responses, minds
-//! decide exactly as the rules do (a test checks it, run for run).
+//! Minds are made to be steady. The typical family decides as the rules
+//! do: each trait's factor averages 1 over families, so what minds add is
+//! variety, not a lean. Hunger pushes a family to leave only beyond its
+//! neighbours' (the place's own hunger already counts, in how good a place
+//! it is). Expected prices are anchored to the price a family thinks
+//! normal and kept within bounds. How much grain a family holds back and
+//! how much it lends change by habit, a share of the way each month.
+//!
+//! Both kinds decide through one interface, `Deciding`: `Minds`, and the
+//! rules (every family alike, the config's numbers; minds switched off).
+//! With no spread of traits and no responses, minds decide exactly as the
+//! rules do (a test checks it, run for run).
 
 use crate::config::MindsConfig;
+use crate::geography::normal_share;
 use crate::rng::Rng;
 
 /// How a family decides, given what the rules would have it do.
@@ -29,9 +37,9 @@ pub trait Deciding {
     fn lend_share(&self, family: usize, usual: f64) -> f64;
     /// Its yearly chance of leaving (rules: by its place and its land).
     fn leave_chance(&self, family: usize, usual: f64) -> f64;
-    /// The share of its need eaten below which it flees a famine (rules:
-    /// `migration.flee_below`).
-    fn flees_below(&self, family: usize, usual: f64) -> f64;
+    /// Its monthly chance of fleeing a famine, once it eats less than
+    /// `migration.flee_below` of its need (rules: `migration.flee_chance`).
+    fn flee_chance(&self, family: usize, usual: f64) -> f64;
 }
 
 /// The ported rules: every family does what the config says.
@@ -50,16 +58,19 @@ impl Deciding for Rules {
     fn leave_chance(&self, _: usize, usual: f64) -> f64 {
         usual
     }
-    fn flees_below(&self, _: usize, usual: f64) -> f64 {
+    fn flee_chance(&self, _: usize, usual: f64) -> f64 {
         usual
     }
 }
 
-/// Each family's traits, memory and expectations (one entry per household).
+/// Each family's traits, memory, expectations and habits (one entry per
+/// household).
 #[derive(Clone, Debug, PartialEq)]
 pub struct Minds {
     settings: MindsConfig,
-    // Traits: each multiplies a decision of the rules (1: as the rules).
+    /// Scales a trait's factor so that its average over families is 1.
+    typical: f64,
+    // Traits, in standard deviations from the typical family (0).
     pub caution: Vec<f64>,    // grain held back; divides what it lends
     pub thrift: Vec<f64>,     // coins kept
     pub nerve: Vec<f64>,      // hunger it stands before leaving or fleeing
@@ -67,18 +78,31 @@ pub struct Minds {
     pub attachment: Vec<f64>, // to its place: divides its chance of leaving
     pub patience: Vec<f64>,   // how far ahead it looks
     // Memory.
-    pub hunger: Vec<f64>,     // the share of its need it went without, remembered
-    pub losses: Vec<f64>,     // the share of its claims written off, remembered
-    pub last_price: Vec<f64>, // the grain price it saw last month (0: none yet)
+    pub hunger: Vec<f64>,       // the share of its need it went without, remembered
+    pub hungrier: Vec<f64>,     // its remembered hunger less its neighbours'
+    pub losses: Vec<f64>,       // the share of its claims written off, remembered
+    pub last_price: Vec<f64>,   // the grain price it paid last month (0: none yet)
+    pub normal_price: Vec<f64>, // the price it thinks normal (0: none yet)
     // Expectations.
     pub trend: Vec<f64>, // the monthly change in the grain price it expects
+    // Habits: its decisions against the rules' (1: as the rules), which move
+    // toward what it wants a share of the way each month.
+    pub hold: Vec<f64>,    // grain held back beyond its plan
+    pub lending: Vec<f64>, // share of spare coins lent
+    /// Its chance of leaving against its place's families' on average:
+    /// hunger beyond its neighbours' and a weak attachment make it likelier
+    /// to be one of those who go, not more to go.
+    pub leaving: Vec<f64>,
 }
+
+const TRAITS: usize = 6;
 
 impl Minds {
     /// Traits drawn for each of `n` families; nothing remembered yet.
     pub fn new(n: usize, settings: &MindsConfig, rng: &mut Rng) -> Minds {
         let mut minds = Minds {
             settings: settings.clone(),
+            typical: typical(settings.trait_spread, settings.trait_limit),
             caution: Vec::with_capacity(n),
             thrift: Vec::with_capacity(n),
             nerve: Vec::with_capacity(n),
@@ -86,16 +110,24 @@ impl Minds {
             attachment: Vec::with_capacity(n),
             patience: Vec::with_capacity(n),
             hunger: Vec::with_capacity(n),
+            hungrier: Vec::with_capacity(n),
             losses: Vec::with_capacity(n),
             last_price: Vec::with_capacity(n),
+            normal_price: Vec::with_capacity(n),
             trend: Vec::with_capacity(n),
+            hold: Vec::with_capacity(n),
+            lending: Vec::with_capacity(n),
+            leaving: Vec::with_capacity(n),
         };
         let spread = settings.trait_spread;
+        let limit = settings.trait_limit;
         for _ in 0..n {
             minds.push_blank();
             let f = minds.len() - 1;
-            for one in minds.traits_mut() {
-                one[f] = draw(rng, spread);
+            if spread > 0.0 {
+                for one in minds.traits_mut() {
+                    one[f] = rng.normal(0.0, 1.0).clamp(-limit, limit);
+                }
             }
         }
         minds
@@ -109,7 +141,7 @@ impl Minds {
         self.caution.is_empty()
     }
 
-    fn traits_mut(&mut self) -> [&mut Vec<f64>; 6] {
+    fn traits_mut(&mut self) -> [&mut Vec<f64>; TRAITS] {
         [
             &mut self.caution,
             &mut self.thrift,
@@ -120,7 +152,8 @@ impl Minds {
         ]
     }
 
-    fn all_mut(&mut self) -> [&mut Vec<f64>; 10] {
+    /// Every column: the traits, the memory and expectations, then the habits.
+    fn all_mut(&mut self) -> [&mut Vec<f64>; 15] {
         [
             &mut self.caution,
             &mut self.thrift,
@@ -129,17 +162,22 @@ impl Minds {
             &mut self.attachment,
             &mut self.patience,
             &mut self.hunger,
+            &mut self.hungrier,
             &mut self.losses,
             &mut self.last_price,
+            &mut self.normal_price,
             &mut self.trend,
+            &mut self.hold,
+            &mut self.lending,
+            &mut self.leaving,
         ]
     }
 
-    /// A new family, as the rules would have it decide, with nothing
-    /// remembered (see `copy` and `inherit`).
+    /// A new family: typical traits, nothing remembered, deciding as the
+    /// rules do (see `copy` and `inherit`).
     pub fn push_blank(&mut self) {
         for (k, column) in self.all_mut().into_iter().enumerate() {
-            column.push(if k < 6 { 1.0 } else { 0.0 });
+            column.push(if k >= 12 { 1.0 } else { 0.0 }); // (the habits and leaving: as the rules)
         }
     }
 
@@ -151,7 +189,7 @@ impl Minds {
     }
 
     /// A family founded by a member of `parent` takes its traits, each a
-    /// little changed, and what it remembers and expects.
+    /// little changed, and what it remembers, expects and is used to.
     pub fn inherit(&mut self, child: usize, parent: usize, rng: &mut Rng) {
         self.copy(parent, child);
         self.vary(child, rng);
@@ -160,29 +198,86 @@ impl Minds {
     /// Change each of a family's traits a little (a new family's, from
     /// those it took from its parents).
     pub fn vary(&mut self, f: usize, rng: &mut Rng) {
-        let spread = self.settings.inherited_spread;
+        let s = &self.settings;
+        if s.inherited_spread <= 0.0 || s.trait_spread <= 0.0 {
+            return;
+        }
+        let (step, limit) = (s.inherited_spread / s.trait_spread, s.trait_limit);
         for one in self.traits_mut() {
-            one[f] *= draw(rng, spread);
+            one[f] = (one[f] + rng.normal(0.0, step)).clamp(-limit, limit);
         }
     }
 
-    /// The month's lessons: how much of its need each family ate (`ate`, a
-    /// share) and the grain price it paid (`price`, per family).
-    pub fn remember_month(&mut self, ate: &[f64], price: &[f64]) {
-        let fade = 1.0 / self.settings.memory_months.max(1.0);
-        let learning = self.settings.learning;
+    /// A trait's factor on a decision it raises (`up`) or lowers (`down`);
+    /// each averages 1 over families.
+    fn up(&self, z: f64) -> f64 {
+        (self.settings.trait_spread * z).exp() * self.typical
+    }
+
+    fn down(&self, z: f64) -> f64 {
+        (-self.settings.trait_spread * z).exp() * self.typical
+    }
+
+    /// The month's lessons. `ate` is the share of its need each family ate,
+    /// `price` the grain price it paid, `location` and `size` where it lives
+    /// and how many it is (for its neighbours' hunger).
+    pub fn remember_month(&mut self, ate: &[f64], price: &[f64], location: &[u32], size: &[f64]) {
+        let s = self.settings.clone();
+        let fade = 1.0 / s.memory_months.max(1.0);
+        let settle = 1.0 / s.normal_months.max(1.0);
         for f in 0..self.len() {
             let went_without = (1.0 - ate[f]).clamp(0.0, 1.0);
             self.hunger[f] += fade * (went_without - self.hunger[f]);
             self.losses[f] *= 1.0 - fade;
             if self.last_price[f] > 0.0 && price[f] > 0.0 {
                 let change = price[f] / self.last_price[f] - 1.0;
-                let pace = (learning * self.learning[f]).clamp(0.0, 1.0);
+                let pace = (s.learning * self.up(self.learning[f])).clamp(0.0, 1.0);
                 self.trend[f] += pace * (change - self.trend[f]);
             }
             if price[f] > 0.0 {
                 self.last_price[f] = price[f];
+                self.normal_price[f] = if self.normal_price[f] > 0.0 {
+                    self.normal_price[f] + settle * (price[f] - self.normal_price[f])
+                } else {
+                    price[f]
+                };
             }
+        }
+        // Neighbours: the place's living families.
+        let places = location.iter().map(|&l| l as usize + 1).max().unwrap_or(0);
+        let living = |f: usize| if size[f] > 0.0 { 1.0 } else { 0.0 };
+        let (mut hungry, mut families) = (vec![0.0; places], vec![0.0; places]);
+        for f in 0..self.len() {
+            hungry[location[f] as usize] += living(f) * self.hunger[f];
+            families[location[f] as usize] += living(f);
+        }
+        for f in 0..self.len() {
+            let v = location[f] as usize;
+            let usual = if families[v] > 0.0 { hungry[v] / families[v] } else { 0.0 };
+            self.hungrier[f] = self.hunger[f] - usual;
+        }
+        // Who among them is likelier to leave, against the place's average.
+        let push: Vec<f64> = (0..self.len())
+            .map(|f| {
+                let hungrier = (s.hunger_leaving * self.hungrier[f] / self.up(self.nerve[f])).clamp(-2.0, 2.0);
+                self.down(self.attachment[f]) * hungrier.exp()
+            })
+            .collect();
+        let mut pushed = vec![0.0; places];
+        for f in 0..self.len() {
+            pushed[location[f] as usize] += living(f) * push[f];
+        }
+        for f in 0..self.len() {
+            let v = location[f] as usize;
+            self.leaving[f] = if pushed[v] > 0.0 { push[f] * families[v] / pushed[v] } else { 1.0 };
+        }
+        // Habits move toward what each family now wants.
+        for f in 0..self.len() {
+            let hold = self.up(self.caution[f]) * (s.speculation * self.expected_rise(f)).exp();
+            self.hold[f] += s.inertia * (hold - self.hold[f]);
+            let fear = (1.0 - s.loss_fear * self.losses[f]).max(s.least_lending);
+            let lending = self.down(self.caution[f]) * fear;
+            self.lending[f] += s.inertia * (lending - self.lending[f]);
         }
     }
 
@@ -196,52 +291,52 @@ impl Minds {
         }
     }
 
-    /// How much dearer a family expects grain at the end of its horizon (a
-    /// factor: 1 for no change).
+    /// How much dearer a family expects grain at the end of its horizon, as
+    /// a log ratio (0: no change): the trend it has seen carried forward,
+    /// pulled back toward the price it thinks normal, within bounds.
     pub fn expected_rise(&self, f: usize) -> f64 {
-        let months = self.settings.horizon_months * self.patience[f];
-        (1.0 + self.trend[f]).max(1e-9).powf(months)
+        let s = &self.settings;
+        if self.last_price[f] <= 0.0 || self.normal_price[f] <= 0.0 {
+            return 0.0;
+        }
+        let months = s.horizon_months * self.up(self.patience[f]);
+        let carried = months * (1.0 + self.trend[f]).max(1e-9).ln();
+        let pulled = s.reversion * (self.last_price[f] / self.normal_price[f]).ln();
+        let limit = s.expectation_limit.clamp(0.0, 0.99);
+        (carried - pulled).clamp((1.0 - limit).ln(), (1.0 + limit).ln())
     }
 }
 
-/// A trait's draw: exp(normal(0, spread)), or 1 with no spread (and then no
-/// draw, so a setting without spread leaves the stream untouched).
-fn draw(rng: &mut Rng, spread: f64) -> f64 {
-    if spread > 0.0 {
-        rng.lognormal(0.0, spread)
-    } else {
-        1.0
+/// 1 over the average of exp(spread x z) for z standard normal within
+/// +-limit: what makes a trait's factor average 1 over families.
+fn typical(spread: f64, limit: f64) -> f64 {
+    if spread <= 0.0 {
+        return 1.0;
     }
+    let inside = normal_share(limit) - normal_share(-limit);
+    let raised = (spread * spread / 2.0).exp() * (normal_share(limit - spread) - normal_share(-limit - spread));
+    inside / raised
 }
 
 impl Deciding for Minds {
     fn grain_margin(&self, f: usize, usual: f64) -> f64 {
-        let s = &self.settings;
-        let limit = s.hoard_limit.max(1.0);
-        let hoarding = if s.speculation == 0.0 {
-            1.0
-        } else {
-            self.expected_rise(f).powf(s.speculation).clamp(1.0 / limit, limit)
-        };
-        usual * self.caution[f] * hoarding
+        usual * self.hold[f]
     }
 
     fn savings_months(&self, f: usize, usual: f64) -> f64 {
-        usual * self.thrift[f] * (1.0 + self.settings.hunger_saving * self.hunger[f])
+        usual * self.up(self.thrift[f]) * (1.0 + self.settings.hunger_saving * self.hunger[f])
     }
 
     fn lend_share(&self, f: usize, usual: f64) -> f64 {
-        let fear = (1.0 - self.settings.loss_fear * self.losses[f]).max(0.0);
-        (usual / self.caution[f] * fear).min(1.0)
+        (usual * self.lending[f]).min(1.0)
     }
 
     fn leave_chance(&self, f: usize, usual: f64) -> f64 {
-        let pushed = 1.0 + self.settings.hunger_leaving * self.hunger[f] / self.nerve[f];
-        (usual / self.attachment[f] * pushed).min(1.0)
+        (usual * self.leaving[f]).min(1.0)
     }
 
-    fn flees_below(&self, f: usize, usual: f64) -> f64 {
-        usual / self.nerve[f]
+    fn flee_chance(&self, f: usize, usual: f64) -> f64 {
+        (usual * self.down(self.nerve[f])).min(1.0)
     }
 }
 
@@ -254,31 +349,93 @@ mod tests {
         default_config().minds
     }
 
-    #[test]
-    fn a_family_that_has_seen_grain_get_dearer_holds_more_back() {
-        let mut minds = Minds::new(2, &MindsConfig { trait_spread: 0.0, ..settings() }, &mut Rng::named(1, "minds"));
-        for month in 0..6 {
-            let rising = 1.0 + 0.1 * month as f64;
-            minds.remember_month(&[1.0, 1.0], &[rising, 1.0]);
-        }
-        assert!(minds.trend[0] > 0.05 && minds.trend[1] == 0.0);
-        assert!(minds.grain_margin(0, 1.0) > 1.3);
-        assert_eq!(minds.grain_margin(1, 1.0), 1.0);
+    fn one_place(n: usize) -> (Vec<u32>, Vec<f64>) {
+        (vec![0; n], vec![4.0; n])
     }
 
     #[test]
-    fn hunger_and_losses_are_remembered_and_fade() {
-        let mut minds = Minds::new(1, &MindsConfig { trait_spread: 0.0, ..settings() }, &mut Rng::named(1, "minds"));
-        minds.remember_month(&[0.5], &[1.0]);
-        minds.remember_losses(&[100.0], &[40.0]);
-        let (hunger, losses) = (minds.hunger[0], minds.losses[0]);
-        assert!(hunger > 0.0 && (losses - 0.6).abs() < 1e-12);
-        assert!(minds.savings_months(0, 3.0) > 3.0);
-        assert!(minds.lend_share(0, 0.5) < 0.5);
-        for _ in 0..60 {
-            minds.remember_month(&[1.0], &[1.0]);
+    fn the_typical_family_decides_as_the_rules_do_on_average() {
+        let minds = Minds::new(20000, &settings(), &mut Rng::named(1, "minds"));
+        let mean = |f: &dyn Fn(usize) -> f64| (0..20000).map(f).sum::<f64>() / 20000.0;
+        assert!((mean(&|f| minds.up(minds.caution[f])) - 1.0).abs() < 0.01);
+        assert!((mean(&|f| minds.down(minds.attachment[f])) - 1.0).abs() < 0.01);
+        assert!((mean(&|f| minds.savings_months(f, 1.0)) - 1.0).abs() < 0.01);
+        assert!(minds.caution.iter().all(|z| z.abs() <= settings().trait_limit));
+    }
+
+    #[test]
+    fn a_family_that_has_seen_grain_get_dearer_holds_more_back_but_not_without_bound() {
+        // (without the pull back toward the normal price, which a steady
+        // rise soon meets: see the next test)
+        let neutral = MindsConfig { trait_spread: 0.0, reversion: 0.0, ..settings() };
+        let mut minds = Minds::new(2, &neutral, &mut Rng::named(1, "minds"));
+        let (location, size) = one_place(2);
+        for _ in 0..24 {
+            minds.remember_month(&[1.0, 1.0], &[1.0, 1.0], &location, &size);
         }
-        assert!(minds.hunger[0] < hunger / 10.0 && minds.losses[0] < losses / 10.0);
+        // Early in a rise: the trend is up, the price not yet far above normal.
+        for month in 1..=4 {
+            let rising = 1.0 + 0.05 * month as f64;
+            minds.remember_month(&[1.0, 1.0], &[rising, 1.0], &location, &size);
+        }
+        assert!(minds.trend[0] > 0.02 && minds.trend[1] == 0.0);
+        assert!(minds.grain_margin(0, 1.0) > 1.01);
+        assert_eq!(minds.grain_margin(1, 1.0), 1.0);
+        // However steep the rise, never beyond the bound.
+        for month in 1..=24 {
+            minds.remember_month(&[1.0, 1.0], &[1.5f64.powi(month), 1.0], &location, &size);
+        }
+        assert!(minds.grain_margin(0, 1.0) <= 1.0 + neutral.expectation_limit + 1e-9);
+    }
+
+    #[test]
+    fn a_family_expects_a_price_far_above_normal_to_fall_back() {
+        let neutral = MindsConfig { trait_spread: 0.0, ..settings() };
+        let mut minds = Minds::new(1, &neutral, &mut Rng::named(1, "minds"));
+        let (location, size) = one_place(1);
+        for _ in 0..24 {
+            minds.remember_month(&[1.0], &[1.0], &location, &size);
+        }
+        // A sudden doubling, then the price holds for a year: once the jump
+        // has faded from its trend, it expects the price to ease.
+        minds.remember_month(&[1.0], &[2.0], &location, &size);
+        for _ in 0..12 {
+            minds.remember_month(&[1.0], &[2.0], &location, &size);
+        }
+        assert!(minds.expected_rise(0) < 0.0);
+    }
+
+    #[test]
+    fn habits_change_a_share_of_the_way_each_month() {
+        let neutral = MindsConfig { trait_spread: 0.0, ..settings() };
+        let mut minds = Minds::new(1, &neutral, &mut Rng::named(1, "minds"));
+        let (location, size) = one_place(1);
+        minds.remember_month(&[1.0], &[1.0], &location, &size);
+        minds.remember_losses(&[100.0], &[0.0]);
+        minds.remember_month(&[1.0], &[1.0], &location, &size);
+        let want = (1.0 - neutral.loss_fear * minds.losses[0]).max(neutral.least_lending);
+        assert!((minds.lending[0] - (1.0 + neutral.inertia * (want - 1.0))).abs() < 1e-12);
+        for _ in 0..3 {
+            minds.remember_losses(&[100.0], &[0.0]);
+            minds.remember_month(&[1.0], &[1.0], &location, &size);
+        }
+        assert!(minds.lend_share(0, 0.5) >= 0.5 * neutral.least_lending - 1e-12);
+    }
+
+    #[test]
+    fn hunger_pushes_a_family_away_only_beyond_its_neighbours() {
+        let neutral = MindsConfig { trait_spread: 0.0, ..settings() };
+        let mut minds = Minds::new(3, &neutral, &mut Rng::named(1, "minds"));
+        let location = vec![0, 0, 1];
+        let size = vec![4.0; 3];
+        for _ in 0..6 {
+            minds.remember_month(&[0.6, 1.0, 0.8], &[1.0; 3], &location, &size);
+        }
+        assert!(minds.leave_chance(0, 0.01) > 0.01); // hungrier than its neighbour
+        assert!(minds.leave_chance(1, 0.01) < 0.01); // better off
+        assert!((minds.leave_chance(2, 0.01) - 0.01).abs() < 1e-12); // as hungry as its place
+                                                                     // As many leave from the place on average as by the rules.
+        assert!((minds.leave_chance(0, 0.01) + minds.leave_chance(1, 0.01) - 0.02).abs() < 1e-12);
     }
 
     #[test]
@@ -288,15 +445,7 @@ mod tests {
         minds.push_blank();
         minds.inherit(1, 0, &mut Rng::named(2, "minds"));
         assert_eq!(minds.hunger[1], 0.3);
-        let ratio = minds.caution[1] / minds.caution[0];
-        assert!(ratio != 1.0 && (0.5..2.0).contains(&ratio));
-    }
-
-    #[test]
-    fn traits_are_spread_around_the_rules() {
-        let minds = Minds::new(4000, &settings(), &mut Rng::named(1, "minds"));
-        let mean_log = minds.caution.iter().map(|c| c.ln()).sum::<f64>() / 4000.0;
-        let sd_log = (minds.caution.iter().map(|c| (c.ln() - mean_log).powi(2)).sum::<f64>() / 4000.0).sqrt();
-        assert!(mean_log.abs() < 0.03 && (sd_log - settings().trait_spread).abs() < 0.03);
+        let moved = (minds.caution[1] - minds.caution[0]).abs();
+        assert!(moved > 0.0 && moved < 2.0);
     }
 }

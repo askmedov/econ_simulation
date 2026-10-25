@@ -2053,8 +2053,98 @@ year of months at each size:
     user's call.
 - **Speed:** minds cost 6% in a village (15.6 ms a run against 14.7) and
   nothing measurable in a region or at a million people.
-- **Not the default.** The ported rules stay the default. Should minds
-  become it? My recommendation: not yet. Hoarding can't show its
-  historical effect while the price follows the whole store, and the
-  minds' settings are guesses until the calibration step. The user
-  decides.
+- **Not the default** at this milestone; the user then made minds the
+  default and asked for them to be steadier (section 8).
+
+### 8. Minds by default, 100,000 people, steadier minds (built)
+
+The user's direction: minds are the point, so on by default; work at
+100,000 people for now, keeping the decisions as rich as they are; make
+the minds steadier; then grow the number of people.
+
+- **On by default.** `MindsConfig.enabled` is true (in Python's config,
+  which still ignores it). `--minds` stays and changes nothing now; turn
+  minds off in a config to run the rules. The parity checks compare
+  Python with the rules (`scripts/parity.py` switches minds off for the
+  Rust runs). With minds off, every output is still byte for byte
+  milestone 6's, so parity holds as measured there. The sanity check and
+  the stress test now run with minds.
+- **The standard setting is a region of 100,000 people.** 240 villages and
+  10 market towns, 100,570 people, laid out by Python's
+  `geography.region` (`rust/configs/regions/region100k.json`). A plain
+  `econ-sim` runs it. One village is still the engine's base: used with
+  `--population`, `--land` or `--region`, and by the tests.
+  - A month takes 0.05 s on one core.
+  - A paired three-year drought what-if over 100 seeds takes 2.0 minutes
+    on 4 cores.
+- **What was unsteady**, at 100,000 people (40 paired seeds, three years):
+  - People drained away in ordinary years: 53% more left (5,430 against
+    3,538), and the region ended 617 people smaller.
+    - A family's remembered hunger pushed it out on top of its place's
+      hunger, which the rules already count.
+    - Dividing by a trait tilted the average family: the average of 1 / x
+      is above 1.
+  - Grain sales swung 8% harder from month to month in a drought, as
+    hoarding on a price trend switched on and off.
+  - Lending fell 16% in a drought.
+- **What changed in how minds decide:**
+  - **Traits are distances from the typical family,** in standard
+    deviations, kept within 2. Each decision multiplies the rules' by a
+    factor scaled to average exactly 1 over families. So minds add
+    variety, not a lean.
+  - **Leaving is shared out, not added.** Hunger beyond a family's
+    neighbours' and a weak attachment make it likelier to be one of a
+    place's leavers. Each family's factor is divided by its place's
+    average, so as many leave as by the rules: the place's conditions
+    decide how many go, the minds decide which families. In a famine,
+    nerve scales a family's chance of fleeing, not the hunger it flees at.
+    Thresholds spread around the rules' had let more families fall under
+    them.
+  - **Expected prices are anchored.** The trend a family has seen is
+    carried forward over its horizon, then pulled back toward the price
+    it thinks normal (it follows what the family pays over two years) by
+    a quarter of the gap, never beyond ±25%.
+  - **Habits:** how much grain a family holds back and how much it lends
+    move 30% of the way to what it wants each month.
+  - **Fear of losses can halve lending at most**, and saving after hunger
+    is gentler (weight 1, not 4).
+- **Calibrated at 100,000 people.**
+  - A sweep of the pull toward normal (0.5, 0.25, 0.1) and of speculation
+    (1, 2) chose a pull of 0.25 and speculation 1. That keeps some
+    hoarding in a dearth with swings within 2% of the rules'. A pull of
+    0.5 all but removes hoarding; speculation 2 raises the price peak
+    (t 4.5).
+  - Results, 40 paired seeds, three years:
+
+| | Rules | Old minds | Steady minds |
+|---|---|---|---|
+| Ordinary years: people who left | 3,538 | 5,430 (t 22) | 3,545 (t 0.3) |
+| ... people at the end | 97,934 | 97,317 (t −16) | 97,916 (t −0.8) |
+| ... grain price swing, month to month | 3.1% | 3.2% (t 4.0) | 3.1% (t −0.3) |
+| ... coins lent | 73,314 | 73,246 | 74,247 (t 5.1) |
+| Drought: extra people who left | +6,246 | +7,906 (t 9.6) | +6,362 (t 3.4) |
+| ... extra grain sold in the 6 months from it | +9,551 | +2,241 (t −67) | +9,004 (t −15) |
+| ... grain sold swing, month to month | 9.1% | 9.8% (t 15) | 9.1% (t 1.5) |
+| ... extra coins lent | +64,811 | +54,174 (t −6.0) | +62,556 (t −4.4) |
+| ... extra deaths | +4,799 | +4,613 (t −4.3) | +4,818 (t 0.8) |
+
+  In ordinary years the steady minds match the rules on every measure
+  within chance, except that 1% more is lent, which is what the variety
+  between families adds up to. In a drought, families hoard a little
+  (6% less extra grain sold) and lend 3.5% less.
+- **Each family still decides for itself.** Halfway through a drought (in
+  month 8), the middle 80% of families hold back 0.82-1.53 times the
+  rules' grain, keep 0.71-1.36 times the rules' coins, lend 0.73-1.32
+  times the rules' share, and are 0.70-1.35 times as likely as their
+  place's average family to leave. The typical family expects grain to
+  be 21% dearer within its horizon, and holds back 12% more than the
+  rules would. In an ordinary August it expects 4%.
+- **Forty years at 100,000 people** (8 seeds): minds track the rules
+  within about 1% on population (96,451 against 96,446 in year 40),
+  prices, deaths, savings and debt, with no drift.
+- **Checks:** 123 tests. The stress test with minds: 0 of 67 drifted. The
+  sanity check with minds: every setting passes but the century one (1
+  run of 60 with a population surge). Its rate over 600 century runs is
+  the rules' (5 with minds, 5 by the rules); Python shows the same.
+- **Speed:** minds cost 11% at 100,000 people.
+

@@ -2,13 +2,14 @@
 //! turned into a config.
 
 use clap::Args;
-use econ_core::config::{default_config, Config, ScheduledEvent};
+use econ_core::config::{default_config, standard_region, Config, ScheduledEvent};
 use econ_core::region::{region, RegionSettings};
 
 #[derive(Args, Clone, Debug, Default)]
 pub struct RunArgs {
     /// A config exported from Python (scripts/export_config.py), such as a
-    /// region; default: the default village
+    /// region; default: the standard region of 100,000 people (or one
+    /// village, with --population or --land)
     #[arg(long, value_name = "FILE")]
     pub config: Option<String>,
     /// How many months to simulate (default: the config's, 36)
@@ -78,7 +79,8 @@ pub struct RunArgs {
     /// crowding brings fevers (Rust only; see RefugeesConfig)
     #[arg(long)]
     pub refugees: bool,
-    /// Villagers at the start; in a region, people in an average village of the plain
+    /// Villagers at the start, in one village instead of the standard region;
+    /// with --region, people in an average village of the plain
     #[arg(long)]
     pub population: Option<i64>,
     /// Farmland in plots (one village, not a region)
@@ -112,9 +114,13 @@ pub struct RunArgs {
 impl RunArgs {
     /// The config these options describe (the forced events not included).
     pub fn config(&self) -> Result<Config, String> {
+        // The standard region of 100,000 people, unless a config is given or
+        // the options lay out something else from the one village.
+        let one_village = self.population.is_some() || self.land.is_some() || self.region.is_some();
         let mut config = match &self.config {
             Some(path) => Config::from_file(path).map_err(|e| e.to_string())?,
-            None => default_config(),
+            None if one_village => default_config(),
+            None => standard_region(),
         };
         if let Some(m) = self.months {
             config.months = m;
