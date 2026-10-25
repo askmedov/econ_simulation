@@ -33,7 +33,8 @@ pub fn income_shares(
     lord_land: Option<&[f64]>,
     extra_effort: Option<&[f64]>,
     force: &Workforce,
-) -> (Vec<f64>, Vec<f64>) {
+    visiting: Option<&[f64]>,
+) -> (Vec<f64>, Vec<f64>, Vec<f64>) {
     let n = village_land.len();
     let n_hh = households.len();
     let loc = &households.location;
@@ -46,7 +47,13 @@ pub fn income_shares(
             *e += x;
         }
     }
-    let total_effort = by_village(&effort, loc, n);
+    let mut total_effort = by_village(&effort, loc, n);
+    // Hands from the town work the fields too, and claim their share.
+    if let Some(visiting) = visiting {
+        for v in 0..n {
+            total_effort[v] += visiting[v];
+        }
+    }
     let held = by_village(&households.land, loc, n);
     let all_land: Vec<f64> = (0..n).map(|v| held[v] + lord[v]).collect();
     // Where nobody holds land (or nobody farms), the other share goes to the workers (or holders).
@@ -63,6 +70,9 @@ pub fn income_shares(
         service[v] = if lord[v] > 0.0 { config.lord.labour_service } else { 0.0 };
         to_lord[v] = land_part[v] * div_or(lord[v], all_land[v], 0.0) + work_part[v] * service[v];
     }
+    let mut visitors: Vec<f64> = (0..n)
+        .map(|v| visiting.map_or(0.0, |x| work_part[v] * (1.0 - service[v]) * div_or(x[v], total_effort[v], 0.0)))
+        .collect();
     let mut shares: Vec<f64> = (0..n_hh)
         .map(|h| {
             let v = loc[h] as usize;
@@ -81,9 +91,10 @@ pub fn income_shares(
         }
         for v in 0..n {
             to_lord[v] *= 1.0 - part[v];
+            visitors[v] *= 1.0 - part[v];
         }
     }
-    (shares, to_lord)
+    (shares, to_lord, visitors)
 }
 
 /// Move the farms' grain, beyond what they keep to sell for tools, into
@@ -96,14 +107,18 @@ pub fn share_harvest(
     keep_for_tools: &[f64],
     shares: &[f64],
     to_lord: Option<&[f64]>,
-) -> (Vec<f64>, Vec<f64>) {
+    visitors: Option<&[f64]>,
+) -> (Vec<f64>, Vec<f64>, Vec<f64>) {
     let n = farm_grain.len();
     let zeros = vec![0.0; n];
     let lord = to_lord.unwrap_or(&zeros);
     let claimed = by_village(shares, &households.location, n);
     let mut per_claim = vec![0.0; n];
     for v in 0..n {
-        let claims = claimed[v] + lord[v];
+        let mut claims = claimed[v] + lord[v];
+        if let Some(visitors) = visitors {
+            claims += visitors[v];
+        }
         // Places where nobody has a claim keep their grain in the farm store.
         let to_share = if claims > 0.0 { (farm_grain[v] - keep_for_tools[v]).max(0.0) } else { 0.0 };
         per_claim[v] = div_or(to_share, claims, 0.0);
@@ -114,7 +129,8 @@ pub fn share_harvest(
     for (g, r) in households.grain.iter_mut().zip(&received) {
         *g += r;
     }
-    (received, (0..n).map(|v| lord[v] * per_claim[v]).collect())
+    let to_visitors = visitors.map_or_else(|| vec![0.0; n], |x| (0..n).map(|v| x[v] * per_claim[v]).collect());
+    (received, (0..n).map(|v| lord[v] * per_claim[v]).collect(), to_visitors)
 }
 
 /// How each family uses its grain this month.

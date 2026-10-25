@@ -1069,7 +1069,7 @@ checks on region settings, and what-if numbers written up here:
 | 2 | `claude/region-map` | places, terrain, roads and rivers, costs of carriage, weather that falls on the map; regions generated from a few settings (built) |
 | 3 | `claude/market-towns` | towns as places; the town price set by supply and demand; grain and goods carried between each village and its town; an outside price at the border (built) |
 | 4 | `claude/trade-network` | trade between towns along the network (and a city), what roads and rivers can carry, animals and wool; specialisation by terrain (built) |
-| 5 | `claude/regional-migration` | builds on migration by how good a place is (below): distance, towns as destinations, harvest labour, famine refugees |
+| 5 | `claude/regional-migration` | builds on migration by how good a place is (below): distance, towns as destinations, harvest labour, famine refugees (built, in Rust) |
 | 6 | `claude/epidemics-spread` | disease spreading within and between places; quarantine |
 | 7 | `claude/state-and-war` | provinces, tax quotas, a treasury, public granaries, famine policies, armies on the move |
 | 8 | `claude/church-and-manors` | the tithe and parish relief; lords with several manors; mills |
@@ -1459,6 +1459,81 @@ granary, relief, a ban on carrying grain out.
 
 Speed is unchanged: a month of 1,150,000 people (1,000 villages, 40 towns)
 takes 2.1 s.
+
+### 5. Regional migration (built, in Rust; off by default)
+
+The first Phase 3 step built in the Rust engine only. Distance and towns
+as destinations came with the map (step 2, and Rust milestone 4). This
+step adds the other two: **harvest hands** and **famine refugees**. Both
+are switched off by default, like minds, so the ported model stays in
+parity with Python. Their settings are `HarvestHandsConfig` and
+`RefugeesConfig` in Python's config, which Python ignores. On the command
+line: `--harvest-hands`, `--refugees`, and `econ-sim compare
+harvest-hands|refugees` to run each seed without and with them. With
+both off, every output is byte for byte what it was.
+
+- **Harvest hands.** In a village everyone helps at harvest; in a town
+  nobody did.
+  - Now, in the harvest months, a town's families give half the help they
+    would give in a village (`town_share`): craftsmen part of their days,
+    the young and old their gleaning. They give it in the fields of the
+    villages that trade at that town, shared by the villages' land, e
+    times fewer hands each 10 km farther (`reach_km`).
+  - They are paid as any family is, by their share of the field work (a
+    claim on the village's harvest beside its families' and its lord's),
+    and carry the grain home.
+  - Their trades lose the days they are away, and the harvest outlook
+    counts on them, so prices feel them before the harvest.
+- **Famine refugees.** Families fleeing a famine who find no better
+  village used to go to their market town as often as any leaver (half
+  of them) and beyond the region otherwise.
+  - Now four in five go to the town (`to_town`), where people crowd in.
+  - A town's death rate rises by twice the share of its people who came as
+    refugees over the last six months (`fevers`, `memory_months`): famine
+    fever.
+
+**What they change** (the region with a city and 3 towns, Python's map,
+60 paired runs of three years):
+
+| Harvest hands | Without | With | t |
+|---|---|---|---|
+| Harvest help over three years | 9,191 | 11,279 | 84 |
+| Food produced | 458,359 | 464,609 | 50 |
+| Average grain price | 1.26 | 1.23 | −21 |
+| Poorest fifth, worst month | 86.2% | 89.3% | 11 |
+| Deaths | 1,787 | 1,766 | −4.4 |
+| People in towns at the end | 1,522 | 1,574 | 11 |
+| Towns' worst month | 80.9% | 84.0% | 8.0 |
+
+| Famine refugees (the drought's effect) | Without | With | t |
+|---|---|---|---|
+| One drought (month 4): extra deaths | +554 | +567 | 2.7 |
+| ... of them in towns | +231 | +241 | 3.3 |
+| Two droughts (months 4 and 16): extra deaths | +1,287 | +1,338 | 7.4 |
+| ... of them in towns | +368 | +410 | 9.1 |
+| ... people in the region at the end | −2,313 | −2,277 | 5.0 |
+
+- Harvest hands feed the towns and the poor a little better in ordinary
+  years. They don't soften a drought: its deaths are the same (544
+  against 554, t −1.3), and its price spike a little higher (+1.57
+  against +1.52).
+- Refugees change nothing in ordinary years. In a famine they turn
+  deaths beyond the region into deaths in its towns, more of them:
+  people who would have left die of fevers in town, and the region keeps
+  more of the rest.
+- **Forty years with both on** (two regions, 8 seeds each), against
+  without: nothing drifts. The regions keep about 2% more people and
+  their towns about 10%, grain is a little cheaper, deaths are about the
+  same, and harvest help is 25-30% higher throughout.
+- **Checks:** with both off, every output is unchanged. Tests check that
+  hands go to their town's villages, more to the near ones, and only at
+  harvest, and that they bring grain home. Refugees go to town as set,
+  and towns crowded with them bury more. The invariants hold every month
+  with both on, money conserved, through two droughts on two maps.
+- **Speed:** harvest hands cost 4%; refugees nothing measurable.
+- **Not yet:** settlers clearing new land; villages with spare hands
+  sending them to the plain (only towns send hands); refugees' charity
+  and begging in town; where refugees go beyond their own market town.
 
 ### What-ifs Phase 3 should answer
 

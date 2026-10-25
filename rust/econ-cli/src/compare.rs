@@ -1,7 +1,8 @@
-//! What minds change (`econ-sim minds`): each seed is run four ways, by the
-//! rules and with minds, each without and with the forced events, and the
-//! two kinds are compared seed by seed: in how the years go, and in what
-//! the event does.
+//! What a switch changes (`econ-sim compare minds|harvest-hands|refugees`;
+//! `econ-sim minds` for short): each seed is run four ways, without and
+//! with the switch, each without and with the forced events, and the two
+//! are compared seed by seed: in how the years go, and in what the event
+//! does.
 
 use std::time::Instant;
 
@@ -11,8 +12,38 @@ use econ_core::scenarios::{run_many, with_seed, Run};
 
 use crate::options::RunArgs;
 
+/// A setting that can be switched on, to see what it changes.
+#[derive(Clone, Copy, Debug, clap::ValueEnum)]
+pub enum Switch {
+    /// Families with minds of their own (`MindsConfig`)
+    Minds,
+    /// Townsfolk out in the villages' fields at harvest (`HarvestHandsConfig`)
+    HarvestHands,
+    /// Families fleeing a famine to the towns, and the towns' fevers (`RefugeesConfig`)
+    Refugees,
+}
+
+impl Switch {
+    fn set(self, c: &mut Config, on: bool) {
+        match self {
+            Switch::Minds => c.minds.enabled = on,
+            Switch::HarvestHands => c.harvest_hands.enabled = on,
+            Switch::Refugees => c.refugees.enabled = on,
+        }
+    }
+
+    /// (without, with, what the runs are)
+    fn names(self) -> (&'static str, &'static str, &'static str) {
+        match self {
+            Switch::Minds => ("rules", "minds", "families by the rules, and with minds of their own"),
+            Switch::HarvestHands => ("without", "with", "without and with harvest hands from the towns"),
+            Switch::Refugees => ("without", "with", "without and with famine refugees going to the towns"),
+        }
+    }
+}
+
 /// What is measured in each run, by name.
-const MEASURES: [&str; 15] = [
+const MEASURES: [&str; 20] = [
     "deaths",
     "births",
     "people at the end",
@@ -28,9 +59,15 @@ const MEASURES: [&str; 15] = [
     "people who left",
     "families who left",
     "savings at the end",
+    "food produced",
+    "harvest help",
+    "people in towns at the end",
+    "deaths in towns",
+    "towns' worst month",
 ];
 
-fn measures(records: &[MonthRecord], event_month: usize) -> Vec<f64> {
+fn measures(run: &Run, event_month: usize) -> Vec<f64> {
+    let records = &run.records;
     let sum = |f: &dyn Fn(&MonthRecord) -> f64| records.iter().map(f).sum::<f64>();
     let least = |f: &dyn Fn(&MonthRecord) -> f64| records.iter().map(f).fold(f64::INFINITY, f64::min);
     let dearest = records.iter().max_by(|a, b| a.food_price.total_cmp(&b.food_price)).expect("a month");
@@ -52,7 +89,17 @@ fn measures(records: &[MonthRecord], event_month: usize) -> Vec<f64> {
         sum(&|r| r.emigrants as f64),
         sum(&|r| r.families_left as f64),
         last.savings,
+        sum(&|r| r.food_produced),
+        sum(&|r| r.harvest_help),
+        last.town_people as f64,
+        town_deaths(run),
+        least(&|r| r.town_ration),
     ]
+}
+
+fn town_deaths(run: &Run) -> f64 {
+    let towns: Vec<usize> = (0..run.config.villages.len()).filter(|&v| run.config.villages[v].kind == "town").collect();
+    run.place("deaths").iter().map(|month| towns.iter().map(|&t| month[t]).sum::<f64>()).sum()
 }
 
 /// Mean of `values` and the t of that mean against nought (paired runs:
@@ -111,16 +158,17 @@ fn timed(configs: Vec<Config>) -> Result<(Vec<Run>, f64), String> {
     Ok((runs, start.elapsed().as_secs_f64() * threads.min(n) / n))
 }
 
-pub fn run(args: &RunArgs) -> Result<(), String> {
+pub fn run(args: &RunArgs, switch: Switch) -> Result<(), String> {
     let base = args.config()?;
     let forced = args.forced()?;
     let runs = args.runs.max(2);
     let event_month = forced.first().map_or(4, |e| e.month as usize);
-    let kind = |minds: bool, with_event: bool| -> Vec<Config> {
+    let (without, with, what) = switch.names();
+    let kind = |on: bool, with_event: bool| -> Vec<Config> {
         (0..runs)
             .map(|i| {
                 let mut c = with_seed(&base, base.seed + i as i64);
-                c.minds.enabled = minds;
+                switch.set(&mut c, on);
                 if with_event {
                     c.scheduled_events.extend_from_slice(&forced);
                 }
@@ -129,7 +177,7 @@ pub fn run(args: &RunArgs) -> Result<(), String> {
             .collect()
     };
     println!(
-        "{} paired runs of {} months, seeds {} to {}: families by the rules, and with minds of their own",
+        "{} paired runs of {} months, seeds {} to {}: {what}",
         runs,
         base.months,
         base.seed,
@@ -137,9 +185,9 @@ pub fn run(args: &RunArgs) -> Result<(), String> {
     );
     let (rules, rules_time) = timed(kind(false, false))?;
     let (minds, minds_time) = timed(kind(true, false))?;
-    let of = |runs: &[Run]| -> Vec<Vec<f64>> { runs.iter().map(|r| measures(&r.records, event_month)).collect() };
+    let of = |runs: &[Run]| -> Vec<Vec<f64>> { runs.iter().map(|r| measures(r, event_month)).collect() };
     let (rules_m, minds_m) = (of(&rules), of(&minds));
-    print_table("Without the event (seed by seed):", "rules", "minds", &rules_m, &minds_m);
+    print_table("Without the event (seed by seed):", without, with, &rules_m, &minds_m);
     if !forced.is_empty() {
         let names: Vec<String> = forced.iter().map(|e| format!("{} in month {}", e.event, e.month)).collect();
         let (rules_e, _) = timed(kind(false, true))?;
@@ -149,14 +197,14 @@ pub fn run(args: &RunArgs) -> Result<(), String> {
         };
         print_table(
             &format!("What {} does (with it, less without it, seed by seed):", names.join(" and ")),
-            "rules",
-            "minds",
+            without,
+            with,
             &effect(&of(&rules_e), &rules_m),
             &effect(&of(&minds_e), &minds_m),
         );
     }
     println!(
-        "\nSpeed: {:.1} ms a run by the rules, {:.1} ms with minds ({:+.0}%)",
+        "\nSpeed: {:.1} ms a run {without}, {:.1} ms {with} ({:+.0}%)",
         1000.0 * rules_time,
         1000.0 * minds_time,
         100.0 * (minds_time / rules_time - 1.0)

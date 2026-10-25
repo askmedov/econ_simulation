@@ -65,6 +65,9 @@ pub struct World {
     pub arrivals: Vec<f64>,
     pub sends: Vec<f64>,
     pub unhealthy: Vec<f64>,
+    /// People who came as famine refugees, fading over
+    /// `refugees.memory_months`, per place (with `refugees.enabled`).
+    pub refugees: Vec<f64>,
     pub skill: Grid,
 }
 
@@ -367,6 +370,7 @@ pub fn create_world(config: &Config, streams: &mut RandomStreams) -> Result<Worl
         arrivals,
         sends,
         unhealthy,
+        refugees: vec![0.0; n],
         skill,
     })
 }

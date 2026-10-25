@@ -187,12 +187,12 @@ fn people_who_move_go_mostly_to_villages_nearby() {
     config.migration.stay_in_region = 1.0;
     let origin = vec![0usize; 2000];
     let (place, people) = ([0.5, 1.0, 1.0], [100.0; 3]);
-    let dest = migration::destinations(&origin, &place, &people, &config, &mut Rng::named(0, "test"), &geo);
+    let dest = migration::destinations(&origin, &place, &people, &config, &mut Rng::named(0, "test"), &geo, None);
     let near = dest.iter().filter(|&&d| d == 1).count();
     let far = dest.iter().filter(|&&d| d == 2).count();
     assert!(near > 10 * far && far > 0, "{near} {far}");
     let anywhere = Geography { on_map: false, ..geo };
-    let dest = migration::destinations(&origin, &place, &people, &config, &mut Rng::named(0, "test"), &anywhere);
+    let dest = migration::destinations(&origin, &place, &people, &config, &mut Rng::named(0, "test"), &anywhere, None);
     let near = dest.iter().filter(|&&d| d == 1).count() as f64 / 2000.0;
     assert!((near - 0.5).abs() < 0.05, "{near}");
 }

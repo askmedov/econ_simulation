@@ -2,8 +2,8 @@
 //! (`python -m econ_sim`), and tools for checking the engine.
 
 mod bench;
+mod compare;
 mod dump;
-mod minds;
 mod options;
 mod report;
 mod run;
@@ -39,6 +39,13 @@ enum Command {
     /// What minds change: each seed run by the rules and with minds of the
     /// families' own, without and with the forced events, compared seed by seed
     Minds(RunArgs),
+    /// What a switch changes (minds, harvest hands, refugees): each seed run
+    /// without and with it, without and with the forced events
+    Compare {
+        switch: compare::Switch,
+        #[command(flatten)]
+        run: RunArgs,
+    },
     /// Each run's measures per place, one line of JSON each (with --event, both arms)
     Places(RunArgs),
     /// Each run's log of notable happenings (with the forced events)
@@ -155,7 +162,11 @@ fn main() {
         }),
         Some(Command::Minds(args)) => {
             threads(args.workers);
-            minds::run(&args)
+            compare::run(&args, compare::Switch::Minds)
+        }
+        Some(Command::Compare { switch, run }) => {
+            threads(run.workers);
+            compare::run(&run, switch)
         }
         Some(Command::World(args)) => {
             threads(args.workers);

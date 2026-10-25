@@ -218,6 +218,9 @@ impl Simulation {
         // their days, and children and the old glean, bind and carry.
         let n_hh = world.households.len();
         let mut helping = work::harvest_help(&world.population, n, n_hh, month_of_year, config, &force);
+        // With harvest hands, townsfolk help in the fields of the villages around.
+        let hands = (has_towns && config.harvest_hands.enabled)
+            .then(|| work::harvest_hands(&helping.households, &world.households, &world.land, &world.geo, config));
         if has_towns {
             // a town has no fields of its own
             for v in (0..n).filter(|&v| is_town[v]) {
@@ -233,7 +236,13 @@ impl Simulation {
             for b in 0..nb {
                 if !(has_towns && is_town[v]) {
                     *effort.at(v, b) *= helping.kept[b];
+                } else if hands.as_ref().is_some_and(|h| h.hands[v] > 0.0) {
+                    // the town's craftsmen out in the fields lose those days
+                    *effort.at(v, b) *= 1.0 - config.harvest_hands.town_share * (1.0 - helping.kept[b]);
                 }
+            }
+            if let Some(hands) = &hands {
+                helping.farm[v] += hands.visiting[v];
             }
             *effort.at(v, farm) += helping.farm[v];
         }
@@ -340,8 +349,15 @@ impl Simulation {
         ahead = ahead.zip_map(&sown_ahead, |a, s| a * s);
         if config.work.enabled {
             // harvests gathered with everyone's help
-            let at_harvest =
-                work::harvest_help(&world.population, n, n_hh, config.work.harvest_months[0], config, &force).farm;
+            let harvest = work::harvest_help(&world.population, n, n_hh, config.work.harvest_months[0], config, &force);
+            let mut at_harvest = harvest.farm.clone();
+            if hands.is_some() {
+                let coming =
+                    work::harvest_hands(&harvest.households, &world.households, &world.land, &world.geo, config);
+                for v in 0..n {
+                    at_harvest[v] += coming.visiting[v];
+                }
+            }
             let boost = work::harvest_boost(&full_strength.column(farm), &at_harvest, config);
             ahead = ahead.zip_map(&work::outlook_boost(&boost, month_of_year, months_ahead, config), |a, b| a * b);
         }
@@ -416,7 +432,7 @@ impl Simulation {
             })
             .collect();
         let owners = livestock::owners_part(&animal_factor);
-        let (shares, to_lord) = farms::income_shares(
+        let (shares, to_lord, visitors) = farms::income_shares(
             &world.population,
             &world.households,
             &world.land,
@@ -425,9 +441,31 @@ impl Simulation {
             Some(&world.lord.land),
             Some(&helping.households),
             &force,
+            hands.as_ref().map(|h| h.visiting.as_slice()),
         );
-        let (harvest_share, rent) =
-            farms::share_harvest(&mut world.households, &mut farm_grain, &keep_for_tools, &shares, Some(&to_lord));
+        let (harvest_share, rent, to_hands) = farms::share_harvest(
+            &mut world.households,
+            &mut farm_grain,
+            &keep_for_tools,
+            &shares,
+            Some(&to_lord),
+            hands.as_ref().map(|_| visitors.as_slice()),
+        );
+        if let Some(hands) = &hands {
+            // The hands carry their pay home: each town's, by what each family gave.
+            let mut earned_by_town = vec![0.0; n];
+            for v in 0..n {
+                if to_hands[v] > 0.0 {
+                    earned_by_town[world.geo.market[v] as usize] += to_hands[v];
+                }
+            }
+            for h in 0..n_hh {
+                if hands.away[h] > 0.0 {
+                    let t = world.households.location[h] as usize;
+                    world.households.grain[h] += earned_by_town[t] * hands.away[h] / hands.hands[t];
+                }
+            }
+        }
         world.set_farm_grain(&farm_grain);
         let shared_out = market::by_village(&harvest_share, &world.households.location, n);
         let labour_grain: Vec<f64> = (0..n)
@@ -962,7 +1000,15 @@ impl Simulation {
 
         // Healers see the people most likely to die first.
         let mortality: Vec<f64> = if has_towns {
-            (0..n).map(|v| mods.mortality_mult[v] * world.unhealthy[v]).collect()
+            // a town crowded with famine refugees has its fevers too
+            let crowded = |v: usize| {
+                if config.refugees.enabled && is_town[v] {
+                    1.0 + config.refugees.fevers * div_or(world.refugees[v], people_here[v], 0.0)
+                } else {
+                    1.0
+                }
+            };
+            (0..n).map(|v| mods.mortality_mult[v] * world.unhealthy[v] * crowded(v)).collect()
         // towns die faster
         } else {
             mods.mortality_mult.clone()
@@ -1099,6 +1145,12 @@ impl Simulation {
             &world.geo,
         );
         world.town.purse += moves.coins;
+        if config.refugees.enabled {
+            let fade = 1.0 / config.refugees.memory_months.max(1.0);
+            for v in 0..n {
+                world.refugees[v] = world.refugees[v] * (1.0 - fade) + moves.refugees[v];
+            }
+        }
         let room: Vec<f64> = usual_land.iter().map(|l| l * config.environment.people_per_plot).collect(); // people the land feeds at a usual density
         let arrived = migration::arrive(
             &mut world.population,

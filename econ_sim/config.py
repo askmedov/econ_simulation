@@ -760,6 +760,46 @@ class HealthcareConfig:
 
 
 @dataclass(frozen=True)
+class HarvestHandsConfig:
+    """Townsfolk who go out to the villages at harvest (so far only in the
+    Rust engine, `rust/`; this model ignores it).
+
+    In a village everyone helps at harvest (WorkConfig); in a town nobody
+    did. With this on, townsfolk go out to the villages of their market town
+    in harvest months, more to the near ones, work in the fields and come
+    home with their pay in grain: their share of the field work, as any
+    family's. Their trades lose the days they are away.
+    """
+
+    enabled: bool = False
+    # The share of the help they would give if they lived in a village
+    # (WorkConfig.craft_help of a craftsman's days, helper_effort of the
+    # young and old) that townsfolk give in the villages around.
+    town_share: float = 0.5
+    # Each `reach_km` farther from the town, a village gets e times fewer
+    # hands (for the same fields).
+    reach_km: float = 10.0
+
+
+@dataclass(frozen=True)
+class RefugeesConfig:
+    """Families fleeing a famine to the towns, where fevers wait (so far
+    only in the Rust engine; this model ignores it)."""
+
+    enabled: bool = False
+    # Of the families fleeing a famine (MigrationConfig.flee_below) who find
+    # no better village, this share go to their market town; the rest go
+    # beyond the region (ordinary leavers go to town at
+    # MigrationConfig.to_town).
+    to_town: float = 0.8
+    # A town's death rate rises by `fevers` times the share of its people
+    # who came as refugees over the last `memory_months` (crowding, typhus,
+    # dysentery: "famine fever").
+    fevers: float = 2.0
+    memory_months: float = 6.0
+
+
+@dataclass(frozen=True)
 class MindsConfig:
     """Families with minds of their own (so far only in the Rust engine,
     `rust/`; this model ignores it).
@@ -1033,6 +1073,8 @@ class Config:
     council: CouncilConfig = field(default_factory=CouncilConfig)
     healthcare: HealthcareConfig = field(default_factory=HealthcareConfig)
     map: MapConfig = field(default_factory=MapConfig)
+    harvest_hands: HarvestHandsConfig = field(default_factory=HarvestHandsConfig)
+    refugees: RefugeesConfig = field(default_factory=RefugeesConfig)
     minds: MindsConfig = field(default_factory=MindsConfig)
     products: tuple[ProductSpec, ...] = DEFAULT_PRODUCTS
     businesses: tuple[BusinessSpec, ...] = DEFAULT_BUSINESSES

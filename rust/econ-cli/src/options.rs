@@ -70,6 +70,14 @@ pub struct RunArgs {
     /// (Rust only; see MindsConfig), instead of all following the rules
     #[arg(long)]
     pub minds: bool,
+    /// On a map with towns: townsfolk help in the villages' fields at
+    /// harvest and come home with grain (Rust only; see HarvestHandsConfig)
+    #[arg(long)]
+    pub harvest_hands: bool,
+    /// On a map with towns: families fleeing a famine go to the towns, where
+    /// crowding brings fevers (Rust only; see RefugeesConfig)
+    #[arg(long)]
+    pub refugees: bool,
     /// Villagers at the start; in a region, people in an average village of the plain
     #[arg(long)]
     pub population: Option<i64>,
@@ -192,6 +200,12 @@ impl RunArgs {
         }
         if self.minds {
             config.minds.enabled = true;
+        }
+        if self.harvest_hands {
+            config.harvest_hands.enabled = true;
+        }
+        if self.refugees {
+            config.refugees.enabled = true;
         }
         if self.no_drought_runs {
             for event in config.events.iter_mut() {

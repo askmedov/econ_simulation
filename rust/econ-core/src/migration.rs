@@ -107,17 +107,26 @@ pub fn appeal(
 /// This month's moves.
 #[derive(Clone, Debug)]
 pub struct Moves {
-    pub left: Vec<f64>,    // people who left, per place
-    pub arrived: Vec<f64>, // people who came, from beyond or from another place, per place
-    pub families: u64,     // whole families that left
-    pub within: u64,       // people who moved to another place of the run
-    pub coins: f64,        // coins taken beyond the places
-    pub grain: f64,        // rations taken beyond the places
+    pub left: Vec<f64>,     // people who left, per place
+    pub arrived: Vec<f64>,  // people who came, from beyond or from another place, per place
+    pub refugees: Vec<f64>, // of them, people of families fleeing a famine, per place
+    pub families: u64,      // whole families that left
+    pub within: u64,        // people who moved to another place of the run
+    pub coins: f64,         // coins taken beyond the places
+    pub grain: f64,         // rations taken beyond the places
 }
 
 impl Moves {
     fn none(n: usize) -> Moves {
-        Moves { left: vec![0.0; n], arrived: vec![0.0; n], families: 0, within: 0, coins: 0.0, grain: 0.0 }
+        Moves {
+            left: vec![0.0; n],
+            arrived: vec![0.0; n],
+            refugees: vec![0.0; n],
+            families: 0,
+            within: 0,
+            coins: 0.0,
+            grain: 0.0,
+        }
     }
 }
 
@@ -131,6 +140,7 @@ pub fn destinations(
     config: &Config,
     rng: &mut Rng,
     geo: &Geography,
+    refugees: Option<&[bool]>,
 ) -> Vec<i64> {
     let n = place.len();
     let mut dest = vec![-1i64; origin.len()];
@@ -169,11 +179,14 @@ pub fn destinations(
         }
     }
     if geo.has_towns() {
-        // Of those going beyond, some go to their own market town.
+        // Of those going beyond, some go to their own market town; families
+        // fleeing a famine more readily (`RefugeesConfig`).
         for (j, &o) in origin.iter().enumerate() {
             let town = geo.market[o];
             let u = rng.random();
-            if dest[j] < 0 && town >= 0 && town != o as i64 && u < config.migration.to_town {
+            let to_town =
+                if refugees.is_some_and(|r| r[j]) { config.refugees.to_town } else { config.migration.to_town };
+            if dest[j] < 0 && town >= 0 && town != o as i64 && u < to_town {
                 dest[j] = town;
             }
         }
@@ -251,9 +264,11 @@ pub fn move_people(
         let yearly = decide.leave_chance(h, yearly);
         families[h] = size[h] > 0.0 && rng.random() < monthly_chance(yearly);
     }
+    let mut refugee = vec![false; n_hh];
     for h in 0..n_hh {
         let fled = rng.random() < cfg.flee_chance;
-        families[h] |= size[h] > 0.0 && family_share[h] < decide.flees_below(h, cfg.flee_below) && fled;
+        refugee[h] = size[h] > 0.0 && family_share[h] < decide.flees_below(h, cfg.flee_below) && fled;
+        families[h] |= refugee[h];
     }
     for h in 0..n_hh {
         let fled = rng.random() < cfg.flee_danger * memory.danger_now[households.location[h] as usize];
@@ -274,8 +289,10 @@ pub fn move_people(
     let family_ids: Vec<usize> = (0..n_hh).filter(|&h| families[h]).collect();
     let single_from: Vec<usize> = singles.iter().map(|&i| population.location[i] as usize).collect();
     let family_from: Vec<usize> = family_ids.iter().map(|&h| households.location[h] as usize).collect();
-    let mut to_single = destinations(&single_from, place, &people, config, rng, geo);
-    let to_family = destinations(&family_from, place, &people, config, rng, geo);
+    let mut to_single = destinations(&single_from, place, &people, config, rng, geo, None);
+    let fleeing: Vec<bool> = family_ids.iter().map(|&h| refugee[h]).collect();
+    let to_family =
+        destinations(&family_from, place, &people, config, rng, geo, config.refugees.enabled.then_some(&fleeing));
     // A single person settles with a landholding family there (or any town
     // family), if any: not one that is leaving itself.
     let hosts = hosts_by_place(households, |h| size[h] > 0.0 && !families[h], geo, n);
@@ -311,6 +328,7 @@ pub fn move_people(
     let left =
         rules::by_location(population, n, |i| if goes[i] || in_family[i] { population.count[i] as f64 } else { 0.0 });
     let mut arrived = vec![0.0; n];
+    let mut refugees = vec![0.0; n];
     let mut beyond_coins = 0.0;
     let mut beyond_grain = 0.0;
 
@@ -362,6 +380,9 @@ pub fn move_people(
         } else if new_home[h] != usize::MAX {
             let home = new_home[h];
             arrived[households.location[home] as usize] += population.count[i] as f64;
+            if refugee[h] {
+                refugees[households.location[home] as usize] += population.count[i] as f64;
+            }
             population.household[i] = home as u32;
             population.location[i] = households.location[home];
             moved.push(i);
@@ -379,7 +400,15 @@ pub fn move_people(
         }
     }
     let within = arrived.iter().sum::<f64>() as u64;
-    Moves { left, arrived, families: family_ids.len() as u64, within, coins: beyond_coins, grain: beyond_grain }
+    Moves {
+        left,
+        arrived,
+        refugees,
+        families: family_ids.len() as u64,
+        within,
+        coins: beyond_coins,
+        grain: beyond_grain,
+    }
 }
 
 /// Young people come from beyond to places that are clearly better places

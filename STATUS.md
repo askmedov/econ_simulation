@@ -43,8 +43,10 @@ validation runs.
   sanity check (3,010 runs over many settings, including regions), the
   stress test (67 scenarios of 40 years, 0 drifting), and runs without a
   map give number-for-number the same results as before the map existed.
-- **Phase 1 and 2/2b are done, Phase 3 steps 1-4 of 13 are done.** Next in
-  the plan is step 5 (regional migration), now in Rust.
+- **Phase 1 and 2/2b are done, Phase 3 steps 1-5 of 13 are done.** Step 5
+  (regional migration: harvest hands, famine refugees) is the first built
+  in Rust only, switched off by default, on `claude/regional-migration`.
+  Next in the plan is step 6 (epidemics that spread).
 - **The Rust engine** (`rust/`, about 10,000 lines) is built through the
   hand-off's seven milestones, one branch each
   (`claude/rust-scaffolding` ... `claude/rust-minds`, latest `cceeb20`,
@@ -229,10 +231,11 @@ that is booked in the outside purse) and that **people add up**
 The Rust engine (`cd rust`; the binary is `target/release/econ-sim`):
 
 ```bash
-cargo build --release && cargo test --release       # 114 tests
+cargo build --release && cargo test --release       # 119 tests
 econ-sim --event drought@4 --runs 200               # Python's options and report
 econ-sim --region 50 --event drought@4@0,12,11 --runs 40
 econ-sim minds --event drought@4 --runs 200         # minds against the rules
+econ-sim compare refugees --config configs/regions/city3.json --event drought@4 --runs 60
 econ-sim sanity --full; econ-sim stress; econ-sim bench --country
 python ../scripts/parity.py village                 # parity with Python (also setup, region)
 python ../scripts/export_config.py                  # after changing config.py: re-export
@@ -323,7 +326,6 @@ Phase 3, remaining steps, now in Rust (details in PLAN.md, "Build order"):
 
 | Step | Adds |
 |---|---|
-| 5 | Regional migration: distance, towns as destinations, harvest labour, famine refugees |
 | 6 | Epidemics spreading within and between places; quarantine |
 | 7 | Provinces, tax quotas, a treasury, public granaries, famine policies, armies |
 | 8 | The tithe and parish relief; lords with several manors; mills |

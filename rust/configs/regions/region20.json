@@ -829,6 +829,17 @@
    }
   ]
  },
+ "harvest_hands": {
+  "enabled": false,
+  "town_share": 0.5,
+  "reach_km": 10.0
+ },
+ "refugees": {
+  "enabled": false,
+  "to_town": 0.8,
+  "fevers": 2.0,
+  "memory_months": 6.0
+ },
  "minds": {
   "enabled": false,
   "trait_spread": 0.3,

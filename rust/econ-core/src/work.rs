@@ -11,6 +11,7 @@
 
 use crate::config::Config;
 use crate::economy::{work_factor, Workforce};
+use crate::geography::Geography;
 use crate::grid::{div_or, Grid};
 use crate::households::Households;
 use crate::population::{Population, NO_JOB};
@@ -66,6 +67,51 @@ pub fn harvest_help(
         }
     }
     HarvestHelp { farm, kept, households }
+}
+
+/// Townsfolk out in the villages at harvest (`HarvestHandsConfig`).
+#[derive(Clone, Debug)]
+pub struct HarvestHands {
+    pub visiting: Vec<f64>, // effort they add to each village's fields
+    pub away: Vec<f64>,     // effort each town family gives in the fields
+    pub hands: Vec<f64>,    // effort each town sends out
+}
+
+/// In a harvest month the families of each market town give `town_share`
+/// of the help they would give in a village (`help`, per family) in the
+/// fields of the villages that trade there: shared by the villages' land, e
+/// times fewer hands each `reach_km` farther from the town.
+pub fn harvest_hands(
+    help: &[f64],
+    households: &Households,
+    land: &[f64],
+    geo: &Geography,
+    config: &Config,
+) -> HarvestHands {
+    let n = land.len();
+    let cfg = &config.harvest_hands;
+    let pull = |v: usize, t: usize| land[v] * (-geo.distance(v, t) / cfg.reach_km).exp();
+    let serves = |v: usize| if !geo.town[v] && geo.market[v] >= 0 { Some(geo.market[v] as usize) } else { None };
+    let mut fields = vec![0.0; n]; // per town: the land around it, by how near
+    for v in 0..n {
+        if let Some(t) = serves(v) {
+            fields[t] += pull(v, t);
+        }
+    }
+    // (a town with no fields around sends nobody)
+    let away: Vec<f64> = (0..households.len())
+        .map(|h| {
+            let t = households.location[h] as usize;
+            if geo.town[t] && fields[t] > 0.0 {
+                cfg.town_share * help[h]
+            } else {
+                0.0
+            }
+        })
+        .collect();
+    let hands = crate::grid::sum_by(n, &households.location, |h| away[h]);
+    let visiting = (0..n).map(|v| serves(v).map_or(0.0, |t| hands[t] * div_or(pull(v, t), fields[t], 0.0))).collect();
+    HarvestHands { visiting, away, hands }
 }
 
 /// How much more the fields yield in a harvest month with everyone's help,

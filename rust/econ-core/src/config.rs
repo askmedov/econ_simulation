@@ -381,6 +381,25 @@ pub struct HealthcareConfig {
     pub treatment_mortality: f64,
 }
 
+/// Townsfolk who go out to the villages at harvest (Python's `HarvestHandsConfig`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct HarvestHandsConfig {
+    pub enabled: bool,
+    pub town_share: f64,
+    pub reach_km: f64,
+}
+
+/// Families fleeing a famine to the towns (Python's `RefugeesConfig`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RefugeesConfig {
+    pub enabled: bool,
+    pub to_town: f64,
+    pub fevers: f64,
+    pub memory_months: f64,
+}
+
 /// Families with minds of their own (see `minds.rs`; Python's `MindsConfig`).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -451,6 +470,8 @@ pub struct Config {
     pub council: CouncilConfig,
     pub healthcare: HealthcareConfig,
     pub map: MapConfig,
+    pub harvest_hands: HarvestHandsConfig,
+    pub refugees: RefugeesConfig,
     pub minds: MindsConfig,
     pub products: Vec<ProductSpec>,
     pub businesses: Vec<BusinessSpec>,

@@ -213,7 +213,7 @@ fn run_case(fx: &Fixture, function: &str, a: &Value, out: &Value) {
             let hh = fx.households(&a["households"]);
             let force = economy::workforce(&pop, n, cfg);
             let (animals, lord, extra) = (vecf(&a["animals_part"]), vecf(&a["lord_land"]), vecf(&a["extra_effort"]));
-            let (shares, to_lord) = farms::income_shares(
+            let (shares, to_lord, _) = farms::income_shares(
                 &pop,
                 &hh,
                 &vecf(&a["village_land"]),
@@ -222,6 +222,7 @@ fn run_case(fx: &Fixture, function: &str, a: &Value, out: &Value) {
                 Some(&lord),
                 Some(&extra),
                 &force,
+                None,
             );
             check(&shares, &out["shares"], &what);
             check(&to_lord, &out["to_lord"], &what)
@@ -230,12 +231,13 @@ fn run_case(fx: &Fixture, function: &str, a: &Value, out: &Value) {
             let mut hh = fx.households(&a["households"]);
             let mut fg = vecf(&a["farm_grain"]);
             let to_lord = vecf(&a["to_lord"]);
-            let (received, rent) = farms::share_harvest(
+            let (received, rent, _) = farms::share_harvest(
                 &mut hh,
                 &mut fg,
                 &vecf(&a["keep_for_tools"]),
                 &vecf(&a["shares"]),
                 Some(&to_lord),
+                None,
             );
             check(&received, &out["received"], &what);
             check(&rent, &out["rent"], &what);
