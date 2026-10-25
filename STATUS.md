@@ -48,13 +48,15 @@ validation runs.
   in Rust only, switched off by default, on `claude/regional-migration`.
   Next in the plan is step 6 (epidemics that spread).
 - **Families have minds by default** in the Rust engine (the user's
-  direction), and the standard setting is a region of 100,000 people
-  (`rust/configs/regions/region100k.json`; a plain `econ-sim` runs it).
+  direction), and the standard setting is a region of a million people
+  (`rust/configs/regions/region1m.json`; a plain `econ-sim` runs it,
+  `--size 100k` the region of 100,000). A month of a million takes 0.5 s
+  on one core; a paired what-if over 20 seeds, 3.2 minutes on 4 cores.
   Minds were recalibrated to be steady: in ordinary years they match the
   rules on every measure within chance, and over 40 years they don't
   drift. Families still differ: the middle 80% decide 0.7 to 1.4 times
-  the rules' amounts. Branch `claude/minds-default`; PLAN.md, "Rust
-  engine", section 8. Next, per the user: more people.
+  the rules' amounts. Branches `claude/minds-default` and
+  `claude/million-people`; PLAN.md, "Rust engine", sections 8 and 9.
 - **The Rust engine** (`rust/`, about 10,000 lines) is built through the
   hand-off's seven milestones, one branch each
   (`claude/rust-scaffolding` ... `claude/rust-minds`, latest `cceeb20`,
@@ -240,7 +242,9 @@ The Rust engine (`cd rust`; the binary is `target/release/econ-sim`):
 
 ```bash
 cargo build --release && cargo test --release       # 123 tests
-econ-sim --event drought@4 --runs 100               # the standard region of 100,000, with minds (2 min)
+econ-sim --event drought@4 --runs 20                # the standard region of a million, with minds (3 min)
+econ-sim --size 100k --event drought@4 --runs 100   # the region of 100,000 (2 min)
+econ-sim bench --config configs/regions/region1m.json   # time any setting
 econ-sim --population 1000 --event drought@4 --runs 200   # one village
 econ-sim --region 50 --event drought@4@0,12,11 --runs 40
 econ-sim minds --event drought@4 --runs 200         # minds against the rules
@@ -328,7 +332,9 @@ The machine this was built on: 4 cores, Python 3.13 / numpy 2.x in
 **Waiting on the user:** whether the grain price should follow what is offered for sale
 (needed to ask whether hoarding raised prices in 1315); whether to fix
 the wool `worth` bug; whether to loosen the century sanity checks; and
-whether to restructure the Rust month for the 0.2 s target.
+whether a region of a million should get a real city and several towns
+trading beyond it (the generator makes small towns and one outlet, so a
+region-wide dearth starves the towns).
 
 Phase 3, remaining steps, now in Rust (details in PLAN.md, "Build order"):
 

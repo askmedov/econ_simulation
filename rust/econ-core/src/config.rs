@@ -541,12 +541,25 @@ pub fn default_config() -> Config {
     Config::from_json(DEFAULT_CONFIG_JSON).expect("rust/configs/village.json matches the parameters")
 }
 
-pub const STANDARD_REGION_JSON: &str = include_str!("../../configs/regions/region100k.json");
+pub const REGION_1M_JSON: &str = include_str!("../../configs/regions/region1m.json");
+pub const REGION_100K_JSON: &str = include_str!("../../configs/regions/region100k.json");
 
-/// The engine's standard setting: a region of about 100,000 people (240
-/// villages and 10 market towns, laid out by Python's `geography.region`).
-pub fn standard_region() -> Config {
-    Config::from_json(STANDARD_REGION_JSON).expect("rust/configs/regions/region100k.json matches the parameters")
+/// The engine's standard settings, laid out by Python's `geography.region`.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Standard {
+    /// About a million people: 2,460 villages and 98 market towns.
+    #[default]
+    Million,
+    /// About 100,000 people: 240 villages and 10 market towns.
+    HundredThousand,
+}
+
+pub fn standard_region(size: Standard) -> Config {
+    let json = match size {
+        Standard::Million => REGION_1M_JSON,
+        Standard::HundredThousand => REGION_100K_JSON,
+    };
+    Config::from_json(json).expect("the standard regions in rust/configs/regions match the parameters")
 }
 
 /// The folder of checked-in configs exported from Python (`rust/configs`),

@@ -76,6 +76,10 @@ enum Command {
         /// Time this one size only
         #[arg(long)]
         people: Option<usize>,
+        /// Time this config instead (a region on a map, say): set-up, a
+        /// month on one thread and two runs at once, and memory
+        #[arg(long, value_name = "FILE")]
+        config: Option<String>,
     },
     /// Run the village through many scenarios for decades and look for drift (as scripts/stress_test.py)
     Stress {
@@ -141,7 +145,10 @@ fn main() {
             threads(args.workers);
             args.config().and_then(|config| dump::logs(&config, &args.forced()?, args.runs))
         }
-        Some(Command::Bench { quick, country, months, workers, people }) => {
+        Some(Command::Bench { config: Some(path), months, .. }) => {
+            econ_core::Config::from_file(&path).map_err(|e| e.to_string()).and_then(|c| bench::run_config(c, months))
+        }
+        Some(Command::Bench { quick, country, months, workers, people, config: None }) => {
             let sizes: Vec<usize> = match people {
                 Some(p) => vec![p],
                 None if quick => vec![1_000, 10_000, 100_000],

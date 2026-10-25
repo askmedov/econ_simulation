@@ -32,12 +32,20 @@ fn files(out: &Path) -> Vec<String> {
 }
 
 #[test]
-fn the_standard_run_is_a_region_of_100000_people() {
+fn the_standard_run_is_a_region_of_a_million_people() {
     let out = folder("standard");
-    let report = run(&["--months", "2"], &out);
+    let report = run(&["--months", "1"], &out);
+    assert!(report.starts_with("Region of 2460 villages"));
+    assert!(report.contains("98 market towns"));
+    assert_eq!(files(&out), ["log.txt", "places.csv", "run1.csv", "summary.csv"]);
+}
+
+#[test]
+fn a_smaller_standard_region_of_100000_people_is_at_hand() {
+    let out = folder("standard-100k");
+    let report = run(&["--size", "100k", "--months", "2"], &out);
     assert!(report.starts_with("Region of 240 villages"));
     assert!(report.contains("10 market towns"));
-    assert_eq!(files(&out), ["log.txt", "places.csv", "run1.csv", "summary.csv"]);
 }
 
 #[test]

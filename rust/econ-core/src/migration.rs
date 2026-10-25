@@ -194,10 +194,10 @@ pub fn destinations(
     dest
 }
 
-/// Families who take in a newcomer: landholders, and in a town any family
-/// (a servant, an apprentice, a journeyman).
-fn can_host(households: &Households, h: usize, living: bool, geo: &Geography) -> bool {
-    living && (households.land[h] > 0.0 || (geo.has_towns() && geo.town[households.location[h] as usize]))
+/// Families who take in a newcomer: landholders, and in a town (when the
+/// map has towns, `towns`) any family (a servant, an apprentice, a journeyman).
+fn can_host(households: &Households, h: usize, living: bool, geo: &Geography, towns: bool) -> bool {
+    living && (households.land[h] > 0.0 || (towns && geo.town[households.location[h] as usize]))
 }
 
 /// Host families of each place, in order.
@@ -208,8 +208,9 @@ fn hosts_by_place(
     n: usize,
 ) -> Vec<Vec<usize>> {
     let mut hosts = vec![Vec::new(); n];
+    let towns = geo.has_towns(); // (once: it looks through every place)
     for h in 0..households.len() {
-        if can_host(households, h, living(h), geo) {
+        if can_host(households, h, living(h), geo, towns) {
             hosts[households.location[h] as usize].push(h);
         }
     }
@@ -392,9 +393,10 @@ pub fn move_people(
     // moves to a town looks for other work.
     let farming = config.farming() as i16;
     let nb = config.businesses.len() as i16;
+    let towns = geo.has_towns();
     for &i in &moved {
         let job = population.job[i];
-        let to_town = geo.has_towns() && geo.town[population.location[i] as usize] && job == farming;
+        let to_town = towns && geo.town[population.location[i] as usize] && job == farming;
         if job >= nb || to_town {
             population.job[i] = NO_JOB;
         }

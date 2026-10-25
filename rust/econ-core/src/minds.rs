@@ -93,7 +93,25 @@ pub struct Minds {
     /// hunger beyond its neighbours' and a weak attachment make it likelier
     /// to be one of those who go, not more to go.
     pub leaving: Vec<f64>,
+    /// Its traits' factors on the decisions they raise or lower (see
+    /// `Factor`), worked out when its traits are set rather than each month.
+    factors: Vec<[f64; FACTORS]>,
 }
+
+/// The factors a family's traits put on its decisions.
+#[derive(Clone, Copy)]
+enum Factor {
+    Cautious,   // grain held back
+    Uncautious, // share lent
+    Thrifty,    // coins kept
+    Nervy,      // divides the push of hunger
+    Unnervy,    // chance of fleeing
+    Learning,   // how fast expectations follow prices
+    Unattached, // chance of leaving
+    Patient,    // horizon
+}
+
+const FACTORS: usize = 8;
 
 const TRAITS: usize = 6;
 
@@ -118,6 +136,7 @@ impl Minds {
             hold: Vec::with_capacity(n),
             lending: Vec::with_capacity(n),
             leaving: Vec::with_capacity(n),
+            factors: Vec::with_capacity(n),
         };
         let spread = settings.trait_spread;
         let limit = settings.trait_limit;
@@ -128,6 +147,7 @@ impl Minds {
                 for one in minds.traits_mut() {
                     one[f] = rng.normal(0.0, 1.0).clamp(-limit, limit);
                 }
+                minds.set_factors(f);
             }
         }
         minds
@@ -179,6 +199,27 @@ impl Minds {
         for (k, column) in self.all_mut().into_iter().enumerate() {
             column.push(if k >= 12 { 1.0 } else { 0.0 }); // (the habits and leaving: as the rules)
         }
+        self.factors.push([0.0; FACTORS]);
+        self.set_factors(self.len() - 1);
+    }
+
+    fn set_factors(&mut self, f: usize) {
+        use Factor::*;
+        let mut factors = [0.0; FACTORS];
+        factors[Cautious as usize] = self.up(self.caution[f]);
+        factors[Uncautious as usize] = self.down(self.caution[f]);
+        factors[Thrifty as usize] = self.up(self.thrift[f]);
+        factors[Nervy as usize] = self.up(self.nerve[f]);
+        factors[Unnervy as usize] = self.down(self.nerve[f]);
+        factors[Learning as usize] = self.up(self.learning[f]);
+        factors[Unattached as usize] = self.down(self.attachment[f]);
+        factors[Patient as usize] = self.up(self.patience[f]);
+        self.factors[f] = factors;
+    }
+
+    #[inline]
+    fn factor(&self, f: usize, which: Factor) -> f64 {
+        self.factors[f][which as usize]
     }
 
     /// A family moving to a new home takes its mind with it.
@@ -186,6 +227,7 @@ impl Minds {
         for column in self.all_mut() {
             column[to] = column[from];
         }
+        self.factors[to] = self.factors[from];
     }
 
     /// A family founded by a member of `parent` takes its traits, each a
@@ -206,6 +248,7 @@ impl Minds {
         for one in self.traits_mut() {
             one[f] = (one[f] + rng.normal(0.0, step)).clamp(-limit, limit);
         }
+        self.set_factors(f);
     }
 
     /// A trait's factor on a decision it raises (`up`) or lowers (`down`);
@@ -231,7 +274,7 @@ impl Minds {
             self.losses[f] *= 1.0 - fade;
             if self.last_price[f] > 0.0 && price[f] > 0.0 {
                 let change = price[f] / self.last_price[f] - 1.0;
-                let pace = (s.learning * self.up(self.learning[f])).clamp(0.0, 1.0);
+                let pace = (s.learning * self.factor(f, Factor::Learning)).clamp(0.0, 1.0);
                 self.trend[f] += pace * (change - self.trend[f]);
             }
             if price[f] > 0.0 {
@@ -259,8 +302,8 @@ impl Minds {
         // Who among them is likelier to leave, against the place's average.
         let push: Vec<f64> = (0..self.len())
             .map(|f| {
-                let hungrier = (s.hunger_leaving * self.hungrier[f] / self.up(self.nerve[f])).clamp(-2.0, 2.0);
-                self.down(self.attachment[f]) * hungrier.exp()
+                let hungrier = (s.hunger_leaving * self.hungrier[f] / self.factor(f, Factor::Nervy)).clamp(-2.0, 2.0);
+                self.factor(f, Factor::Unattached) * hungrier.exp()
             })
             .collect();
         let mut pushed = vec![0.0; places];
@@ -273,10 +316,10 @@ impl Minds {
         }
         // Habits move toward what each family now wants.
         for f in 0..self.len() {
-            let hold = self.up(self.caution[f]) * (s.speculation * self.expected_rise(f)).exp();
+            let hold = self.factor(f, Factor::Cautious) * (s.speculation * self.expected_rise(f)).exp();
             self.hold[f] += s.inertia * (hold - self.hold[f]);
             let fear = (1.0 - s.loss_fear * self.losses[f]).max(s.least_lending);
-            let lending = self.down(self.caution[f]) * fear;
+            let lending = self.factor(f, Factor::Uncautious) * fear;
             self.lending[f] += s.inertia * (lending - self.lending[f]);
         }
     }
@@ -299,7 +342,7 @@ impl Minds {
         if self.last_price[f] <= 0.0 || self.normal_price[f] <= 0.0 {
             return 0.0;
         }
-        let months = s.horizon_months * self.up(self.patience[f]);
+        let months = s.horizon_months * self.factor(f, Factor::Patient);
         let carried = months * (1.0 + self.trend[f]).max(1e-9).ln();
         let pulled = s.reversion * (self.last_price[f] / self.normal_price[f]).ln();
         let limit = s.expectation_limit.clamp(0.0, 0.99);
@@ -324,7 +367,7 @@ impl Deciding for Minds {
     }
 
     fn savings_months(&self, f: usize, usual: f64) -> f64 {
-        usual * self.up(self.thrift[f]) * (1.0 + self.settings.hunger_saving * self.hunger[f])
+        usual * self.factor(f, Factor::Thrifty) * (1.0 + self.settings.hunger_saving * self.hunger[f])
     }
 
     fn lend_share(&self, f: usize, usual: f64) -> f64 {
@@ -336,7 +379,7 @@ impl Deciding for Minds {
     }
 
     fn flee_chance(&self, f: usize, usual: f64) -> f64 {
-        (usual * self.down(self.nerve[f])).min(1.0)
+        (usual * self.factor(f, Factor::Unnervy)).min(1.0)
     }
 }
 

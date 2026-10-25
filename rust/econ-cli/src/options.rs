@@ -2,16 +2,31 @@
 //! turned into a config.
 
 use clap::Args;
-use econ_core::config::{default_config, standard_region, Config, ScheduledEvent};
+use econ_core::config::{default_config, standard_region, Config, ScheduledEvent, Standard};
+
+/// The size of the standard region.
+#[derive(clap::ValueEnum, Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Size {
+    /// About a million people (2,460 villages, 98 market towns)
+    #[default]
+    #[value(name = "1m")]
+    Million,
+    /// About 100,000 people (240 villages, 10 market towns): quicker
+    #[value(name = "100k")]
+    HundredThousand,
+}
 use econ_core::region::{region, RegionSettings};
 
 #[derive(Args, Clone, Debug, Default)]
 pub struct RunArgs {
     /// A config exported from Python (scripts/export_config.py), such as a
-    /// region; default: the standard region of 100,000 people (or one
-    /// village, with --population or --land)
+    /// region; default: the standard region (or one village, with
+    /// --population or --land)
     #[arg(long, value_name = "FILE")]
     pub config: Option<String>,
+    /// The standard region's size, when no config is given
+    #[arg(long, value_enum, default_value_t = Size::Million)]
+    pub size: Size,
     /// How many months to simulate (default: the config's, 36)
     #[arg(long)]
     pub months: Option<i64>,
@@ -114,13 +129,16 @@ pub struct RunArgs {
 impl RunArgs {
     /// The config these options describe (the forced events not included).
     pub fn config(&self) -> Result<Config, String> {
-        // The standard region of 100,000 people, unless a config is given or
-        // the options lay out something else from the one village.
+        // The standard region, unless a config is given or the options lay
+        // out something else from the one village.
         let one_village = self.population.is_some() || self.land.is_some() || self.region.is_some();
         let mut config = match &self.config {
             Some(path) => Config::from_file(path).map_err(|e| e.to_string())?,
             None if one_village => default_config(),
-            None => standard_region(),
+            None => standard_region(match self.size {
+                Size::Million => Standard::Million,
+                Size::HundredThousand => Standard::HundredThousand,
+            }),
         };
         if let Some(m) = self.months {
             config.months = m;

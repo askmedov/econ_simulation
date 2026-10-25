@@ -145,11 +145,13 @@ fn form_village(
         .cloned()
         .filter(|&i| population.female[i] && age(i) >= HEAD_AGES.0 && age(i) <= HEAD_AGES.1)
         .collect();
-    let mut still_single = vec![false; population.len()];
-    for &i in rows {
-        still_single[i] = rng.random() < (1.0 - yearly_marriage).powf((age(i) - ADULT_AGE) as f64 + 0.5);
-    }
-    let mut heads: Vec<usize> = women.iter().cloned().filter(|&i| !still_single[i]).collect();
+    // Who is still single, by the place's rows in order (a flag per row of
+    // the place, not of the whole region: a million people, thousands of places).
+    let still_single: Vec<bool> =
+        rows.iter().map(|&i| rng.random() < (1.0 - yearly_marriage).powf((age(i) - ADULT_AGE) as f64 + 0.5)).collect();
+    let is_head_age = |i: usize| population.female[i] && age(i) >= HEAD_AGES.0 && age(i) <= HEAD_AGES.1;
+    let mut heads: Vec<usize> =
+        rows.iter().zip(&still_single).filter(|&(&i, &single)| is_head_age(i) && !single).map(|(&i, _)| i).collect();
     if heads.is_empty() {
         heads = women.clone();
     }

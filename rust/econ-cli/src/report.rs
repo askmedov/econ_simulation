@@ -127,14 +127,14 @@ fn range(s: &Spread, f: &dyn Fn(f64) -> String) -> String {
 pub fn print_months(runs: &[Run]) {
     if runs.len() == 1 {
         println!(
-            "{:<12} {:>5} {:>5} {:>5} {:>7} {:>6} {:>6} {:>7} {:>8} {:>7}  Events",
+            "{:<12} {:>9} {:>6} {:>6} {:>11} {:>6} {:>6} {:>7} {:>8} {:>7}  Events",
             "Month", "Pop", "Born", "Died", "Stock", "Price", "Wage", "Ration", "Poorest", "Health"
         );
         for r in &runs[0].records {
             println!(
-                "{:<12} {:>5} {:>5} {:>5} {:>7} {:>6.2} {:>6.2} {:>7} {:>8} {:>7.0}  {}",
+                "{:<12} {:>9} {:>6} {:>6} {:>11} {:>6.2} {:>6.2} {:>7} {:>8} {:>7.0}  {}",
                 label(r.month_number, r.month, r.year),
-                r.population,
+                commas(r.population as f64, 0),
                 r.births,
                 r.deaths,
                 commas(r.food_stock, 0),
@@ -209,11 +209,11 @@ pub fn print_comparison(baseline: &[Run], scenario: &[Run]) {
         println!("Averages of {} paired runs", baseline.len());
     }
     println!(
-        "{:<12} {:>15} {:>15} {:>15} {:>13} {:>8} {:>8}",
+        "{:<12} {:>21} {:>15} {:>15} {:>13} {:>9} {:>9}",
         "", "Food in store", "Food price", "Ration", "Health", "Extra", "Fewer"
     );
     println!(
-        "{:<12} {:>8}{:>7} {:>8}{:>7} {:>8}{:>7} {:>8}{:>5} {:>8} {:>8}",
+        "{:<12} {:>10}{:>11} {:>8}{:>7} {:>8}{:>7} {:>8}{:>5} {:>9} {:>9}",
         "Month", "without", "with", "without", "with", "without", "with", "without", "with", "deaths", "births"
     );
     let stock = (mean_by_month(baseline, "food_stock"), mean_by_month(scenario, "food_stock"));
@@ -222,10 +222,10 @@ pub fn print_comparison(baseline: &[Run], scenario: &[Run]) {
     let health = (mean_by_month(baseline, "avg_health"), mean_by_month(scenario, "avg_health"));
     let extra_deaths = cumulative_gap(baseline, scenario, "deaths");
     let fewer_births = cumulative_gap(scenario, baseline, "births");
-    let count = |x: f64| if averaged { format!("{x:>8.1}") } else { format!("{x:>8.0}") };
+    let count = |x: f64| if averaged { format!("{x:>9.1}") } else { format!("{x:>9.0}") };
     for (i, r) in baseline[0].records.iter().enumerate() {
         println!(
-            "{:<12} {:>8}{:>7} {:>8.2}{:>7.2} {:>8}{:>7} {:>8.0}{:>5.0} {} {}",
+            "{:<12} {:>10}{:>11} {:>8.2}{:>7.2} {:>8}{:>7} {:>8.0}{:>5.0} {} {}",
             label(r.month_number, r.month, r.year),
             commas(stock.0[i], 0),
             commas(stock.1[i], 0),
@@ -360,7 +360,7 @@ pub fn print_places(comparison: &Comparison, config: &Config, forced: &[Schedule
     for (title, groups, labels) in tables {
         println!("\nBy {title}:");
         println!(
-            "  {:<34}{:>9}{:>9}{:>14}{:>10}{:>17}{:>13}",
+            "  {:<34}{:>9}{:>11}{:>14}{:>10}{:>17}{:>21}",
             "", "Places", "People", "Extra deaths", "per 1,000", "Worst month", "Left"
         );
         for e in effect_by(comparison, &groups, &labels) {
@@ -368,9 +368,9 @@ pub fn print_places(comparison: &Comparison, config: &Config, forced: &[Schedule
             let deaths =
                 if runs > 1 { format!("{:+.1}", e.extra_deaths.mean) } else { format!("{:+.0}", e.extra_deaths.mean) };
             let worst = format!("{} -> {}", pct(e.lowest_ration.0), pct(e.lowest_ration.1));
-            let left = format!("{:.0} -> {:.0}", e.left.0, e.left.1);
+            let left = format!("{} -> {}", commas(e.left.0, 0), commas(e.left.1, 0));
             println!(
-                "  {:<34}{:>9}{:>9}{:>14}{:>10.1}{:>17}{:>13}",
+                "  {:<34}{:>9}{:>11}{:>14}{:>10.1}{:>17}{:>21}",
                 e.label,
                 e.villages,
                 commas(e.people, 0),

@@ -2148,3 +2148,60 @@ the minds steadier; then grow the number of people.
   the rules' (5 with minds, 5 by the rules); Python shows the same.
 - **Speed:** minds cost 11% at 100,000 people.
 
+### 9. A million people (built)
+
+The standard setting is now a region of a million people: 2,460 villages
+and 98 market towns, 999,226 people (878,732 in villages, 120,494 in
+towns), laid out by Python's `geography.region`
+(`rust/configs/regions/region1m.json`), with minds. A plain `econ-sim`
+runs it; `--size 100k` runs the region of 100,000. `econ-sim bench
+--config FILE` times any setting: set-up, a month on one thread, a paired
+run, and memory.
+
+- **Two costs grew faster than the population**, and both are fixed
+  without changing any output:
+  - Choosing a newcomer's host family asked, for every family, whether
+    the map has towns, which looks through every place: 230,000 times
+    2,460, twice a month.
+  - Setting up families allocated, for each of the 2,558 places, a flag
+    for every person in the region.
+  - Before the fixes: set-up 0.81 s, a month 0.82 s. After: 0.4 s and
+    0.48-0.50 s.
+- **Minds' trait factors are worked out once per family** (when its
+  traits are set) instead of nine exponentials and logarithms a month.
+  Minds now cost about 5% at a million people (0.48-0.51 s a month
+  against 0.45-0.49 s by the rules), and 50 MB of memory (321 MB in all).
+- **The million region costs 10.6 times the 100,000 one** (0.50 s a month
+  against 0.047 s), so it now grows with the population. A paired run of
+  36 months takes about 20 s on two threads, and a paired what-if over
+  20 seeds takes 3.2 minutes on 4 cores.
+- **Steady at a million** (12 paired seeds, three years):
+  - In ordinary years, minds match the rules on every measure within
+    chance. People who left: 39,633 against 39,510 (t 1.1). People at the
+    end: 971,324 against 971,230.
+  - In a drought, families hoard a little (4% less extra grain sold, t
+    −9) and lend 3.4% less (t −2.8). As many leave, and the swings are
+    the rules'.
+- **Forty years at a million** (2 seeds each): minds track the rules
+  within 0.1% on population (993,452 against 993,057 in year 40), people
+  in towns, prices, deaths, savings and debt.
+  - Both, though, show the towns shrinking from 120,000 to 72,000 by year
+    20 and grain falling to half its price by year 30. At 100,000 grain
+    ends dearer, not cheaper.
+  - This is the model at this size, not the minds. Likely causes: coins
+    drain away (the state's tax, and a single town trading beyond the
+    region), and towns that can't be fed (below).
+- **The map at a million is checked against Python's:** the golden
+  fixture now holds this region's map, and Rust builds it to 1e-9.
+- **A drought over the whole region** (20 paired seeds) kills 45,551 more
+  (4.6%, against 4.8% at 100,000). The towns are hit hardest: their worst
+  month falls from 83% of their need to 21%, and 199 more per 1,000 die
+  there.
+  - The region generator was made for 20 to 300 villages. At a million it
+    makes 98 small towns (the largest 2,017 people), no city and one
+    town trading beyond the region, so a region-wide dearth can't be
+    relieved from outside.
+  - A province of a million would have a real city and several outlets.
+    Setting those is a question of the layout and of calibration.
+- **The report's tables are wider**, for numbers of this size.
+

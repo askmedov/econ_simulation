@@ -36,8 +36,10 @@ REGIONS = {
     "region20_seed2": RegionSettings(villages=20, mean_size=300, seed=2),
     "city3": RegionSettings(villages=45, mean_size=250, towns=3, seed=3),
     "region100": RegionSettings(villages=100, seed=1),
-    # The standard setting of the Rust engine: about 100,000 people.
+    # The standard settings of the Rust engine: about 100,000 people, and a
+    # million.
     "region100k": RegionSettings(villages=240, seed=1),
+    "region1m": RegionSettings(villages=2460, seed=1),
 }
 
 

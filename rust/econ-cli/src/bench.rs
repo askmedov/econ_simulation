@@ -96,6 +96,58 @@ pub fn measure_together(people: usize, months: i64, k: usize) -> Result<(f64, f6
     Ok((setup, start.elapsed().as_secs_f64() / months as f64))
 }
 
+/// Time one config: set-up, a month on one thread, two runs at once (the
+/// arms of a paired what-if, a drought in the second), and memory.
+pub fn run_config(config: Config, months: i64) -> Result<(), String> {
+    let mut c = config;
+    c.months = months;
+    let people: i64 = c.villages.iter().map(|v| v.population).sum();
+    let start = Instant::now();
+    let mut sim = Simulation::new(c.clone())?;
+    let setup = start.elapsed().as_secs_f64();
+    let start = Instant::now();
+    sim.run();
+    let per_month = start.elapsed().as_secs_f64() / months as f64;
+    let memory = peak_memory_mb();
+    drop(sim);
+    println!(
+        "{} people in {} places, minds {}",
+        econ_core::geography::thousands(people),
+        c.villages.len(),
+        if c.minds.enabled { "on" } else { "off" }
+    );
+    println!("  set-up {setup:.2} s, a month {per_month:.3} s on one thread, peak memory {memory:.0} MB");
+    let mut pair = [c.clone(), c];
+    pair[1].scheduled_events.push(econ_core::config::ScheduledEvent {
+        event: "drought".into(),
+        month: 2,
+        village: None,
+        near: None,
+    });
+    let start = Instant::now();
+    let runs: Vec<Result<(), String>> = std::thread::scope(|scope| {
+        let handles: Vec<_> = pair
+            .iter()
+            .map(|c| {
+                scope.spawn(move || {
+                    let mut sim = Simulation::new(c.clone())?;
+                    sim.run();
+                    Ok(())
+                })
+            })
+            .collect();
+        handles.into_iter().map(|h| h.join().expect("a run")).collect()
+    });
+    runs.into_iter().collect::<Result<Vec<()>, String>>()?;
+    let both = start.elapsed().as_secs_f64();
+    println!(
+        "  a paired run of {MONTHS_RUN} months on two threads: about {:.0} s (two at once: {:.3} s a month)",
+        both / months as f64 * MONTHS_RUN + setup,
+        both / months as f64
+    );
+    Ok(())
+}
+
 /// Wall-clock minutes for `pairs` paired runs of MONTHS_RUN months on
 /// `workers` threads, from timings of `workers` runs at once.
 pub fn paired_runs_minutes(setup: f64, per_month: f64, pairs: usize, workers: usize) -> f64 {
