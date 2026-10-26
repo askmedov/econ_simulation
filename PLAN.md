@@ -2269,3 +2269,67 @@ places, roads and numbers.
   stronghold keeps more people with it. A big region has one stronghold
   and outlets spread along its edge; a small one keeps one outlet. Both
   generators (Python's and the Rust engine's) are checked.
+
+### 11. Ten million people (built)
+
+A region of ten million laid out by Python's generator, run by the Rust
+engine with minds, towns, a city and several outlets. It is 10,030,251
+people in 24,600 villages and 984 market towns, with 13 towns trading
+beyond the region and a city of 148,246 (the next town has 2,495), 471 km
+across. `python scripts/export_config.py --large` writes it in 46 s to
+`rust/configs/regions/region10m.json` (7 MB, so not kept in git), and
+`econ-sim --size 10m` runs it.
+
+- **A paired three-year run takes 4.7 minutes on two threads** (target
+  5), and the two runs need 7.7 GB together. It took 6.0 minutes at first;
+  two costs grew faster than the people:
+  - **Page faults.** At this size every array of a value per person is 80
+    MB. glibc gives a block that big back to the system when it is freed
+    and asks for fresh pages for the next, and each thread's heap does so
+    whatever the threshold. On this machine a first touch of a page costs
+    about 4 µs, so the paired run spent 108 s in the system (20.5 million
+    page faults). The command line now keeps big blocks on one shared
+    heap. That is 3.6 million faults and 40 s, with the same results to
+    the last digit and no cost to many runs at once: 20 runs of a million
+    on 4 threads take 3m43s, against 3m54s before. That leaves 5.4
+    minutes.
+  - **Choosing where movers settle** weighed every place for every mover,
+    which grows with the square of the region: 0.85 s of a 5.85 s month
+    at ten million, 1.5% of a month at a million. Movers now look no
+    farther than 10 times `distance_km` (150 km). Beyond it all the
+    places together pull less than a two-thousandth of what the nearer
+    ones do, since the pull falls by e for every 15 km. The places near
+    a mover are found from a grid of the map.
+    - A region narrower than 150 km is weighed whole, as before. Every
+      region up to 100,000 people, and so every parity region, gives the
+      same results to the last digit.
+    - The million region (150 km across) changes only in its corners,
+      within chance: its 20-seed drought what-if gives 46,124 extra
+      deaths against 46,042, and 186.8 more per 1,000 in the towns
+      against 186.5.
+    - With this, the paired run takes 4.7 minutes.
+- **Minds stay steady at ten million** (`econ-sim minds --size 10m`, two
+  seeds, two years). With minds, 9,922,420 people are left at the end
+  against 9,921,731 by the rules; 268 more die (of 918,000), 604 more
+  leave (of 189,000), and 526 more live in towns (of 1.32 million). Food
+  in store in the dearest month differs most (−31%), as it did at a
+  million, but it swings from seed to seed (t −1.0). Two seeds are too
+  few for the t-values to mean much; nothing drifts.
+- **A month on one thread** takes 5.85 s at ten million once the arrays
+  have grown (11.7 times the million's 0.5 s); the first month takes 12 s,
+  as the arrays reach their working size. Set-up takes 4.9 s.
+- **What ten million do** (one paired run, three years):
+  - In ordinary years the region holds: 10,030,251 people at the start,
+    9,988,690 at the end. The villages lose 1.2%, and the towns other than
+    the city gain 7%.
+  - **The city of 148,246 can't quite be fed at this size:** it ends at
+    132,213 (−11%), with one month at 77% of its need, where the city of
+    the million region holds steady. Its pay comes as at a million (the
+    garrison's share of the tax grows with the region), but its grain
+    comes from much farther. A country of ten million would have several
+    cities, not one: a question for the layout, and for calibration.
+  - **A drought over the whole region** kills 3.6% more (36 per 1,000).
+    The villages lose 10 more per 1,000; the towns 199 more (the poorest
+    of them down to 9% of their need in their worst month); the city 228
+    more, ending at 51,359. As at a million, towns starve in a dearth for
+    lack of coins at three times the usual price.

@@ -152,3 +152,18 @@ fn invariants_hold_every_month_with_harvest_hands_and_refugees() {
         }
     }
 }
+
+#[test]
+fn movers_settle_no_farther_than_their_reach() {
+    // A much better place 160 km away, beyond reach (150 km), and a little
+    // better one 140 km away: all who move go to the nearer.
+    let mut c = on_map(&[(0.0, 0.0), (140.0, 0.0), (160.0, 0.0)], &[]);
+    c.migration.stay_in_region = 1.0;
+    assert_eq!(migration::REACH * c.migration.distance_km, 150.0);
+    let world = create_world(&c, &mut RandomStreams::new(1)).unwrap();
+    let origin = vec![0usize; 200];
+    let place = [1.0, 1.1, 3.0];
+    let people = [200.0, 200.0, 200_000.0];
+    let dest = migration::destinations(&origin, &place, &people, &c, &mut Rng::named(0, "test"), &world.geo, None);
+    assert!(dest.iter().all(|&d| d == 1), "{dest:?}");
+}

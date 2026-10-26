@@ -5,8 +5,9 @@ Written for whoever picks this project up next. Read this first, then
 [README.md](README.md) (how to run it). The hand-off for porting the model to
 Rust is [docs/RUST_HANDOFF.md](docs/RUST_HANDOFF.md).
 
-Last updated: October 2026, after the Rust engine's milestones 1-7 (the
-Python model at the end of Phase 3 step 4).
+Last updated: October 2026, after the Rust engine's milestones 1-7 and its
+Phase 3 work through ten million people (the Python model at the end of
+Phase 3 step 4).
 
 ## What this is
 
@@ -63,6 +64,12 @@ validation runs.
   kept by the state's pay to its garrison and officials: three-quarters
   of the tax, spent there (Rust only). Four towns trade beyond the
   region at a million. Smaller regions are laid out as before.
+- **Ten million people run** (branch `claude/rust-ten-million`; PLAN.md,
+  "Rust engine", section 11): 24,600 villages, 984 towns, 13 outlets and
+  a city of 148,246 (`export_config.py --large`, then `econ-sim --size
+  10m`). A paired three-year run takes 4.7 minutes on two threads and 7.7
+  GB. The city of that size shrinks 11% in three ordinary years: a
+  country would have several cities.
 - **The Rust engine** (`rust/`, about 10,000 lines) is built through the
   hand-off's seven milestones, one branch each
   (`claude/rust-scaffolding` ... `claude/rust-minds`, latest `cceeb20`,
@@ -251,7 +258,7 @@ cargo build --release && cargo test --release       # 128 tests
 econ-sim --event drought@4 --runs 20                # the standard region of a million, with minds (4 min)
 econ-sim --size 100k --event drought@4 --runs 100   # the region of 100,000 (2 min)
 python ../scripts/export_config.py --large          # once: the region of ten million (7 MB, not in git)
-econ-sim --size 10m --event drought@4 --workers 2   # a paired run of ten million (6.5 GB)
+econ-sim --size 10m --event drought@4 --workers 2   # a paired run of ten million (5 min, 7.7 GB)
 econ-sim bench --config configs/regions/region1m.json   # time any setting
 econ-sim --population 1000 --event drought@4 --runs 200   # one village
 econ-sim --region 50 --event drought@4@0,12,11 --runs 40
@@ -320,9 +327,10 @@ The machine this was built on: 4 cores, Python 3.13 / numpy 2.x in
 - Relief of a local drought by trade is marginal (by design of the carting
   costs; step 7 adds policies).
 - Speed (Python): 2.1 s a month at 1,150,000 people (1,000 villages, 40
-  towns) on one core. The Rust engine takes 0.41 s for a million (target
-  0.2 s, missed: memory-bound; see PLAN.md) and meets every paired-run
-  target, ten million included (4.0 min).
+  towns) on one core. The Rust engine takes 0.41 s for a million without
+  a map (target 0.2 s, missed: memory-bound; see PLAN.md), 0.5 s for the
+  million region with minds, and meets every paired-run target, ten
+  million on a map with minds included (4.7 min).
 - **The grain price follows the place's whole store**, family grain
   included, not what is offered for sale. So in this model hoarding can't
   raise prices (PLAN.md, Rust milestone 7).

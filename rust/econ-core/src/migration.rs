@@ -130,6 +130,55 @@ impl Moves {
     }
 }
 
+/// On a map, movers look no farther than this many times `distance_km`:
+/// beyond it all the places together pull less than a two-thousandth of
+/// what the nearer ones do (most moved less than a day's walk), and not
+/// weighing them keeps the choice from growing with the square of the
+/// region. A region narrower than this is weighed whole, as before.
+pub const REACH: f64 = 10.0;
+
+/// The places of a map in squares `size` km across, each square's places in
+/// order, to find those near a place without looking at every one.
+struct Squares {
+    size: f64,
+    left: f64,
+    bottom: f64,
+    across: usize,
+    up: usize,
+    places: Vec<Vec<usize>>,
+}
+
+impl Squares {
+    fn new(geo: &Geography, size: f64) -> Squares {
+        let left = geo.x.iter().cloned().fold(f64::INFINITY, f64::min);
+        let bottom = geo.y.iter().cloned().fold(f64::INFINITY, f64::min);
+        let right = geo.x.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+        let top = geo.y.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+        let across = ((right - left) / size) as usize + 1;
+        let up = ((top - bottom) / size) as usize + 1;
+        let mut squares = Squares { size, left, bottom, across, up, places: vec![Vec::new(); across * up] };
+        for d in 0..geo.x.len() {
+            let (i, j) = squares.square(geo, d);
+            squares.places[j * across + i].push(d);
+        }
+        squares
+    }
+
+    fn square(&self, geo: &Geography, d: usize) -> (usize, usize) {
+        (((geo.x[d] - self.left) / self.size) as usize, ((geo.y[d] - self.bottom) / self.size) as usize)
+    }
+
+    /// The places in the square of `place` and the eight around it (all
+    /// within `size` of it among them).
+    fn around<'a>(&'a self, geo: &Geography, place: usize) -> impl Iterator<Item = usize> + 'a {
+        let (i, j) = self.square(geo, place);
+        let columns = i.saturating_sub(1)..(i + 2).min(self.across);
+        (j.saturating_sub(1)..(j + 2).min(self.up))
+            .flat_map(move |row| columns.clone().map(move |column| row * self.across + column))
+            .flat_map(move |k| self.places[k].iter().copied())
+    }
+}
+
 /// For each leaver from `origin`, another place that is a better place
 /// (chosen by its people times how much better, and on a map, the nearer
 /// the likelier), or -1 for beyond.
@@ -148,34 +197,51 @@ pub fn destinations(
         return dest;
     }
     let stays: Vec<bool> = origin.iter().map(|_| rng.random() < config.migration.stay_in_region).collect();
-    let mut better = vec![0.0; n];
+    let reach = REACH * config.migration.distance_km;
+    let squares = geo.on_map.then(|| Squares::new(geo, reach));
+    let mut better: Vec<(usize, f64)> = Vec::with_capacity(n);
     for (j, &o) in origin.iter().enumerate() {
         if !stays[j] {
             continue;
         }
+        // The places within reach (or all of them, off a map), each weighed.
+        better.clear();
         let mut total = 0.0;
-        for d in 0..n {
+        let mut weigh = |d: usize, away: f64| {
             let mut b = (place[d] - place[o]).max(0.0) * people[d];
             if geo.on_map {
-                b *= (-geo.distance(o, d) / config.migration.distance_km).exp();
+                b *= (-away / config.migration.distance_km).exp();
             }
             if d == o {
                 b = 0.0;
             }
-            better[d] = b;
+            better.push((d, b));
             total += b;
-        }
-        if total > 0.0 {
-            let u = rng.random();
-            let mut running = 0.0;
-            let mut pick = 0;
-            for &b in better.iter() {
-                running += b;
-                if u >= running / total {
-                    pick += 1;
+        };
+        match &squares {
+            Some(squares) => {
+                for d in squares.around(geo, o) {
+                    let away = geo.distance(o, d);
+                    if away <= reach {
+                        weigh(d, away);
+                    }
                 }
             }
-            dest[j] = pick.min(n - 1) as i64;
+            None => (0..n).for_each(|d| weigh(d, 0.0)),
+        }
+        if total > 0.0 {
+            // the first place the running share passes the draw at
+            let u = rng.random();
+            let mut running = 0.0;
+            let mut pick = n - 1;
+            for &(d, b) in better.iter() {
+                running += b;
+                if u < running / total {
+                    pick = d;
+                    break;
+                }
+            }
+            dest[j] = pick as i64;
         }
     }
     if geo.has_towns() {
