@@ -129,8 +129,34 @@ fn quiet_on_broken_pipe() {
 #[cfg(not(unix))]
 fn quiet_on_broken_pipe() {}
 
+/// A month makes many arrays of a value per person: 80 MB each at ten
+/// million people. glibc gives a block that big back to the system when it
+/// is freed and asks for fresh pages for the next, and on a virtual machine
+/// each first touch of a page costs a few microseconds: about a second a
+/// month at ten million. Keeping big blocks on the heap, to be reused, and
+/// one heap for every thread (each thread's own heap would hand big blocks
+/// to the system all the same) cuts the page faults to a fifth in paired
+/// runs.
+#[cfg(all(target_os = "linux", target_env = "gnu"))]
+fn keep_big_blocks() {
+    extern "C" {
+        fn mallopt(param: i32, value: i32) -> i32;
+    }
+    const M_MMAP_THRESHOLD: i32 = -3;
+    const M_ARENA_MAX: i32 = -8;
+    // SAFETY: malloc settings changed at start-up, before any thread exists.
+    unsafe {
+        mallopt(M_MMAP_THRESHOLD, i32::MAX);
+        mallopt(M_ARENA_MAX, 1);
+    }
+}
+
+#[cfg(not(all(target_os = "linux", target_env = "gnu")))]
+fn keep_big_blocks() {}
+
 fn main() {
     quiet_on_broken_pipe();
+    keep_big_blocks();
     let cli = Cli::parse();
     let result = match cli.command {
         Some(Command::Records(args)) => {

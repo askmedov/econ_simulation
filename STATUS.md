@@ -247,9 +247,11 @@ that is booked in the outside purse) and that **people add up**
 The Rust engine (`cd rust`; the binary is `target/release/econ-sim`):
 
 ```bash
-cargo build --release && cargo test --release       # 123 tests
-econ-sim --event drought@4 --runs 20                # the standard region of a million, with minds (3 min)
+cargo build --release && cargo test --release       # 128 tests
+econ-sim --event drought@4 --runs 20                # the standard region of a million, with minds (4 min)
 econ-sim --size 100k --event drought@4 --runs 100   # the region of 100,000 (2 min)
+python ../scripts/export_config.py --large          # once: the region of ten million (7 MB, not in git)
+econ-sim --size 10m --event drought@4 --workers 2   # a paired run of ten million (6.5 GB)
 econ-sim bench --config configs/regions/region1m.json   # time any setting
 econ-sim --population 1000 --event drought@4 --runs 200   # one village
 econ-sim --region 50 --event drought@4@0,12,11 --runs 40
@@ -263,7 +265,7 @@ python ../scripts/export_config.py                  # after changing config.py: 
 The Python model:
 
 ```bash
-.venv/bin/python -m pytest -q                       # 305 tests, about 4 minutes
+.venv/bin/python -m pytest -q                       # 309 tests, about 2 minutes
 .venv/bin/python scripts/sanity_check.py            # quick; --full: 3,010 runs, a few minutes on 4 cores
 .venv/bin/python scripts/stress_test.py             # 40-year drift check; --full, --only NAME
 .venv/bin/python scripts/benchmark.py --quick       # speed; --profile 200000 for where the time goes

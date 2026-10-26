@@ -4,6 +4,7 @@ Python's `Config` stays the one source of numbers: the Rust engine reads
 these files (`rust/configs/`) and never keeps numbers of its own.
 
     python scripts/export_config.py                  # rewrite every file in rust/configs/
+    python scripts/export_config.py --large          # and the region of ten million (not kept in git)
     python scripts/export_config.py --region 50 --map-seed 3 --out my_region.json
 
 Each file is `dataclasses.asdict(config)` as it is (tuples become lists).
@@ -40,6 +41,11 @@ REGIONS = {
     # million.
     "region100k": RegionSettings(villages=240, seed=1),
     "region1m": RegionSettings(villages=2460, seed=1),
+}
+# Too big to keep in git (7 MB) or to check in every test run: exported on
+# request (`--large`) for `econ-sim --size 10m`.
+LARGE_REGIONS = {
+    "region10m": RegionSettings(villages=24600, seed=1),
 }
 
 
@@ -101,6 +107,7 @@ def main() -> int:
     parser.add_argument("--map-seed", type=int, default=1)
     parser.add_argument("--mean-size", type=float, default=RegionSettings.mean_size)
     parser.add_argument("--out", default=None, help="where to write the one region (default: stdout)")
+    parser.add_argument("--large", action="store_true", help="also write the region of ten million people (about a minute)")
     args = parser.parse_args()
     if args.region:
         settings = RegionSettings(villages=args.region, towns=args.towns, seed=args.map_seed, mean_size=args.mean_size)
@@ -110,9 +117,12 @@ def main() -> int:
         else:
             print(json.dumps(data, indent=1))
         return 0
-    for name, data in standard_files().items():
+    files = standard_files()
+    if args.large:
+        files.update({f"regions/{name}.json": as_json(region(settings, Config())) for name, settings in LARGE_REGIONS.items()})
+    for name, data in files.items():
         dump(data, CONFIGS / name)
-    print(f"Wrote {len(standard_files())} files to {CONFIGS}")
+    print(f"Wrote {len(files)} files to {CONFIGS}")
     return 0
 
 

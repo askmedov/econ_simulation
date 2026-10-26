@@ -5,3 +5,4 @@ __pycache__/
 .pytest_cache/
 output/
 rust/target/
+rust/configs/regions/region10m.json

@@ -2,7 +2,7 @@
 //! turned into a config.
 
 use clap::Args;
-use econ_core::config::{default_config, standard_region, Config, ScheduledEvent, Standard};
+use econ_core::config::{configs_dir, default_config, standard_region, Config, ScheduledEvent, Standard};
 
 /// The size of the standard region.
 #[derive(clap::ValueEnum, Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -14,6 +14,11 @@ pub enum Size {
     /// About 100,000 people (240 villages, 10 market towns): quicker
     #[value(name = "100k")]
     HundredThousand,
+    /// About 10,000,000 people (24,600 villages, 984 market towns), read from
+    /// rust/configs/regions/region10m.json: export it first with
+    /// `python scripts/export_config.py --large` (7 MB, so not kept in git)
+    #[value(name = "10m")]
+    TenMillion,
 }
 use econ_core::region::{region, RegionSettings};
 
@@ -135,10 +140,15 @@ impl RunArgs {
         let mut config = match &self.config {
             Some(path) => Config::from_file(path).map_err(|e| e.to_string())?,
             None if one_village => default_config(),
-            None => standard_region(match self.size {
-                Size::Million => Standard::Million,
-                Size::HundredThousand => Standard::HundredThousand,
-            }),
+            None => match self.size {
+                Size::Million => standard_region(Standard::Million),
+                Size::HundredThousand => standard_region(Standard::HundredThousand),
+                Size::TenMillion => {
+                    let path = configs_dir().join("regions").join("region10m.json");
+                    Config::from_file(&path)
+                        .map_err(|e| format!("{e}; export it with: python scripts/export_config.py --large"))?
+                }
+            },
         };
         if let Some(m) = self.months {
             config.months = m;
