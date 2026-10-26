@@ -95,6 +95,10 @@ impl Simulation {
         let on_map = self.world.geo.on_map;
         let alive_at_start = !self.extinct();
         let month_of_year = self.world.month_of_year();
+        // the stronghold where the state pays a garrison, if it does
+        let garrisoned = (has_towns && config.state.enabled && config.state.garrison > 0.0)
+            .then(|| config.villages.iter().position(|v| v.stronghold))
+            .flatten();
         let nb = config.businesses.len();
 
         // 1. Events: end old ones, start scheduled and random ones, combine their effects.
@@ -873,6 +877,18 @@ impl Simulation {
             for h in 0..n_hh {
                 income[h] += servants[h];
             }
+            // and the state's pay to its garrison and officials in the stronghold
+            if let Some(stronghold) = garrisoned {
+                if world.lord.garrison_pay.is_none() {
+                    let due =
+                        lords::tax_due(&world.households, &world.wage_level, &rent_per_plot, config, Some(&alive));
+                    world.lord.garrison_pay = Some(config.state.garrison * due / 12.0);
+                }
+                let pay = lords::pay_garrison(&mut world.lord, stronghold, &hh_loc, &members);
+                for h in 0..n_hh {
+                    income[h] += pay[h];
+                }
+            }
         }
         let mut wool = vec![0.0; n_hh];
         if has_towns && month_of_year == config.livestock.shearing_month {
@@ -931,6 +947,9 @@ impl Simulation {
                 Some(&alive),
                 Some(&coin_target),
             );
+            if garrisoned.is_some() {
+                world.lord.garrison_pay = Some(config.state.garrison * state_tax.coins.iter().sum::<f64>() / 12.0);
+            }
         }
         let worth = credit::collateral(&world.households, &plot_price, &animal_worth);
         let limit: Vec<f64> = (0..n_hh)

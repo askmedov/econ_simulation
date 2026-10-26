@@ -161,6 +161,7 @@ pub fn lords(v: &Value) -> Lords {
         barn: vecf(&v["barn"]),
         purse: vecf(&v["purse"]),
         state_purse: vecf(&v["state_purse"]),
+        garrison_pay: None, // (Python's state pays no garrison)
     }
 }
 

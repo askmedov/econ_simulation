@@ -44,6 +44,35 @@ def test_a_region_is_laid_out_the_same_way_from_the_same_settings():
     assert first.map.enabled and first.map.rivers
 
 
+def test_a_big_region_has_a_city_for_its_stronghold_and_outlets_spread_along_its_edge():
+    settings = RegionSettings(villages=1600, seed=2)
+    config = region(settings)
+    side = settings.spacing_km * 40
+    towns = [v for v in config.villages if v.kind == "town"]
+    (city,) = [v for v in towns if v.stronghold]
+    assert city.name == "City" and city.border
+    people = sum(v.population for v in config.villages)
+    # (its share is of the people before it grew to it)
+    assert settings.city_share * people > city.population >= 0.95 * settings.city_share * people
+    assert city.population > 3 * max(v.population for v in towns if v is not city)
+    # 480 km of edge: three towns trade beyond the region, the others near
+    # the edge (within the distance between towns) and far apart.
+    others = [v for v in towns if v.border and v is not city]
+    assert len(others) == 2
+    assert all(min(v.x, side - v.x, v.y, side - v.y) <= 15.0 for v in others)
+    outlets = others + [city]
+    assert min(np.hypot(a.x - b.x, a.y - b.y) for i, a in enumerate(outlets) for b in outlets[i + 1:]) > side / 2
+
+
+def test_a_small_region_keeps_one_outlet_and_its_city_sized_by_its_countryside():
+    settings = RegionSettings(villages=100, seed=1)
+    config = region(settings)
+    towns = [v for v in config.villages if v.kind == "town"]
+    assert sum(v.border for v in towns) == 1
+    assert region(replace(settings, city_share=0.0)) == config
+    assert region(replace(settings, outlets=3)) != config
+
+
 def test_every_village_can_reach_a_market_town():
     config = region(RegionSettings(villages=80, seed=5))
     geo = geography.build(config)

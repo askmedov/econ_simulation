@@ -21,18 +21,20 @@ pub const REGION_SETTINGS_JSON: &str = include_str!("../../configs/region_settin
 #[serde(deny_unknown_fields)]
 pub struct RegionSettings {
     pub villages: usize,
-    pub mean_size: f64,       // people in a village of the plain, on average
-    pub size_spread: f64,     // spread of village sizes (sd of their log)
-    pub smallest: i64,        //
-    pub spacing_km: f64,      // between neighbouring villages
-    pub towns: Option<usize>, // market towns; None: one for every 25 villages
-    pub town_share: f64,      // share of the region's people who live in its towns
-    pub smallest_town: i64,   //
-    pub city: f64,            // with several towns, the river town is this many times the size
-    pub upland: f64,          // share of villages in the hills (to the west)
-    pub forest: f64,          // share of the rest in the woods
-    pub river: bool,          // a river across the region, west to east
-    pub coast: bool,          // a coast along the east side
+    pub mean_size: f64,         // people in a village of the plain, on average
+    pub size_spread: f64,       // spread of village sizes (sd of their log)
+    pub smallest: i64,          //
+    pub spacing_km: f64,        // between neighbouring villages
+    pub towns: Option<usize>,   // market towns; None: one for every 25 villages
+    pub town_share: f64,        // share of the region's people who live in its towns
+    pub smallest_town: i64,     //
+    pub city: f64,              // with several towns, the river town is this many times the size
+    pub city_share: f64,        // and in a big region at least this share of all its people
+    pub outlets: Option<usize>, // towns trading beyond the region; None: one for every 150 km of its edge
+    pub upland: f64,            // share of villages in the hills (to the west)
+    pub forest: f64,            // share of the rest in the woods
+    pub river: bool,            // a river across the region, west to east
+    pub coast: bool,            // a coast along the east side
     pub seed: i64,
 }
 
@@ -80,10 +82,13 @@ fn centres(px: &[f64], py: &[f64], weights: &[f64], m: usize) -> Vec<(f64, f64)>
     let dist = |i: usize, (cx, cy): (f64, f64)| (px[i] - cx).hypot(py[i] - cy);
     let argmin = |f: &dyn Fn(usize) -> f64| (1..n).fold(0, |best, i| if f(i) < f(best) { i } else { best });
     let mut chosen = vec![argmin(&|i| dist(i, (mx, my)))];
+    let mut nearest = vec![f64::INFINITY; n]; // from each point to the nearest chosen
     for _ in 1..m {
-        let nearest = |i: usize| chosen.iter().map(|&c| dist(i, (px[c], py[c]))).fold(f64::INFINITY, f64::min);
-        let far = (1..n).fold(0, |best, i| if nearest(i) > nearest(best) { i } else { best });
-        chosen.push(far);
+        let last = *chosen.last().unwrap();
+        for (i, d) in nearest.iter_mut().enumerate() {
+            *d = d.min(dist(i, (px[last], py[last])));
+        }
+        chosen.push((1..n).fold(0, |best, i| if nearest[i] > nearest[best] { i } else { best }));
     }
     let mut centres: Vec<(f64, f64)> = chosen.iter().map(|&c| (px[c], py[c])).collect();
     for _ in 0..20 {
@@ -102,6 +107,26 @@ fn centres(px: &[f64], py: &[f64], weights: &[f64], m: usize) -> Vec<(f64, f64)>
         }
     }
     centres
+}
+
+/// Mark more towns as trading beyond the region, up to `outlets` in all:
+/// each the town near the edge (within `apart`, about the distance between
+/// towns) farthest from those already trading, so they spread around it.
+fn spread_outlets(tx: &[f64], ty: &[f64], side: f64, apart: f64, border: &mut [bool], outlets: usize) {
+    let m = tx.len();
+    let edge: Vec<f64> = (0..m).map(|t| tx[t].min(side - tx[t]).min(ty[t]).min(side - ty[t])).collect();
+    let any_near = edge.iter().any(|&e| e <= apart);
+    let near_edge: Vec<bool> = edge.iter().map(|&e| e <= apart || !any_near).collect();
+    while border.iter().filter(|&&b| b).count() < outlets && (0..m).any(|t| near_edge[t] && !border[t]) {
+        let away = |t: usize| {
+            if !near_edge[t] || border[t] {
+                return -1.0;
+            }
+            (0..m).filter(|&o| border[o]).map(|o| (tx[t] - tx[o]).hypot(ty[t] - ty[o])).fold(f64::INFINITY, f64::min)
+        };
+        let next = (1..m).fold(0, |best, t| if away(t) > away(best) { t } else { best });
+        border[next] = true;
+    }
 }
 
 /// Add the shortest roads needed so that every place can be reached.
@@ -222,7 +247,8 @@ pub fn region(settings: &RegionSettings, base: &Config) -> Result<Config, String
     // Market towns where the people are, each the size of its share of the
     // countryside around it; the first on the river, which carries goods to
     // and from the world beyond (or, without a river, the one nearest the
-    // east), and on a coast, the one nearest the sea is a port.
+    // east), and on a coast, the one nearest the sea is a port; a big region
+    // has more, spread along its edge.
     let m = s.towns.unwrap_or_else(|| ((n as f64 / 25.0).round_ties_even() as usize).max(1)).min(n);
     let weights: Vec<f64> = sizes.iter().map(|&v| v as f64).collect();
     let mut towns = centres(&x, &y, &weights, m);
@@ -247,6 +273,8 @@ pub fn region(settings: &RegionSettings, base: &Config) -> Result<Config, String
         border[east] = true;
     }
     let (tx, ty): (Vec<f64>, Vec<f64>) = towns.iter().cloned().unzip();
+    let outlets = s.outlets.unwrap_or_else(|| ((4.0 * side / 150.0).round_ties_even() as usize).max(1));
+    spread_outlets(&tx, &ty, side, s.spacing_km * (n as f64 / m as f64).sqrt(), &mut border, outlets);
     let mut around = vec![0.0; m];
     for i in 0..n {
         let nearest = (1..m).fold(0, |best, t| {
@@ -264,7 +292,9 @@ pub fn region(settings: &RegionSettings, base: &Config) -> Result<Config, String
         .collect();
     let is_city = m > 1 && s.city > 1.0;
     if is_city {
-        town_sizes[first] = (town_sizes[first] as f64 * s.city).round_ties_even() as i64;
+        let people = (sizes.iter().sum::<i64>() + town_sizes.iter().sum::<i64>()) as f64;
+        town_sizes[first] = ((town_sizes[first] as f64 * s.city).round_ties_even() as i64)
+            .max((s.city_share * people).round_ties_even() as i64);
     }
 
     // Roads to each village's nearest neighbours and from each town to its
@@ -311,6 +341,7 @@ pub fn region(settings: &RegionSettings, base: &Config) -> Result<Config, String
             terrain: terrain[i].to_string(),
             kind: "village".into(),
             border: false,
+            stronghold: false,
         })
         .collect();
     places.extend((0..m).map(|t| VillageConfig {
@@ -323,6 +354,7 @@ pub fn region(settings: &RegionSettings, base: &Config) -> Result<Config, String
         terrain: if on_bank[t] { "valley".into() } else { "plain".into() },
         kind: "town".into(),
         border: border[t],
+        stronghold: t == first && is_city,
     }));
     let mut config = base.clone();
     config.villages = places;
@@ -345,6 +377,35 @@ mod tests {
         assert_eq!(a, b);
         let c = region(&RegionSettings { seed: 2, ..s }, &default_config()).unwrap();
         assert_ne!(a.villages, c.villages);
+    }
+
+    #[test]
+    fn a_big_region_has_a_city_for_its_stronghold_and_outlets_spread_along_its_edge() {
+        let s = RegionSettings { villages: 1600, seed: 2, ..Default::default() };
+        let config = region(&s, &default_config()).unwrap();
+        let side = s.spacing_km * 40.0;
+        let towns: Vec<&VillageConfig> = config.villages.iter().filter(|v| v.kind == "town").collect();
+        let cities: Vec<&&VillageConfig> = towns.iter().filter(|v| v.stronghold).collect();
+        assert_eq!(cities.len(), 1);
+        let city = cities[0];
+        assert!(city.name == "City" && city.border);
+        let people: i64 = config.villages.iter().map(|v| v.population).sum();
+        // (its share is of the people before it grew to it)
+        let share = city.population as f64 / people as f64;
+        assert!(share < s.city_share && share >= 0.95 * s.city_share, "{share}");
+        assert!(towns.iter().filter(|v| !v.stronghold).all(|v| 3 * v.population < city.population));
+        // 480 km of edge: three towns trade beyond the region, the others
+        // near the edge (within the distance between towns) and far apart.
+        let outlets: Vec<&&VillageConfig> = towns.iter().filter(|v| v.border).collect();
+        assert_eq!(outlets.len(), 3);
+        for v in outlets.iter().filter(|v| !v.stronghold) {
+            assert!(v.x.min(side - v.x).min(v.y).min(side - v.y) <= 15.0, "{} at {}, {}", v.name, v.x, v.y);
+        }
+        for (i, a) in outlets.iter().enumerate() {
+            for b in &outlets[i + 1..] {
+                assert!((a.x - b.x).hypot(a.y - b.y) > side / 2.0);
+            }
+        }
     }
 
     #[test]

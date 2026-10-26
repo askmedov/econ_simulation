@@ -12,7 +12,8 @@
    "y": 0.0,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   }
  ],
  "demography": {
@@ -265,7 +266,8 @@
   "collection_month": 11,
   "hearth_tax_months": 0.5,
   "land_tax": 0.1,
-  "remit_in_famine": false
+  "remit_in_famine": false,
+  "garrison": 0.75
  },
  "town": {
   "enabled": true,

@@ -7,6 +7,8 @@
 //! (though he spends some of them on the village's cloth, or in his market
 //! town). The state takes a tax in coin each year after the harvest; families
 //! without the coins have grain seized. Both purses are outside the villages.
+//! On a map with a stronghold, the state spends most of its tax there, on
+//! the pay of its garrison and officials: what keeps a city.
 
 use crate::config::Config;
 use crate::grid::div_or;
@@ -19,11 +21,21 @@ pub struct Lords {
     pub barn: Vec<f64>,        // rations in the lord's barn, per place
     pub purse: Vec<f64>,       // coins the lord has taken out of the place
     pub state_purse: Vec<f64>, // coins the state has taken out of the place
+    /// The state's monthly pay to its garrison and officials in the
+    /// stronghold (set from each year's tax, and in the first month from
+    /// what the tax would bring).
+    pub garrison_pay: Option<f64>,
 }
 
 impl Lords {
     pub fn none(n: usize) -> Lords {
-        Lords { land: vec![0.0; n], barn: vec![0.0; n], purse: vec![0.0; n], state_purse: vec![0.0; n] }
+        Lords {
+            land: vec![0.0; n],
+            barn: vec![0.0; n],
+            purse: vec![0.0; n],
+            state_purse: vec![0.0; n],
+            garrison_pay: None,
+        }
     }
 }
 
@@ -213,6 +225,41 @@ pub fn collect_state_tax(
         lords.state_purse[v] += coins[v];
     }
     TaxTake { coins, grain }
+}
+
+/// What the state's tax would bring this year if every family paid in
+/// coin (before any remission in a famine).
+pub fn tax_due(
+    households: &Households,
+    wage: &[f64],
+    rent_per_plot: &[f64],
+    config: &Config,
+    living: Option<&[bool]>,
+) -> f64 {
+    let cfg = &config.state;
+    (0..households.len())
+        .filter(|&h| living.is_none_or(|l| l[h]))
+        .map(|h| {
+            let v = households.location[h] as usize;
+            cfg.hearth_tax_months * wage[v] + cfg.land_tax * households.land[h] * rent_per_plot[v]
+        })
+        .sum()
+}
+
+/// The state pays its garrison and officials in the `stronghold` this
+/// month, from its purse: shared by the stronghold's families by their
+/// members. Returns coins received per household.
+pub fn pay_garrison(lords: &mut Lords, stronghold: usize, households_location: &[u32], members: &[f64]) -> Vec<f64> {
+    let pay = lords.garrison_pay.unwrap_or(0.0);
+    let people: f64 =
+        (0..members.len()).filter(|&h| households_location[h] as usize == stronghold).map(|h| members[h]).sum();
+    if people <= 0.0 {
+        return vec![0.0; members.len()];
+    }
+    lords.state_purse[stronghold] -= pay;
+    (0..members.len())
+        .map(|h| if households_location[h] as usize == stronghold { pay * members[h] / people } else { 0.0 })
+        .collect()
 }
 
 /// Soldiers or raiders take `share` (per place) of all grain and animals.

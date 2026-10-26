@@ -355,7 +355,7 @@ pub fn create_world(config: &Config, streams: &mut RandomStreams) -> Result<Worl
         council_costs: vec![0.0; n],
         coin_earnings: None,
         seed: None,
-        lord: Lords { land: demesne, barn: vec![0.0; n], purse: vec![0.0; n], state_purse: vec![0.0; n] },
+        lord: Lords { land: demesne, ..Lords::none(n) },
         town: Town::at(town_level),
         memory: Memory::calm(n),
         sown: vec![1.0; n],

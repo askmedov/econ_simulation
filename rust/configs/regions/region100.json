@@ -12,7 +12,8 @@
    "y": 5.38,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 2",
@@ -23,7 +24,8 @@
    "y": 21.95,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 3",
@@ -34,7 +36,8 @@
    "y": 13.55,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Upland 4",
@@ -45,7 +48,8 @@
    "y": 7.4,
    "terrain": "upland",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 5",
@@ -56,7 +60,8 @@
    "y": 0.6,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Upland 6",
@@ -67,7 +72,8 @@
    "y": 7.88,
    "terrain": "upland",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Valley 7",
@@ -78,7 +84,8 @@
    "y": 13.59,
    "terrain": "valley",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Upland 8",
@@ -89,7 +96,8 @@
    "y": 5.28,
    "terrain": "upland",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 9",
@@ -100,7 +108,8 @@
    "y": 22.07,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Valley 10",
@@ -111,7 +120,8 @@
    "y": 12.69,
    "terrain": "valley",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 11",
@@ -122,7 +132,8 @@
    "y": 24.92,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 12",
@@ -133,7 +144,8 @@
    "y": 19.22,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 13",
@@ -144,7 +156,8 @@
    "y": 11.32,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 14",
@@ -155,7 +168,8 @@
    "y": 25.59,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 15",
@@ -166,7 +180,8 @@
    "y": 20.26,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 16",
@@ -177,7 +192,8 @@
    "y": 17.29,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 17",
@@ -188,7 +204,8 @@
    "y": 29.04,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 18",
@@ -199,7 +216,8 @@
    "y": 4.04,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Forest 19",
@@ -210,7 +228,8 @@
    "y": 21.92,
    "terrain": "forest",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Upland 20",
@@ -221,7 +240,8 @@
    "y": 9.85,
    "terrain": "upland",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Forest 21",
@@ -232,7 +252,8 @@
    "y": 19.31,
    "terrain": "forest",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 22",
@@ -243,7 +264,8 @@
    "y": 0.61,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 23",
@@ -254,7 +276,8 @@
    "y": 28.55,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 24",
@@ -265,7 +288,8 @@
    "y": 22.05,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 25",
@@ -276,7 +300,8 @@
    "y": 15.7,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 26",
@@ -287,7 +312,8 @@
    "y": 21.84,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 27",
@@ -298,7 +324,8 @@
    "y": 5.38,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 28",
@@ -309,7 +336,8 @@
    "y": 26.36,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 29",
@@ -320,7 +348,8 @@
    "y": 1.37,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Upland 30",
@@ -331,7 +360,8 @@
    "y": 5.06,
    "terrain": "upland",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Upland 31",
@@ -342,7 +372,8 @@
    "y": 10.07,
    "terrain": "upland",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Forest 32",
@@ -353,7 +384,8 @@
    "y": 18.98,
    "terrain": "forest",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Upland 33",
@@ -364,7 +396,8 @@
    "y": 13.54,
    "terrain": "upland",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Upland 34",
@@ -375,7 +408,8 @@
    "y": 2.14,
    "terrain": "upland",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Valley 35",
@@ -386,7 +420,8 @@
    "y": 19.0,
    "terrain": "valley",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 36",
@@ -397,7 +432,8 @@
    "y": 29.23,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 37",
@@ -408,7 +444,8 @@
    "y": 4.94,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Valley 38",
@@ -419,7 +456,8 @@
    "y": 10.02,
    "terrain": "valley",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 39",
@@ -430,7 +468,8 @@
    "y": 1.31,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Forest 40",
@@ -441,7 +480,8 @@
    "y": 29.03,
    "terrain": "forest",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 41",
@@ -452,7 +492,8 @@
    "y": 9.82,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 42",
@@ -463,7 +504,8 @@
    "y": 13.84,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 43",
@@ -474,7 +516,8 @@
    "y": 6.93,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 44",
@@ -485,7 +528,8 @@
    "y": 14.25,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Upland 45",
@@ -496,7 +540,8 @@
    "y": 5.21,
    "terrain": "upland",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Upland 46",
@@ -507,7 +552,8 @@
    "y": 6.92,
    "terrain": "upland",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 47",
@@ -518,7 +564,8 @@
    "y": 7.97,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 48",
@@ -529,7 +576,8 @@
    "y": 2.06,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 49",
@@ -540,7 +588,8 @@
    "y": 2.33,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 50",
@@ -551,7 +600,8 @@
    "y": 25.87,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 51",
@@ -562,7 +612,8 @@
    "y": 1.96,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 52",
@@ -573,7 +624,8 @@
    "y": 17.25,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Valley 53",
@@ -584,7 +636,8 @@
    "y": 19.18,
    "terrain": "valley",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Valley 54",
@@ -595,7 +648,8 @@
    "y": 9.65,
    "terrain": "valley",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Upland 55",
@@ -606,7 +660,8 @@
    "y": 14.08,
    "terrain": "upland",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Valley 56",
@@ -617,7 +672,8 @@
    "y": 14.35,
    "terrain": "valley",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Upland 57",
@@ -628,7 +684,8 @@
    "y": 2.32,
    "terrain": "upland",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 58",
@@ -639,7 +696,8 @@
    "y": 24.9,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Forest 59",
@@ -650,7 +708,8 @@
    "y": 16.6,
    "terrain": "forest",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 60",
@@ -661,7 +720,8 @@
    "y": 25.74,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Forest 61",
@@ -672,7 +732,8 @@
    "y": 22.13,
    "terrain": "forest",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Upland 62",
@@ -683,7 +744,8 @@
    "y": 6.68,
    "terrain": "upland",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Valley 63",
@@ -694,7 +756,8 @@
    "y": 10.23,
    "terrain": "valley",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 64",
@@ -705,7 +768,8 @@
    "y": 19.5,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Valley 65",
@@ -716,7 +780,8 @@
    "y": 16.57,
    "terrain": "valley",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 66",
@@ -727,7 +792,8 @@
    "y": 27.94,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Valley 67",
@@ -738,7 +804,8 @@
    "y": 16.46,
    "terrain": "valley",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 68",
@@ -749,7 +816,8 @@
    "y": 4.89,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Forest 69",
@@ -760,7 +828,8 @@
    "y": 28.63,
    "terrain": "forest",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Upland 70",
@@ -771,7 +840,8 @@
    "y": 8.37,
    "terrain": "upland",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Valley 71",
@@ -782,7 +852,8 @@
    "y": 18.72,
    "terrain": "valley",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 72",
@@ -793,7 +864,8 @@
    "y": 18.93,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 73",
@@ -804,7 +876,8 @@
    "y": 25.78,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 74",
@@ -815,7 +888,8 @@
    "y": 8.17,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 75",
@@ -826,7 +900,8 @@
    "y": 7.25,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 76",
@@ -837,7 +912,8 @@
    "y": 22.85,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 77",
@@ -848,7 +924,8 @@
    "y": 28.65,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Valley 78",
@@ -859,7 +936,8 @@
    "y": 16.07,
    "terrain": "valley",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 79",
@@ -870,7 +948,8 @@
    "y": 11.37,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Upland 80",
@@ -881,7 +960,8 @@
    "y": 4.27,
    "terrain": "upland",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 81",
@@ -892,7 +972,8 @@
    "y": 23.23,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 82",
@@ -903,7 +984,8 @@
    "y": 25.47,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 83",
@@ -914,7 +996,8 @@
    "y": 10.19,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 84",
@@ -925,7 +1008,8 @@
    "y": 23.22,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 85",
@@ -936,7 +1020,8 @@
    "y": 13.95,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 86",
@@ -947,7 +1032,8 @@
    "y": 13.24,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Forest 87",
@@ -958,7 +1044,8 @@
    "y": 17.39,
    "terrain": "forest",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Upland 88",
@@ -969,7 +1056,8 @@
    "y": 0.78,
    "terrain": "upland",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Forest 89",
@@ -980,7 +1068,8 @@
    "y": 19.64,
    "terrain": "forest",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 90",
@@ -991,7 +1080,8 @@
    "y": 28.84,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Forest 91",
@@ -1002,7 +1092,8 @@
    "y": 16.1,
    "terrain": "forest",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 92",
@@ -1013,7 +1104,8 @@
    "y": 27.62,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 93",
@@ -1024,7 +1116,8 @@
    "y": 7.56,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 94",
@@ -1035,7 +1128,8 @@
    "y": 28.79,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 95",
@@ -1046,7 +1140,8 @@
    "y": 15.92,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 96",
@@ -1057,7 +1152,8 @@
    "y": 21.85,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 97",
@@ -1068,7 +1164,8 @@
    "y": 25.65,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 98",
@@ -1079,7 +1176,8 @@
    "y": 11.07,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Forest 99",
@@ -1090,7 +1188,8 @@
    "y": 26.24,
    "terrain": "forest",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Plain 100",
@@ -1101,7 +1200,8 @@
    "y": 4.09,
    "terrain": "plain",
    "kind": "village",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Town 1",
@@ -1112,7 +1212,8 @@
    "y": 6.98,
    "terrain": "plain",
    "kind": "town",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Town 2",
@@ -1123,7 +1224,8 @@
    "y": 23.48,
    "terrain": "plain",
    "kind": "town",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "Town 3",
@@ -1134,7 +1236,8 @@
    "y": 21.48,
    "terrain": "plain",
    "kind": "town",
-   "border": false
+   "border": false,
+   "stronghold": false
   },
   {
    "name": "City",
@@ -1145,7 +1248,8 @@
    "y": 10.64,
    "terrain": "valley",
    "kind": "town",
-   "border": true
+   "border": true,
+   "stronghold": true
   }
  ],
  "demography": {
@@ -1398,7 +1502,8 @@
   "collection_month": 11,
   "hearth_tax_months": 0.5,
   "land_tax": 0.1,
-  "remit_in_famine": false
+  "remit_in_famine": false,
+  "garrison": 0.75
  },
  "town": {
   "enabled": true,

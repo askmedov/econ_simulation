@@ -9,6 +9,8 @@
   "town_share": 0.12,
   "smallest_town": 300,
   "city": 1.5,
+  "city_share": 0.015,
+  "outlets": null,
   "upland": 0.2,
   "forest": 0.15,
   "river": true,

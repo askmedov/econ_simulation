@@ -57,6 +57,12 @@ validation runs.
   drift. Families still differ: the middle 80% decide 0.7 to 1.4 times
   the rules' amounts. Branches `claude/minds-default` and
   `claude/million-people`; PLAN.md, "Rust engine", sections 8 and 9.
+- **A big region has a real city and several outlets** (branch
+  `claude/rust-region-layout`; PLAN.md, "Rust engine", section 10). The
+  river town is the region's stronghold (15,000 people at a million),
+  kept by the state's pay to its garrison and officials: three-quarters
+  of the tax, spent there (Rust only). Four towns trade beyond the
+  region at a million. Smaller regions are laid out as before.
 - **The Rust engine** (`rust/`, about 10,000 lines) is built through the
   hand-off's seven milestones, one branch each
   (`claude/rust-scaffolding` ... `claude/rust-minds`, latest `cceeb20`,
@@ -331,10 +337,12 @@ The machine this was built on: 4 cores, Python 3.13 / numpy 2.x in
 
 **Waiting on the user:** whether the grain price should follow what is offered for sale
 (needed to ask whether hoarding raised prices in 1315); whether to fix
-the wool `worth` bug; whether to loosen the century sanity checks; and
-whether a region of a million should get a real city and several towns
-trading beyond it (the generator makes small towns and one outlet, so a
-region-wide dearth starves the towns).
+the wool `worth` bug; and whether to loosen the century sanity checks.
+
+**Open at a million:** a drought over the whole region still starves the
+market towns (187 more deaths per 1,000 there, against 24 in the
+villages). The towns' dealers and families run out of coins at three times
+the usual price; that belongs to step 7 (granaries, relief).
 
 Phase 3, remaining steps, now in Rust (details in PLAN.md, "Build order"):
 

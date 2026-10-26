@@ -37,6 +37,7 @@ pub struct VillageConfig {
     pub terrain: String,
     pub kind: String,
     pub border: bool,
+    pub stronghold: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -230,6 +231,7 @@ pub struct StateConfig {
     pub hearth_tax_months: f64,
     pub land_tax: f64,
     pub remit_in_famine: bool,
+    pub garrison: f64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

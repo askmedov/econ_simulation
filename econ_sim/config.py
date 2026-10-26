@@ -32,6 +32,9 @@ class VillageConfig:
     # or a town on the road or river out.
     kind: str = "village"
     border: bool = False
+    # The region's stronghold, where the state keeps its garrison and
+    # officials (see StateConfig.garrison): its city.
+    stronghold: bool = False
 
 
 @dataclass(frozen=True)
@@ -441,6 +444,12 @@ class StateConfig:
     land_tax: float = 0.1
     # A what-if lever: no tax in a famine year.
     remit_in_famine: bool = False
+    # On a map with a stronghold (VillageConfig.stronghold), the state pays
+    # its garrison and officials there `garrison` of the coins its tax brought
+    # in the last year, a twelfth each month; the rest goes to a court or a
+    # war far away. The pay is what keeps a city: towns live on their
+    # markets, a city on what the state spends in it. (Rust only.)
+    garrison: float = 0.75
 
 
 @dataclass(frozen=True)

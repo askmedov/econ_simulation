@@ -296,8 +296,15 @@ class RegionSettings:
     town_share: float = 0.12  # share of the region's people who live in its towns
     smallest_town: int = 300
     # With several towns, the one on the river (or by the sea) is the region's
-    # city, this many times the size (it draws grain from the other towns too).
+    # city and stronghold, this many times the size (it draws grain from the
+    # other towns too), and in a big region at least this share of all its
+    # people: a market town lives on its countryside, a city on what the
+    # state spends in it (its garrison and officials: StateConfig.garrison).
     city: float = 1.5
+    city_share: float = 0.015
+    # Towns trading with the world beyond, the river town first and the others
+    # spread along the region's edge; None: one for every 150 km of the edge.
+    outlets: int | None = None
     upland: float = 0.2  # share of villages in the hills (to the west)
     forest: float = 0.15  # share of the rest in the woods
     river: bool = True  # a river across the region, west to east
@@ -350,7 +357,8 @@ def region(settings: RegionSettings = RegionSettings(), base: Config | None = No
     # Market towns where the people are, each the size of its share of the
     # countryside around it; the first on the river, which carries goods to
     # and from the world beyond (or, without a river, the one nearest the
-    # east), and on a coast, the one nearest the sea is a port.
+    # east), and on a coast, the one nearest the sea is a port; a big region
+    # has more, spread along its edge.
     m = s.towns or max(1, round(n / 25))
     towns = _centres(np.column_stack([x, y]), sizes.astype(np.float64), min(m, n), rng)
     m = len(towns)
@@ -364,12 +372,15 @@ def region(settings: RegionSettings = RegionSettings(), base: Config | None = No
     if s.coast:
         border[int(np.argmax(towns[:, 0]))] = True
     tx, ty = towns[:, 0], towns[:, 1]
+    outlets = s.outlets if s.outlets is not None else max(1, round(4 * side / 150.0))
+    _spread_outlets(tx, ty, side, s.spacing_km * math.sqrt(n / m), border, outlets)
     nearest = np.argmin(np.hypot(x[:, None] - tx[None, :], y[:, None] - ty[None, :]), axis=1)
     around = np.bincount(nearest, weights=sizes, minlength=m)
     town_sizes = np.maximum(np.round(s.town_share / (1.0 - s.town_share) * around), s.smallest_town).astype(int)
     is_city = m > 1 and s.city > 1
     if is_city:
-        town_sizes[first] = int(round(town_sizes[first] * s.city))
+        people = int(sizes.sum() + town_sizes.sum())
+        town_sizes[first] = max(int(round(town_sizes[first] * s.city)), int(round(s.city_share * people)))
 
     # Roads to each village's nearest neighbours and from each town to its
     # nearest villages, joined up so every place can be reached.
@@ -411,7 +422,7 @@ def region(settings: RegionSettings = RegionSettings(), base: Config | None = No
             name="City" if t == first and is_city else f"Town {t + 1}", population=int(town_sizes[t]), land=0.0,
             initial_food_months=0.0,
             x=round(float(tx[t]), 2), y=round(float(ty[t]), 2), terrain="valley" if on_bank[t] else "plain",
-            kind="town", border=bool(border[t]),
+            kind="town", border=bool(border[t]), stronghold=bool(t == first and is_city),
         )
         for t in range(m)
     )
@@ -426,12 +437,24 @@ def _smooth(x: np.ndarray, y: np.ndarray, scale: float, rng: np.random.Generator
     return np.sqrt(2.0 / 64) * np.cos(np.outer(x, waves[:, 0]) + np.outer(y, waves[:, 1]) + phase).sum(axis=1)
 
 
+def _spread_outlets(tx: np.ndarray, ty: np.ndarray, side: float, apart: float, border: np.ndarray, outlets: int) -> None:
+    """Mark more towns as trading beyond the region, up to `outlets` in all:
+    each the town near the edge (within `apart`, about the distance between
+    towns) farthest from those already trading, so they spread around it."""
+    edge = np.minimum.reduce([tx, side - tx, ty, side - ty])
+    near_edge = edge <= apart if (edge <= apart).any() else np.ones(len(tx), dtype=bool)
+    while border.sum() < outlets and (near_edge & ~border).any():
+        d = np.min(np.hypot(tx[:, None] - tx[border], ty[:, None] - ty[border]), axis=1)
+        border[int(np.argmax(np.where(near_edge & ~border, d, -1.0)))] = True
+
+
 def _centres(points: np.ndarray, weights: np.ndarray, m: int, rng: np.random.Generator) -> np.ndarray:
     """`m` centres of the weighted `points` (k-means, started far apart)."""
     middle = points.mean(axis=0)
     chosen = [int(np.argmin(np.hypot(*(points - middle).T)))]
+    d = np.full(len(points), np.inf)  # from each point to the nearest chosen
     for _ in range(m - 1):
-        d = np.min(np.hypot(points[:, None, 0] - points[chosen, 0], points[:, None, 1] - points[chosen, 1]), axis=1)
+        d = np.minimum(d, np.hypot(points[:, 0] - points[chosen[-1], 0], points[:, 1] - points[chosen[-1], 1]))
         chosen.append(int(np.argmax(d)))
     centres = points[chosen].copy()
     for _ in range(20):

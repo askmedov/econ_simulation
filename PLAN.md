@@ -2205,3 +2205,67 @@ run, and memory.
     Setting those is a question of the layout and of calibration.
 - **The report's tables are wider**, for numbers of this size.
 
+
+### 10. A real city and several outlets (built)
+
+At a million people the region generator made 98 small towns (the largest
+2,017 people), no city and one town trading beyond the region. Two new
+`RegionSettings` fix that, and leave every smaller region as it was: the
+parity regions, the test regions and the 100,000 one lay out to the same
+places, roads and numbers.
+
+- **Outlets** (`outlets`; by default one for every 150 km of the region's
+  edge). The river town trades beyond the region as before. The others are
+  the towns near the edge (within the usual distance between towns), each
+  the one farthest from those already chosen, so they spread around it.
+  The million region now has 4. Carting grain from a town to the nearest
+  outlet falls from 76% of its price to 62% (median), and the worst case
+  from 152% to 119%.
+- **A city** (`city_share`, 1.5%). The river town is now the region's
+  **stronghold** (`VillageConfig.stronghold`), at least 1.5% of the
+  region's people. In the million region it has 14,978 people, the next
+  town 2,017.
+- **What keeps a city.** A city of 30,000 (3%) laid out by itself starved:
+  it fell to 4,000 within three years. The grain could have reached it:
+  with unlimited coins for its grain dealers it stayed fully fed, drawing
+  grain from its villages, from other towns and from abroad. What it
+  lacked was coins. Towns live on their markets; a city needs a reason to
+  exist: a resource it sells beyond its market (iron, say), or defence.
+  The second is built now:
+  - The state keeps its **garrison** and officials in the stronghold. It
+    pays them `StateConfig.garrison` (75%) of the coins its tax brought
+    in the last year, a twelfth each month, shared by the stronghold's
+    families. In the first year the pay is reckoned from what the tax
+    would bring. The other quarter goes to a court or a war far away, as
+    all of it did before.
+  - It is in the Rust engine only and on by default. `scripts/parity.py`
+    sets it to 0, so parity is checked as before.
+  - At a million, a garrison paid half the tax lets the city shrink
+    slowly (14,962 to 13,250 people in five years), three-quarters keeps
+    it steady (to 15,267, never short of food), and all of it makes it
+    grow (to 16,729).
+- **Forty years at a million** (one seed): prices no longer fall away.
+  Grain is at 1.19 in year 37 against 1.12 in year 1 (before, it fell to
+  half its price by year 30). The towns hold 119,000 people in year 37
+  (before, they shrank to 72,000). The city holds 11,000 to 15,000 outside
+  famines, and the coins the state takes out of the region fall to a
+  quarter of its tax.
+- **A drought over the whole region still starves the towns** (20 paired
+  seeds, three years): their worst month falls from 84% of their need to
+  24%, and 187 more per 1,000 die there (before: 83% to 21%, 199). Extra
+  outlets don't relieve it: what towns lack in a dearth is coins to pay
+  three times the usual price, not ways for the grain to come.
+  - The city, with its garrison's pay, fares half as badly: 101 more
+    deaths per 1,000, its worst month 86% to 34%.
+  - The other towns end with 40,000 people instead of 109,000 (more died
+    and 4 times as many left), and their grain peaked at about ten times
+    its usual price.
+  - Villages: 24 more per 1,000, worst month 96% to 85%.
+  - That is a question for the towns' economy in a dearth (their dealers'
+    coins, a public granary, relief: step 7), not for the layout.
+- **The garrison and the layout are checked by tests:** the pay comes
+  from the last year's tax, the state brings it from its purse, coins are
+  conserved, the whole tax leaves the region without a garrison, and the
+  stronghold keeps more people with it. A big region has one stronghold
+  and outlets spread along its edge; a small one keeps one outlet. Both
+  generators (Python's and the Rust engine's) are checked.
