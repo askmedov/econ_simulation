@@ -3,6 +3,7 @@
 
 use std::sync::Arc;
 
+use crate::chronicle::{self, Chronicle};
 use crate::config::Config;
 use crate::council;
 use crate::credit;
@@ -35,7 +36,8 @@ pub struct Simulation {
     pub streams: RandomStreams,
     pub world: World,
     pub records: Vec<MonthRecord>,
-    pub log: Vec<String>,           // notable happenings, in order
+    pub log: Vec<String>,           // notable happenings, in order (as Python's)
+    pub chronicle: Chronicle,       // what happened, ranked by importance
     short_since: Vec<Option<i64>>,  // place -> month rationing began
     pub places: Vec<Vec<Vec<f64>>>, // per series in PLACE_SERIES: month by month, per place
 }
@@ -65,6 +67,7 @@ impl Simulation {
             world,
             records: Vec::new(),
             log: Vec::new(),
+            chronicle: Chronicle::new(n),
             short_since: vec![None; n],
             places: vec![Vec::new(); PLACE_SERIES.len()],
         })
@@ -122,6 +125,14 @@ impl Simulation {
             )
         };
         self.note_events(&scheduled, " (scheduled)");
+        // (for the chronicle: each event that started, where, and whether forced)
+        let begun = |sim: &Simulation, started: &[usize], forced: bool| -> Vec<(usize, usize, bool)> {
+            started
+                .iter()
+                .map(|&i| (sim.world.active_events[i].spec, sim.world.active_events[i].location, forced))
+                .collect()
+        };
+        let mut started_now = begun(self, &scheduled, true);
         let mut hits: Vec<(String, u64)> = Vec::new();
         if config.random_events {
             let started = {
@@ -139,6 +150,7 @@ impl Simulation {
                 events::start_location_events(&mut state, config, events_rng, weather)
             };
             self.note_events(&started, "");
+            started_now.extend(begun(self, &started, false));
             hits = events::apply_person_events(
                 &mut self.world.population,
                 config,
@@ -1433,6 +1445,17 @@ impl Simulation {
         if alive_at_start && self.extinct() {
             self.note(None, "The last villager has died");
         }
+        let councils: Vec<usize> = (0..n).filter(|&v| formed_now[v]).collect();
+        let month = chronicle::Month {
+            record: &record,
+            people: &final_people,
+            deaths: &died,
+            ration: &share,
+            left: &moves.left,
+            started: &started_now,
+            councils: &councils,
+        };
+        self.chronicle.month(&month, config, &self.world.geo);
         self.records.push(record.clone());
         self.world.month += 1;
         record

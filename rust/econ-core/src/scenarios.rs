@@ -13,6 +13,7 @@ use std::path::Path;
 
 use rayon::prelude::*;
 
+use crate::chronicle::Chronicle;
 use crate::config::{Config, ScheduledEvent};
 use crate::metrics::{python_float, round_to, MonthRecord};
 use crate::simulation::Simulation;
@@ -45,6 +46,7 @@ pub struct Run {
     pub config: Config,
     pub records: Vec<MonthRecord>,
     pub log: Vec<String>,
+    pub chronicle: Chronicle,
     pub places: Vec<(&'static str, Vec<Vec<f64>>)>,
 }
 
@@ -57,7 +59,13 @@ impl Run {
 pub fn run_one(config: Config) -> Result<Run, String> {
     let mut sim = Simulation::new(config.clone())?;
     sim.run();
-    Ok(Run { config, records: sim.records.clone(), log: sim.log.clone(), places: sim.place_series() })
+    Ok(Run {
+        config,
+        records: sim.records.clone(),
+        log: sim.log.clone(),
+        chronicle: sim.chronicle.clone(),
+        places: sim.place_series(),
+    })
 }
 
 /// Run each config, several at a time on separate threads; results in order.

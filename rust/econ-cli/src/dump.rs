@@ -122,16 +122,27 @@ pub fn places(config: &Config, forced: &[econ_core::config::ScheduledEvent], run
     out.flush().map_err(|e| e.to_string())
 }
 
-/// Each run's log of notable happenings, run after run.
-pub fn logs(config: &Config, forced: &[econ_core::config::ScheduledEvent], runs: usize) -> Result<(), String> {
+/// Each run's chronicle (from rank 1 down to `most_rank`), run after run;
+/// with `flat`, its plain list of happenings instead, as Python's.
+pub fn logs(
+    config: &Config,
+    forced: &[econ_core::config::ScheduledEvent],
+    runs: usize,
+    most_rank: u8,
+    flat: bool,
+) -> Result<(), String> {
     let mut with = config.clone();
     with.scheduled_events.extend_from_slice(forced);
     let stdout = std::io::stdout();
     let mut out = std::io::BufWriter::new(stdout.lock());
     for run in scenarios::run_batch(&with, runs)? {
         writeln!(out, "Seed {}:", run.config.seed).map_err(|e| e.to_string())?;
-        for line in &run.log {
-            writeln!(out, "  {line}").map_err(|e| e.to_string())?;
+        if flat {
+            for line in &run.log {
+                writeln!(out, "  {line}").map_err(|e| e.to_string())?;
+            }
+        } else {
+            write!(out, "{}", run.chronicle.text(&run.records, most_rank)).map_err(|e| e.to_string())?;
         }
     }
     out.flush().map_err(|e| e.to_string())

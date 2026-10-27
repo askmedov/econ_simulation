@@ -406,6 +406,21 @@ pub struct RefugeesConfig {
     pub memory_months: f64,
 }
 
+/// What the chronicle tells (see `chronicle.rs`; Python's `ChronicleConfig`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ChronicleConfig {
+    pub major_share: f64,
+    pub notable_share: f64,
+    pub famine_ration: f64,
+    pub short_ration: f64,
+    pub deaths_surge: f64,
+    pub fewest_deaths: f64,
+    pub leaving_surge: f64,
+    pub price_surge: f64,
+    pub places_listed: usize,
+}
+
 /// Families with minds of their own (see `minds.rs`; Python's `MindsConfig`).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -484,6 +499,7 @@ pub struct Config {
     pub harvest_hands: HarvestHandsConfig,
     pub refugees: RefugeesConfig,
     pub minds: MindsConfig,
+    pub chronicle: ChronicleConfig,
     pub products: Vec<ProductSpec>,
     pub businesses: Vec<BusinessSpec>,
     pub events: Vec<EventSpec>,

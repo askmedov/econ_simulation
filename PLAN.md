@@ -2426,3 +2426,83 @@ to the settings a run starts from, defined in Python
   to a parameter that doesn't exist is refused. Fifteen starting points
   over five years at a million, two seeds each, take 4.6 minutes on 4
   cores.
+
+### 13. A log ranked by importance (built)
+
+The log was a flat list, as Python's: every event as it started and every
+village going short and fed again. At a million people that is thousands
+of near-identical lines. The **chronicle** (`chronicle.rs`; its settings
+are Python's `ChronicleConfig`, Rust only) tells what happened year by
+year and month by month, the most important first, with the places under
+each entry.
+
+- **What it notes each month:**
+  - the events that started, one entry for each kind, with how many
+    places and people, and where in the region if they cluster (forced
+    events marked as such);
+  - famine (a place eating under 80% of its need) as it spreads, eases and
+    ends, and places newly short of food (under 97%);
+  - deaths far above the usual, in the region or in places: 1.5 times the
+    usual, at least 5 more, and more than chance would bring (three
+    standard deviations of a count);
+  - people leaving at twice the usual rate, grain at 1.4 times its usual
+    price, the city going hungry, councils formed, places left empty.
+  - "The usual" is a running average of the months without a surge, so a
+    long dearth stays a dearth.
+- **Four ranks:**
+  - 1: what touches a tenth of the region's people or more, deaths beyond
+    the usual of 2 per 1,000 in a month, grain grown dear, and every
+    forced event;
+  - 2: a twentieth or more, a town in famine, the city hungry, a flight;
+  - 3: a place or a few;
+  - 4: the small change of a month (food short, a council formed).
+  - Good news ranks one lower than bad. In a single village, where
+    everything touches everyone, an event is of rank 2 and its council
+    forming too.
+- **Written out** (`log.txt`, for the first run of each arm), each year
+  begins with a line of totals and the year in brief: its rank-1 entries,
+  or else its three biggest of rank 2, with runs of months of famine,
+  deaths or flight in one line. Then come its months, entries from rank
+  1 down, and under each the worst places (five, and the rest counted).
+  `--log-level 1` to `4` sets how much it tells (default 3). The console
+  shows ranks 1 and 2 of a single run. `log.json` holds every entry.
+  `econ-sim logs` prints each run's chronicle, and `--flat` the old list.
+- **A drought over the region of a million** (seed 42), from `log.txt`:
+
+```
+Year 1 (Jan to Dec): 1,012,210 people to 984,568 (-2.7%); 38,501 born, 55,074 died, 27,516 left; grain 0.96 to 3.50; worst month 86% fed
+  In brief:
+    [1] Apr: Drought in 2,558 places (1,011,118 people) across the region (forced)
+    [1] May: Grain is dear: 1.61 a ration, 1.6 times its usual price
+    [1] Sep to Dec: famine for 4 months, at worst 214,826 people
+    [1] Nov to Dec: deaths ran above the usual for 2 months, 9,129 more in all
+    [1] Dec: Harsh winter in 2,558 places (984,568 people) across the region
+  ...
+  September
+    [1] Famine in 146 places (104,757 people): 70 more (83,459 people)
+          Town 78: ate 25% of its need; Town 35: ate 25% of its need; ... and 65 more
+    [2] City goes hungry: it ate 65% of its need
+    [2] 3,064 people left their homes, 4.3 times the usual
+          Town 56: 92 left; Town 41: 85 left; ... and 399 more
+    [2] Deaths surged in 54 places: 508 more than usual
+          Plain 1201: 28 died (3 usual); Plain 2166: 27 died (3 usual); ... and 49 more
+    [3] Disease outbreak in 64 places (27,384 people)
+    [3] Fire or pests in the granary in 31 places (12,138 people)
+Year 2 (Jan to Dec): 980,622 people to 918,457 (-6.3%); 32,005 born, 80,276 died, 42,461 left; grain 1.92 to 3.52; worst month 83% fed
+  In brief:
+    [1] Jan to Mar: famine for 3 months, at worst 205,037 people
+    [1] Jan to May: deaths ran above the usual for 5 months, 35,857 more in all
+```
+
+  The famine reached the towns first (they ate a quarter of their need in
+  September), and the townsfolk led the flight.
+- **The Python list stays** (`Simulation.log`, and `econ-sim logs
+  --flat`) for parity, and the chronicle changes no run: it only reads
+  each month's results. It costs nothing measurable: a paired 24-month
+  run of a million takes 15 s.
+- **Checked by tests:** a forced drought heads the chronicle and the
+  dearth follows; each month's entries go from rank 1 down, and a lower
+  level tells less; a famine names its places worst first and counts the
+  rest, and the same famine next month is no news, its end is; 8 deaths
+  where 3 are usual is luck, 30 is a surge; the same seed tells the same
+  chronicle.

@@ -37,10 +37,13 @@ pub fn run(args: &RunArgs) -> Result<(), String> {
         Some(s) => report::print_comparison(&baseline, s),
     }
     let shown = scenario.as_ref().unwrap_or(&baseline);
-    if args.runs == 1 && !shown[0].log.is_empty() {
-        println!("\nWhat happened:");
-        for line in &shown[0].log {
-            println!("  {line}");
+    if args.runs == 1 {
+        let told = shown[0].chronicle.text(&shown[0].records, args.log_level.min(2));
+        if !told.is_empty() {
+            println!("\nWhat happened (the most important; all of it in log.txt):");
+            for line in told.lines() {
+                println!("  {line}");
+            }
         }
     }
     match &scenario {
@@ -57,18 +60,17 @@ pub fn run(args: &RunArgs) -> Result<(), String> {
     let out = Path::new(&args.out);
     let io = |e: std::io::Error| format!("writing to {}: {e}", out.display());
     write_csv(&baseline[0].records, &out.join("run1.csv")).map_err(io)?;
-    let mut log = vec!["Without forced events:".to_string()];
-    log.extend(baseline[0].log.iter().cloned());
-    let mut written = vec!["run1.csv", "summary.csv", "log.txt"];
+    let mut arms = vec![("Without forced events", &baseline[0])];
+    let mut written = vec!["run1.csv", "summary.csv", "log.txt", "log.json"];
     if let Some(s) = &scenario {
         write_csv(&s[0].records, &out.join("run1_with_event.csv")).map_err(io)?;
-        log.push(String::new());
-        log.push("With forced events:".into());
-        log.extend(s[0].log.iter().cloned());
+        arms.push(("With forced events", &s[0]));
         written.insert(1, "run1_with_event.csv");
     }
     write_summary_csv(&out.join("summary.csv"), &baseline, scenario.as_deref()).map_err(io)?;
-    std::fs::write(out.join("log.txt"), log.join("\n") + "\n").map_err(io)?;
+    let (text, json) = report::chronicles(&arms, args.log_level);
+    std::fs::write(out.join("log.txt"), text).map_err(io)?;
+    std::fs::write(out.join("log.json"), json).map_err(io)?;
     if config.map.enabled {
         let geo = geography::build(&config)?;
         let names: Vec<String> = config.villages.iter().map(|v| v.name.clone()).collect();

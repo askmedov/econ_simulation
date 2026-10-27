@@ -62,8 +62,15 @@ enum Command {
     },
     /// Each run's measures per place, one line of JSON each (with --event, both arms)
     Places(RunArgs),
-    /// Each run's log of notable happenings (with the forced events)
-    Logs(RunArgs),
+    /// Each run's log, ranked by importance, year by year (with the forced
+    /// events; --log-level for how much)
+    Logs {
+        /// The plain list of happenings instead, as Python's
+        #[arg(long)]
+        flat: bool,
+        #[command(flatten)]
+        run: RunArgs,
+    },
     /// Run many seeds and settings and flag outcomes no real village would show (as scripts/sanity_check.py)
     Sanity {
         /// Many more seeds
@@ -181,9 +188,9 @@ fn main() {
             threads(args.workers);
             args.config().and_then(|config| dump::places(&config, &args.forced()?, args.runs))
         }
-        Some(Command::Logs(args)) => {
+        Some(Command::Logs { flat, run: args }) => {
             threads(args.workers);
-            args.config().and_then(|config| dump::logs(&config, &args.forced()?, args.runs))
+            args.config().and_then(|config| dump::logs(&config, &args.forced()?, args.runs, args.log_level, flat))
         }
         Some(Command::Bench { config: Some(path), months, .. }) => {
             econ_core::Config::from_file(&path).map_err(|e| e.to_string()).and_then(|c| bench::run_config(c, months))

@@ -474,6 +474,17 @@
   "least_lending": 0.5,
   "hunger_leaving": 4.0
  },
+ "chronicle": {
+  "major_share": 0.1,
+  "notable_share": 0.05,
+  "famine_ration": 0.8,
+  "short_ration": 0.97,
+  "deaths_surge": 1.5,
+  "fewest_deaths": 5.0,
+  "leaving_surge": 2.0,
+  "price_surge": 1.4,
+  "places_listed": 5
+ },
  "products": [
   {
    "name": "food",

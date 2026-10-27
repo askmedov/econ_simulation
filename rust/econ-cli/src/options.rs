@@ -133,6 +133,11 @@ pub struct RunArgs {
     /// repeatable
     #[arg(long = "scale", value_name = "PATH=FACTOR")]
     pub scales: Vec<String>,
+    /// How much the log (log.txt) tells: 1, only what touched much of the
+    /// region (and forced events); 2, also notable events and towns; 3, also
+    /// single places; 4, everything
+    #[arg(long, default_value_t = 3, value_parser = clap::value_parser!(u8).range(1..=4))]
+    pub log_level: u8,
     /// Threads to run the runs on (default: all cores)
     #[arg(long)]
     pub workers: Option<usize>,

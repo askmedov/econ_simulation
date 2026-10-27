@@ -37,7 +37,7 @@ fn the_standard_run_is_a_region_of_a_million_people() {
     let report = run(&["--months", "1"], &out);
     assert!(report.starts_with("Region of 2460 villages"));
     assert!(report.contains("98 market towns"));
-    assert_eq!(files(&out), ["log.txt", "places.csv", "run1.csv", "summary.csv"]);
+    assert_eq!(files(&out), ["log.json", "log.txt", "places.csv", "run1.csv", "summary.csv"]);
 }
 
 #[test]
@@ -54,7 +54,7 @@ fn a_single_village_run_writes_its_files() {
     let report = run(&["--population", "1000", "--months", "12"], &out);
     assert!(report.starts_with("Village of 1000 people"));
     assert!(report.contains("After 12 months"));
-    assert_eq!(files(&out), ["log.txt", "run1.csv", "summary.csv"]);
+    assert_eq!(files(&out), ["log.json", "log.txt", "run1.csv", "summary.csv"]);
 }
 
 #[test]
@@ -204,4 +204,24 @@ fn a_run_starts_from_a_starting_point_with_changes_of_its_own() {
             econ_sim(&[&["--population", "1000", "--months", "1", "--out", out.to_str().unwrap()], bad].concat());
         assert!(!output.status.success(), "{bad:?} was accepted");
     }
+}
+
+#[test]
+fn the_log_goes_year_by_year_with_the_most_important_first() {
+    let out = folder("log");
+    run(&["--size", "100k", "--months", "24", "--event", "drought@4"], &out);
+    let log = std::fs::read_to_string(out.join("log.txt")).unwrap();
+    assert!(log.contains("Without forced events") && log.contains("With forced events"));
+    assert!(log.contains("Year 1 (Jan to Dec)") && log.contains("Year 2") && log.contains("In brief:"));
+    assert!(log.contains("[1] Apr: Drought in"), "the forced drought is in the year's brief");
+    let json: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(out.join("log.json")).unwrap()).unwrap();
+    let forced = json["with_forced_events"].as_array().unwrap();
+    assert!(forced.iter().any(|e| e["rank"] == 1 && e["what"].as_str().unwrap().contains("(forced)")));
+    // Asked for the first rank only, the months tell nothing below it.
+    let output = econ_sim(&["logs", "--size", "100k", "--months", "24", "--event", "drought@4", "--log-level", "1"]);
+    let told = String::from_utf8_lossy(&output.stdout);
+    assert!(told.contains("[1]") && !told.lines().any(|l| l.starts_with("    [3]") || l.starts_with("    [4]")));
+    let output = econ_sim(&["logs", "--population", "1000", "--months", "12", "--flat"]);
+    assert!(String::from_utf8_lossy(&output.stdout).contains("Year 1, "));
 }

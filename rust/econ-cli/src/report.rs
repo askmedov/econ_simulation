@@ -440,3 +440,21 @@ pub fn print_events(config: &Config) {
     );
     println!("Force a village event with --event NAME@MONTH, e.g. --event drought@4");
 }
+
+/// The first run's chronicle of each arm: as text, from rank 1 down to
+/// `most_rank`, and every entry as JSON.
+pub fn chronicles(arms: &[(&str, &econ_core::scenarios::Run)], most_rank: u8) -> (String, String) {
+    let mut text = String::from("What happened, year by year and month by month, the most important first. Ranks:\n");
+    for rank in econ_core::chronicle::RANKS.iter().take(most_rank as usize) {
+        text += &format!("  [{rank}\n").replacen(':', "]", 1);
+    }
+    let mut json = serde_json::Map::new();
+    json.insert("ranks".into(), serde_json::json!(econ_core::chronicle::RANKS));
+    for (title, run) in arms {
+        text += &format!("\n{title} (seed {}):\n", run.config.seed);
+        text += &run.chronicle.text(&run.records, most_rank);
+        let key = if title.starts_with("With") { "with_forced_events" } else { "without_forced_events" };
+        json.insert(key.into(), serde_json::json!(run.chronicle.entries));
+    }
+    (text, serde_json::Value::Object(json).to_string() + "\n")
+}

@@ -821,6 +821,37 @@ class RefugeesConfig:
 
 
 @dataclass(frozen=True)
+class ChronicleConfig:
+    """What the chronicle, the run's log ranked by importance, tells. (Rust only.)
+
+    Each month the chronicle notes the events that started, famines and
+    shortages that began or ended, deaths and departures far above the
+    usual, grain grown dear, a hungry city, councils formed and villages
+    emptied, each with the places it touched, worst first. Entries are of
+    four ranks: 1, what touches `major_share` of the region's people or
+    more, and every forced event; 2, `notable_share` or more, or a town;
+    3, a place or a few; 4, the small change of a month (food short for a
+    while, a council formed). Good news ranks one lower than bad."""
+
+    major_share: float = 0.1
+    notable_share: float = 0.05
+    # A place eating less than `famine_ration` of its need is in famine;
+    # less than `short_ration`, short of food.
+    famine_ration: float = 0.8
+    short_ration: float = 0.97
+    # Deaths `deaths_surge` times the usual (and at least `fewest_deaths`
+    # more, in a place) are a surge; people leaving `leaving_surge` times the
+    # usual, a flight; grain `price_surge` times its usual price, a dearth.
+    # The usual is a running average of the months without one.
+    deaths_surge: float = 1.5
+    fewest_deaths: float = 5.0
+    leaving_surge: float = 2.0
+    price_surge: float = 1.4
+    # Places named under an entry; the rest are counted.
+    places_listed: int = 5
+
+
+@dataclass(frozen=True)
 class MindsConfig:
     """Families with minds of their own: the Rust engine's way (`rust/`),
     on by default there. This model ignores it: its families all follow
@@ -1112,6 +1143,7 @@ class Config:
     harvest_hands: HarvestHandsConfig = field(default_factory=HarvestHandsConfig)
     refugees: RefugeesConfig = field(default_factory=RefugeesConfig)
     minds: MindsConfig = field(default_factory=MindsConfig)
+    chronicle: ChronicleConfig = field(default_factory=ChronicleConfig)
     products: tuple[ProductSpec, ...] = DEFAULT_PRODUCTS
     businesses: tuple[BusinessSpec, ...] = DEFAULT_BUSINESSES
     events: tuple[EventSpec, ...] = DEFAULT_EVENTS
