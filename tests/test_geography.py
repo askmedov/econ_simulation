@@ -73,6 +73,22 @@ def test_a_small_region_keeps_one_outlet_and_its_city_sized_by_its_countryside()
     assert region(replace(settings, outlets=3)) != config
 
 
+def test_each_resource_lies_in_its_own_terrains_and_the_towns_nearest_and_iron_stays_where_it_was():
+    settings = RegionSettings(villages=400)
+    config = region(settings)
+    villages = [v for v in config.villages if v.kind == "village"]
+    towns = [v for v in config.villages if v.kind == "town"]
+    nearest = [int(np.argmin([np.hypot(v.x - t.x, v.y - t.y) for t in towns])) for v in villages]
+    for deposit in settings.deposits:
+        with_it = [i for i, v in enumerate(villages) if deposit.name in v.resources]
+        assert with_it, f"{deposit.name} is found somewhere"
+        assert all(villages[i].terrain in deposit.terrains for i in with_it)
+        worked = {nearest[i] for i in with_it}
+        assert [k in worked for k in range(len(towns))] == [deposit.name in t.resources for t in towns]
+    iron_only = region(replace(settings, deposits=settings.deposits[:1]))
+    assert [("iron" in v.resources) for v in iron_only.villages] == [("iron" in v.resources) for v in config.villages]
+
+
 def test_every_village_can_reach_a_market_town():
     config = region(RegionSettings(villages=80, seed=5))
     geo = geography.build(config)

@@ -1,8 +1,8 @@
 //! The chronicle: what happened in a run, ranked by importance, through time.
 //!
 //! Each month it notes the events that started, famines and shortages that
-//! began or ended, deaths and departures far above the usual, grain and
-//! tools grown dear, a hungry city, councils formed and villages emptied.
+//! began or ended, deaths and departures far above the usual, grain, tools
+//! and salt grown dear, a hungry city, councils formed and villages emptied.
 //! An entry names the places it touched, worst first, under it. Entries are
 //! of four ranks (`ChronicleConfig`): 1, what touches a large share of the
 //! region's people, and every forced event; 2, a smaller but notable share,
@@ -73,7 +73,7 @@ pub struct Chronicle {
     usual_deaths: Option<f64>,  // a month, per person, in the region
     usual_leaving: Option<f64>, // a month, per person
     grain: Dearness,
-    tools: Dearness,
+    goods: Vec<(String, Dearness)>, // tools and the staples, by name
     city_hungry: bool,
     famine_people: f64, // in famine last month
 }
@@ -162,6 +162,12 @@ fn boon(spec: &EventSpec) -> bool {
         "debt_cancel" => true,
         _ => false,
     })
+}
+
+/// "salt" -> "Salt".
+fn capitalised(word: &str) -> String {
+    let mut letters = word.chars();
+    letters.next().map_or_else(String::new, |first| first.to_uppercase().chain(letters).collect())
 }
 
 fn plural(count: usize, one: &str, many: &str) -> String {
@@ -426,18 +432,33 @@ impl Chronicle {
             }
             (None, _) => {}
         }
-        // Tools too (the smiths short of iron, or of hands): every farm feels it.
-        let tool = &config.products[config.product_for("tool")].name;
-        if let Some(&(_, price)) = r.prices.iter().find(|(name, _)| name == tool) {
-            match self.tools.month(price, cfg.price_surge) {
+        // Tools too (the smiths short of iron, or of hands): every farm feels
+        // it; and the staples every family buys (salt).
+        let tool = config.product_for("tool");
+        let staples = (0..config.products.len()).filter(|&p| config.products[p].use_ == "staple");
+        for p in std::iter::once(tool).chain(staples) {
+            let name = &config.products[p].name;
+            let Some(&(_, price)) = r.prices.iter().find(|(n, _)| n == name) else { continue };
+            let k = match self.goods.iter().position(|(n, _)| n == name) {
+                Some(k) => k,
+                None => {
+                    self.goods.push((name.clone(), Dearness::default()));
+                    self.goods.len() - 1
+                }
+            };
+            let (good, unit, its, kinds) = if p == tool {
+                ("Tools are".to_string(), "a tool", "their", ("tools dear", "tools dear over"))
+            } else {
+                (format!("{} is", capitalised(name)), "a unit", "its", ("staple dear", "staple dear over"))
+            };
+            match self.goods[k].1.month(price, cfg.price_surge) {
                 (Some(true), usual) => {
-                    let what =
-                        format!("Tools are dear: {price:.2} a tool, {:.1} times their usual price", price / usual);
-                    self.note(r, 2, "tools dear", what, total, Vec::new(), listed);
+                    let what = format!("{good} dear: {price:.2} {unit}, {:.1} times {its} usual price", price / usual);
+                    self.note(r, 2, kinds.0, what, total, Vec::new(), listed);
                 }
                 (Some(false), _) => {
-                    let what = format!("Tools are no longer dear: {price:.2} a tool");
-                    self.note(r, 3, "tools dear over", what, total, Vec::new(), listed);
+                    let what = format!("{good} no longer dear: {price:.2} {unit}");
+                    self.note(r, 3, kinds.1, what, total, Vec::new(), listed);
                 }
                 (None, _) => {}
             }
@@ -617,5 +638,6 @@ mod tests {
         // (the usual price stood still while the good was dear)
         let (_, usual) = good.month(2.0, 1.4);
         assert!(usual > 2.0 && usual < 2.1, "{usual}");
+        assert_eq!(capitalised("salt"), "Salt");
     }
 }

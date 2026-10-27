@@ -2628,3 +2628,118 @@ engine gives month for month the same results as before.
   short stock evenly and every coin paid goes to a maker or a merchant; a
   good is dear from the surge until halfway back. Invariants and coins are
   checked every month with the crafts on (city and 3 towns, region of 20).
+
+### 15. More resources and trades: salt, pots and lead (built)
+
+Iron was the one resource. Now there are four, laid out by the region's
+`RegionSettings.deposits`, and three more trades that work them. Each
+links a part of the map to everyone who needs its good (Rust only;
+`CraftsConfig`, and switched off the engine gives month for month the
+same results as before).
+
+- **Where the resources are:** each deposit lies in a share of the
+  villages of its terrains, where a smooth random field of it runs
+  richest, in patches about `patch_km` across, and in the town each of
+  those villages is nearest. They are drawn last, each from a field of its
+  own, so the rest of the region (iron first among them) is as before.
+  - iron: 3 in 10 hill villages, in patches 30 km across;
+  - lead: 15 in 100 hill villages, 30 km;
+  - salt: brine springs in 3 in 100 lowland villages (plain, valley,
+    coast), 15 km;
+  - clay: 15 in 100 valley and plain villages, 10 km.
+  - At a million: iron in 160 places, lead in 80, salt in 63, clay in 288
+    (with 15, 7, 12 and 34 of the 98 towns). The patches were first a
+    quarter of the region's side: at ten million that made them 120 km
+    across, most places many towns from any salt, and salt cost 10 to 15
+    there (0.3 at a million). In kilometres they are the same at every
+    size.
+- **Three new trades** (each where its resource is, each burning its own
+  wood from the place's woods, `BusinessSpec.woods`):
+  - **saltworks:** brine boiled over wood fires, 30 units a worker a
+    month, a quarter of a unit of wood each. Salt is a new kind of good, a
+    **staple** (`ProductSpec.use`): every person needs 0.1 units a month
+    (`CraftsConfig.staples`), and families buy it with their coins first
+    of all after grain, before firewood, which they can gather on the
+    commons. Bought after the firewood, half the families had no coins
+    left for it.
+  - **potting:** 3 pots a worker a month, half a unit of wood each and
+    0.03 of lead for the glaze. Pots are a comfort: families spend a fifth
+    of what they spend on comforts on pots and the rest on cloth
+    (`CraftsConfig.comforts`), and so does the lord's household. Home-made
+    cloth stands in for bought cloth only. The comfort trades start with
+    the weavers' hands split the same way.
+  - **leadworks:** 8 units of lead a worker a month, for the potters'
+    glaze and for the world beyond.
+- **A town's trades burn wood from its countryside:** a town's own woods
+  are small, and within a few years the city's kilns burned them down,
+  leaving its potters a tenth of their work. A town's salt pans, kilns and smelters
+  now burn from its own woods and its villages', and the wood is cut from
+  each by what it holds.
+- **Exports** are now capped for every 1,000 of the region's people rather
+  than as a share of what it orders (that counted a good the region
+  doesn't use as nothing, and counted iron twice): cloth up to 40 a month
+  for every 1,000 people, iron 0.65, lead 2 (3 rations' worth a unit).
+- **A mover leaves a trade the new place can't work:** a leadworker who
+  moves to a place without lead looks for other work, as a farmer who
+  moves to a town does.
+- **The chronicle** tells when salt grows dear, as it does tools (rank 2;
+  twice in ten years at 100,000). `staples_bought` in the records is the
+  share of their salt families got.
+- **Ten years at a million** (seed 42), with the crafts and without:
+
+| Year | Tools | Grain | Salt (got) | Pots | Cloth | Potters | People | Exports |
+|---|---|---|---|---|---|---|---|---|
+| 1 | 2.72 / 2.80 | 1.07 / 1.06 | 0.33 (96%) | 1.44 | 1.84 / 1.84 | 7,914 | 1,009,461 / 1,009,309 | 9,817 |
+| 2 | 3.15 / 3.48 | 1.22 / 1.20 | 0.42 (78%) | 2.58 | 2.92 / 2.95 | 9,161 | 1,001,787 / 1,000,950 | 12,591 |
+| 3 | 2.71 / 2.99 | 1.14 / 1.14 | 0.15 (73%) | 2.80 | 2.75 / 2.81 | 11,933 | 999,709 / 996,031 | 8,901 |
+| 4 | 2.72 / 2.93 | 0.99 / 1.01 | 0.13 (73%) | 3.11 | 2.56 / 2.71 | 14,918 | 1,003,618 / 994,434 | 6,670 |
+| 5 | 3.02 / 3.23 | 0.87 / 0.89 | 0.31 (76%) | 3.01 | 2.40 / 2.65 | 16,596 | 1,009,466 / 992,787 | 21,729 |
+| 6 | 3.09 / 3.37 | 0.75 / 0.79 | 0.39 (78%) | 3.07 | 2.24 / 2.60 | 18,049 | 1,019,831 / 995,251 | 23,011 |
+| 7 | 2.85 / 3.45 | 0.91 / 0.96 | 0.30 (74%) | 2.71 | 2.11 / 2.52 | 19,707 | 1,027,920 / 995,239 | 49,412 |
+| 8 | 3.05 / 3.48 | 1.00 / 1.04 | 0.40 (72%) | 2.28 | 1.99 / 2.47 | 20,247 | 1,032,415 / 994,713 | 45,702 |
+| 9 | 3.38 / 3.56 | 0.99 / 1.02 | 0.47 (71%) | 2.58 | 1.89 / 2.44 | 19,786 | 1,029,913 / 990,278 | 42,603 |
+| 10 | 3.24 / 3.49 | 0.80 / 0.85 | 0.51 (76%) | 3.10 | 1.80 / 2.44 | 20,099 | 1,033,338 / 989,988 | 38,401 |
+
+  (yearly averages; prices a plain mean over places; exports in coins a
+  month)
+  - Tools stay below their price without the crafts (0.83 to 0.97
+    times), and grain within 6% of it.
+  - Families get about three-quarters of the salt they need, 96% in the
+    first year while they have their savings; the rest have no coins left.
+  - The potters start four times short of what families want, and pots
+    stay at their highest mark-up for six years while the potters grow
+    (from 7,900 to 20,000). Cloth grows cheaper as families spend less of
+    their comfort money on it.
+  - Wages rise: 2.12 against 1.16 in year ten, and a month's pay buys a
+    third more food (1.30 against 0.98). Immigrants come at up to twice
+    the rate, and the region ends 4.4% bigger.
+  - The trades' fires thin the woods a little: 0.95 of their start by
+    year ten, against 0.98.
+  - At 100,000 (three seeds) the same: tools 0.74 to 1.14 times the
+    baseline, families get 66 to 97% of their salt, the region 4 to 5%
+    bigger after ten years.
+  - At ten million (18 months) tools cost 2.6 to 3.6, salt 0.6 to 1.5 and
+    pots 1.1 to 3.0, and families get 77 to 100% of their salt.
+- **What-ifs** (the city and 3 towns, months 7 to 18, three seeds; a
+  tenth of the usual work where the resource is):
+  - iron: tools 1.3 to 1.5 times dearer where iron is brought in;
+  - lead: pots 1.14 to 1.22 times dearer where they are brought in, lead 6
+    to 25 times;
+  - salt: 11 to 29 times dearer, and families get 36% of their salt
+    instead of 88%.
+- **Speed:** ten years of a million take 58 s on one core, the same as
+  with iron alone.
+- **Checked by tests:** nobody works a resource where there is none, and
+  its buyers there (the smiths, the potters) have it all the same; every
+  family needs salt and most get it though few places boil it; when the
+  lead hills make little lead, pots grow dear where they are brought in; a
+  village off the map has every resource and boils its own salt; the
+  crafts add salt, pots and lead, and the comfort trades share the weavers'
+  hands; a town's trades burn the woods of its countryside by what each
+  holds; each resource lies in its own terrains and the towns nearest, and
+  iron stays where it was (in Rust and in Python); a good is dear from the
+  surge until halfway back. The earlier crafts tests hold.
+- **Next, perhaps:** brewing, which takes grain in good years and gives it
+  back in bad (it needs businesses buying in the grain market, and
+  farming planned for it); hides and tanning from the November cull;
+  salt to keep the meat of the cull.

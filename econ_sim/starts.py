@@ -122,7 +122,7 @@ STARTS: tuple[Start, ...] = (
     ),
     Start(
         "village-crafts",
-        "Only the village's four crafts: no iron for the smiths, no crafts sold beyond the region",
+        "Only the village's four crafts: no iron, salt, pots or lead, no crafts sold beyond the region",
         set=(("crafts.enabled", False),),
     ),
 )

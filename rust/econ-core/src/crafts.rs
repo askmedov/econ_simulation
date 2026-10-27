@@ -1,16 +1,17 @@
-//! Crafts beyond the village's four (Python's `CraftsConfig`): iron dug and
-//! smelted where a place has it, which the smiths need for their tools, and
-//! the region's crafts sold beyond it at the border towns.
+//! Crafts beyond the village's four (Python's `CraftsConfig`): iron for the
+//! smiths' tools, salt that every family needs, pots fired where there is
+//! clay and glazed with lead, and lead for the potters and the world beyond;
+//! and the region's crafts sold beyond it at the border towns.
 //!
 //! A trade that needs a resource (`BusinessSpec.resource`) works only where
 //! a place has it (`VillageConfig.resources`). What it makes is sold across
-//! the region by merchants (ironmongers) from the makers' stock: in each
-//! place at the makers' price plus the way there (along the cheapest
-//! roads and routes, with the carting and the merchants' margin at each
-//! leg), so a scarcity shows where the good is made and its price reaches
-//! everywhere. The carting and the margin go to the merchants of the
-//! buyer's market town. A resource no place has is had by every place, and
-//! so is one off a map with towns: there is nowhere to bring it from.
+//! the region by merchants from the makers' stock: in each place at the
+//! makers' price plus the way there (along the cheapest roads and routes,
+//! with the carting and the merchants' margin at each leg), so a scarcity
+//! shows where the good is made and its price reaches everywhere. The
+//! carting and the margin go to the merchants of the buyer's market town.
+//! A resource no place has is had by every place, and so is one off a map
+//! with towns: there is nowhere to bring it from.
 
 use crate::config::Config;
 use crate::geography::Geography;
@@ -38,18 +39,65 @@ pub fn with_crafts(config: &Config) -> Config {
     for business in c.businesses.iter_mut().filter(|b| b.product == tool) {
         business.inputs = cc.smithing_inputs.clone();
     }
+    // The comfort trades start with the hands families' spending gives them.
+    let comfort: Vec<bool> =
+        c.businesses.iter().map(|b| c.products[c.product_index(&b.product)].use_ == "comfort").collect();
+    let hands: f64 = c.businesses.iter().zip(&comfort).filter(|(_, &is)| is).map(|(b, _)| b.initial_share).sum();
+    for (b, _) in comfort.iter().enumerate().filter(|(_, &is)| is) {
+        let share = comfort_share(&c, c.product_index(&c.businesses[b].product));
+        c.businesses[b].initial_share = hands * share;
+    }
     c
 }
 
-/// The wood each trade burns as charcoal, per unit it makes, cut from the
-/// place's woods: `crafts.charcoal` for the crafts' own trades (with the
-/// crafts enabled), none for the rest.
-pub fn charcoal(config: &Config) -> Vec<f64> {
+/// The share of what families spend on comforts that goes on comfort good
+/// `p`: as `crafts.comforts` says, with the crafts enabled; all of it
+/// without them (the village has the one).
+pub fn comfort_share(config: &Config, p: usize) -> f64 {
     let cc = &config.crafts;
-    config
-        .businesses
-        .iter()
-        .map(|b| if cc.enabled && cc.businesses.iter().any(|x| x.name == b.name) { cc.charcoal } else { 0.0 })
+    if !cc.enabled || cc.comforts.is_empty() {
+        return 1.0;
+    }
+    cc.comforts.iter().find(|(name, _)| *name == config.products[p].name).map_or(0.0, |&(_, share)| share)
+}
+
+/// Units of staple `p` a person needs a month (`crafts.staples`).
+pub fn staple_need(config: &Config, p: usize) -> f64 {
+    config.crafts.staples.iter().find(|(name, _)| *name == config.products[p].name).map_or(0.0, |&(_, need)| need)
+}
+
+/// The woods each place's trades burn from: a village's own, and a town's
+/// own and its villages' (a town's kilns and salt pans burn wood from the
+/// countryside around it). Per place, from the woods per place.
+pub fn woods_around(woods: &[f64], geo: &Geography) -> Vec<f64> {
+    let mut around = woods.to_vec();
+    if geo.has_towns() {
+        let to = geo.town_of();
+        for v in (0..woods.len()).filter(|&v| !geo.town[v] && to[v] != v) {
+            around[to[v]] += woods[v];
+        }
+    }
+    around
+}
+
+/// The wood the trades `burned` (per place), taken from the woods they burn
+/// from: a town's from its own and its villages', by what each holds.
+pub fn spread_burned(burned: &[f64], woods: &[f64], geo: &Geography) -> Vec<f64> {
+    if !geo.has_towns() {
+        return burned.to_vec();
+    }
+    let to = geo.town_of();
+    let around = woods_around(woods, geo);
+    (0..burned.len())
+        .map(|v| {
+            if geo.town[v] {
+                burned[v] * div_or(woods[v], around[v], 1.0)
+            } else {
+                let t = to[v];
+                let town = if t != v && geo.town[t] { burned[t] * div_or(woods[v], around[t], 0.0) } else { 0.0 };
+                burned[v] + town
+            }
+        })
         .collect()
 }
 
@@ -317,6 +365,52 @@ mod tests {
     }
 
     #[test]
+    fn the_crafts_add_salt_pots_and_lead_and_the_comfort_trades_share_the_weavers_hands() {
+        let base = standard_region(Standard::HundredThousand);
+        let c = with_crafts(&base);
+        for (trade, resource) in [("saltworks", "salt"), ("potting", "clay"), ("leadworks", "lead")] {
+            let spec = c.businesses.iter().find(|b| b.name == trade).unwrap();
+            assert_eq!(spec.resource.as_deref(), Some(resource));
+            assert!(spec.woods > 0.0, "{trade} burns wood");
+        }
+        let salt = c.product_index("salt");
+        assert_eq!(c.products[salt].use_, "staple");
+        assert!(staple_need(&c, salt) > 0.0);
+        let (cloth, pots) = (c.product_index("clothing"), c.product_index("pottery"));
+        assert!((comfort_share(&c, cloth) + comfort_share(&c, pots) - 1.0).abs() < 1e-12);
+        let weavers = base.businesses.iter().find(|b| b.name == "weaving").unwrap().initial_share;
+        let share = |name: &str| c.businesses.iter().find(|b| b.name == name).unwrap().initial_share;
+        assert!((share("weaving") - comfort_share(&c, cloth) * weavers).abs() < 1e-12);
+        assert!((share("potting") - comfort_share(&c, pots) * weavers).abs() < 1e-12);
+        let mut off = base.clone();
+        off.crafts.enabled = false;
+        assert_eq!(comfort_share(&off, cloth), 1.0, "without the crafts cloth is the one comfort");
+    }
+
+    #[test]
+    fn a_towns_trades_burn_the_woods_of_its_countryside_by_what_each_holds() {
+        let path = crate::config::configs_dir().join("regions").join("city3.json");
+        let c = Config::from_file(path).unwrap();
+        let geo = crate::geography::build(&c).unwrap();
+        let n = c.villages.len();
+        let woods: Vec<f64> = (0..n).map(|v| 100.0 + v as f64).collect();
+        let around = woods_around(&woods, &geo);
+        let town = (0..n).find(|&v| geo.town[v]).unwrap();
+        let country: Vec<usize> = (0..n).filter(|&v| !geo.town[v] && geo.market[v] == town as i64).collect();
+        assert!(!country.is_empty());
+        let held = woods[town] + country.iter().map(|&v| woods[v]).sum::<f64>();
+        assert!((around[town] - held).abs() < 1e-9);
+        assert_eq!(around[country[0]], woods[country[0]], "a village burns its own");
+        let mut burned = vec![0.0; n];
+        burned[town] = 50.0;
+        let cut = spread_burned(&burned, &woods, &geo);
+        assert!((cut.iter().sum::<f64>() - 50.0).abs() < 1e-9, "all of it is cut somewhere");
+        for &v in &country {
+            assert!((cut[v] - 50.0 * woods[v] / held).abs() < 1e-9);
+        }
+    }
+
+    #[test]
     fn only_the_places_without_iron_lack_it_and_a_village_off_the_map_has_its_own() {
         let c = with_crafts(&standard_region(Standard::HundredThousand));
         let geo = crate::geography::build(&c).unwrap();
@@ -336,7 +430,8 @@ mod tests {
         let geo = crate::geography::build(&c).unwrap();
         let lines = supply_lines(&c, &geo, &lacking(&c, &geo));
         let line = lines[c.product_index("iron")].clone().expect("iron is brought in");
-        assert!(lines.iter().filter(|l| l.is_some()).count() == 1, "only iron is made where a resource is");
+        let from_resources: Vec<bool> = lines.iter().map(Option::is_some).collect();
+        assert_eq!(from_resources, from_a_resource(&c), "a line for each good made where a resource is");
         (c, geo, line)
     }
 

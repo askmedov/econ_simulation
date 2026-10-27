@@ -177,6 +177,8 @@ class ProductSpec:
       tool     businesses, to make their workers more productive
       material businesses, as supplies for what they make (Rust only: see
                CraftsConfig)
+      staple   everyone, a little every month, from their coins (Rust only:
+               see CraftsConfig.staples)
     """
 
     name: str
@@ -207,6 +209,9 @@ class BusinessSpec:
     # and its `initial_share` is of the whole region's workers, all there; a
     # resource no place has is had by every place. (Rust only.)
     resource: str | None = None
+    # Wood it burns a unit made, cut from the place's woods: its work goes
+    # slower where the woods have thinned, as the woodcutters' does. (Rust only.)
+    woods: float = 0.0
 
 
 DEFAULT_PRODUCTS: tuple[ProductSpec, ...] = (
@@ -833,36 +838,65 @@ class RefugeesConfig:
 class CraftsConfig:
     """Crafts beyond the village's four (Rust only).
 
-    Iron is dug and smelted where a place has it (`VillageConfig.resources`:
-    part of the hills), and the smiths need it for their tools: a war in
-    the iron hills reaches every farm that wants a ploughshare. The
-    miner-smelters burn their own charcoal, `charcoal` units of wood a unit
-    of iron, cut from the place's woods (so their work goes slower where
-    the woods have thinned, as the woodcutters' does). Merchants sell the
-    iron across the region from the makers' stock, at their price plus the
-    way. At the border towns the world beyond buys the region's crafts
-    (`exports`: rations' worth a unit at the outside grain price, less the
-    carting), up to `export_share` of what the whole region orders of them
-    a month, shared among the border towns: cloth and iron bring coins in,
-    as wool does.
+    Some are worked only where a place has their resource
+    (`VillageConfig.resources`, laid out by `RegionSettings.deposits`), and
+    merchants sell what they make across the region from the makers' stock,
+    at their price plus the way, so a trouble where it is made reaches
+    every place that needs it:
+      - iron, dug and smelted in part of the hills, for the smiths' tools;
+      - salt, boiled at the brine springs, which every family needs a
+        little of every month (`staples`: units a person);
+      - pots, fired where there is clay and glazed with lead, which take
+        their share of what families spend on comforts (`comforts`: the
+        share of each comfort good);
+      - lead, dug in another part of the hills, for the potters' glaze and
+        for the world beyond.
+    Their workers burn their own wood, cut from the place's woods
+    (`BusinessSpec.woods`). At the border towns the world beyond buys the
+    region's crafts (`exports`: rations' worth a unit at the outside grain
+    price, less the carting; and the most it buys a month for every 1,000
+    of the region's people, shared among the border towns): cloth, iron
+    and lead bring coins in, as wool does.
 
     With `enabled`, the Rust engine adds `products` and `businesses` to the
-    config's, and smithing takes `smithing_inputs` instead of its own."""
+    config's, smithing takes `smithing_inputs` instead of its own, and the
+    comfort trades start with the share of hands that families' spending
+    gives them."""
 
     enabled: bool = True
-    products: tuple[ProductSpec, ...] = (ProductSpec("iron", use="material", carriage=0.5),)
+    products: tuple[ProductSpec, ...] = (
+        ProductSpec("iron", use="material", carriage=0.5),
+        ProductSpec("salt", use="staple", carriage=1.0),
+        ProductSpec("pottery", use="comfort", carriage=0.5),
+        ProductSpec("lead", use="material", carriage=0.5),
+    )
     businesses: tuple[BusinessSpec, ...] = (
         # A miner-smelter's month: ore dug, charcoal burned, blooms of iron
         # hammered out (enough for some thirty tools). About as many hands at
         # the start as the smiths' iron settles at: a worker in a thousand.
-        BusinessSpec("ironworks", "iron", output=8.0, tool_boost=0.3, initial_share=0.001, resource="iron"),
+        BusinessSpec("ironworks", "iron", output=8.0, tool_boost=0.3, initial_share=0.001, resource="iron",
+                     woods=1.0),
+        # Brine boiled in lead pans over wood fires: salt for some three
+        # hundred people a month.
+        BusinessSpec("saltworks", "salt", output=30.0, tool_boost=0.2, initial_share=0.004, resource="salt",
+                     woods=0.25),
+        # A potter's month: clay dug and thrown, a kiln fired, the pots
+        # glazed with lead.
+        BusinessSpec("potting", "pottery", output=3.0, tool_boost=0.2, inputs=(("lead", 0.03),),
+                     resource="clay", woods=0.5),
+        BusinessSpec("leadworks", "lead", output=8.0, tool_boost=0.3, initial_share=0.001, resource="lead",
+                     woods=0.5),
     )
-    charcoal: float = 1.0
     # A smith's iron for a tool, and less of the firewood than without it
     # (the iron comes smelted).
     smithing_inputs: tuple[tuple[str, float], ...] = (("iron", 0.25), ("firewood", 1.5))
-    exports: tuple[tuple[str, float], ...] = (("clothing", 2.5), ("iron", 2.0))
-    export_share: float = 0.1
+    staples: tuple[tuple[str, float], ...] = (("salt", 0.1),)
+    comforts: tuple[tuple[str, float], ...] = (("clothing", 0.8), ("pottery", 0.2))
+    exports: tuple[tuple[str, float, float], ...] = (
+        ("clothing", 2.5, 40.0),
+        ("iron", 2.0, 0.65),
+        ("lead", 3.0, 2.0),
+    )
 
 
 @dataclass(frozen=True)
@@ -871,8 +905,8 @@ class ChronicleConfig:
 
     Each month the chronicle notes the events that started, famines and
     shortages that began or ended, deaths and departures far above the
-    usual, grain and tools grown dear, a hungry city, councils formed and
-    villages emptied, each with the places it touched, worst first.
+    usual, grain, tools and salt grown dear, a hungry city, councils formed
+    and villages emptied, each with the places it touched, worst first.
     Entries are of four ranks: 1, what touches `major_share` of the
     region's people or more, and every forced event; 2, `notable_share` or
     more, or a town; 3, a place or a few; 4, the small change of a month
@@ -887,8 +921,8 @@ class ChronicleConfig:
     short_ration: float = 0.97
     # Deaths `deaths_surge` times the usual (and at least `fewest_deaths`
     # more, in a place) are a surge; people leaving `leaving_surge` times the
-    # usual, a flight; grain or tools `price_surge` times their usual price,
-    # a dearth. The usual is a running average of the months without one.
+    # usual, a flight; grain, tools or salt `price_surge` times its usual
+    # price, a dearth. The usual is a running average of the months without one.
     deaths_surge: float = 1.5
     fewest_deaths: float = 5.0
     leaving_surge: float = 2.0

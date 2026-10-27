@@ -456,14 +456,18 @@ pub fn move_people(
         }
     }
     // Council officials and healers serve their own place only; a farmer who
-    // moves to a town looks for other work.
+    // moves to a town looks for other work, and so does one whose trade
+    // needs a resource the new place lacks.
     let farming = config.farming() as i16;
     let nb = config.businesses.len() as i16;
     let towns = geo.has_towns();
+    let lacking = config.businesses.iter().any(|b| b.resource.is_some()).then(|| crate::crafts::lacking(config, geo));
     for &i in &moved {
         let job = population.job[i];
-        let to_town = towns && geo.town[population.location[i] as usize] && job == farming;
-        if job >= nb || to_town {
+        let v = population.location[i] as usize;
+        let to_town = towns && geo.town[v] && job == farming;
+        let lacks = lacking.as_ref().is_some_and(|l| (0..nb).contains(&job) && l[v][job as usize]);
+        if job >= nb || to_town || lacks {
             population.job[i] = NO_JOB;
         }
     }

@@ -32,11 +32,22 @@ pub struct RegionSettings {
     pub city_share: f64,        // and in a big region at least this share of all its people
     pub outlets: Option<usize>, // towns trading beyond the region; None: one for every 150 km of its edge
     pub upland: f64,            // share of villages in the hills (to the west)
-    pub iron: f64,              // share of the hill villages with iron, where the ore runs richest
     pub forest: f64,            // share of the rest in the woods
+    pub deposits: Vec<Deposit>, // where each resource is found, each drawn from a field of its own
     pub river: bool,            // a river across the region, west to east
     pub coast: bool,            // a coast along the east side
     pub seed: i64,
+}
+
+/// Where a resource is found: in `share` of the villages of these
+/// `terrains`, where it runs richest, in patches about `patch_km` across.
+#[derive(Clone, Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Deposit {
+    pub name: String,
+    pub terrains: Vec<String>,
+    pub share: f64,
+    pub patch_km: f64,
 }
 
 #[derive(Deserialize)]
@@ -332,21 +343,26 @@ pub fn region(settings: &RegionSettings, base: &Config) -> Result<Config, String
         rivers = order.windows(2).map(|w| (w[0], w[1])).collect();
     }
 
-    // Iron in part of the hills, where a smooth field of ore runs richest
-    // (drawn last, so the rest of the region is as before); a town whose
-    // villages have it smelts and works it.
-    let hill: Vec<usize> = (0..n).filter(|&i| terrain[i] == "upland").collect();
-    let mut iron = vec![false; n];
-    if s.iron > 0.0 && !hill.is_empty() {
-        let ore = smooth(&x, &y, side / 4.0, &mut rng);
-        let line = quantile(&hill.iter().map(|&i| ore[i]).collect::<Vec<_>>(), 1.0 - s.iron);
-        for &i in &hill {
-            iron[i] = ore[i] >= line;
+    // Each resource where a smooth field of it runs richest, in villages of
+    // its terrains (drawn last, so the rest of the region is as before); a
+    // town whose villages have it works it too.
+    let mut found: Vec<Vec<String>> = vec![Vec::new(); n];
+    let mut found_in_town: Vec<Vec<String>> = vec![Vec::new(); m];
+    for deposit in &s.deposits {
+        let fit: Vec<usize> = (0..n).filter(|&i| deposit.terrains.iter().any(|t| t == terrain[i])).collect();
+        if deposit.share <= 0.0 || fit.is_empty() {
+            continue;
         }
-    }
-    let mut iron_town = vec![false; m];
-    for i in (0..n).filter(|&i| iron[i]) {
-        iron_town[nearest[i]] = true;
+        let field = smooth(&x, &y, deposit.patch_km, &mut rng);
+        let line = quantile(&fit.iter().map(|&i| field[i]).collect::<Vec<_>>(), 1.0 - deposit.share);
+        let mut in_town = vec![false; m];
+        for &i in fit.iter().filter(|&&i| field[i] >= line) {
+            found[i].push(deposit.name.clone());
+            in_town[nearest[i]] = true;
+        }
+        for t in (0..m).filter(|&t| in_town[t]) {
+            found_in_town[t].push(deposit.name.clone());
+        }
     }
 
     let village = &base.villages[0];
@@ -364,7 +380,7 @@ pub fn region(settings: &RegionSettings, base: &Config) -> Result<Config, String
             kind: "village".into(),
             border: false,
             stronghold: false,
-            resources: if iron[i] { vec!["iron".into()] } else { Vec::new() },
+            resources: found[i].clone(),
         })
         .collect();
     places.extend((0..m).map(|t| VillageConfig {
@@ -378,7 +394,7 @@ pub fn region(settings: &RegionSettings, base: &Config) -> Result<Config, String
         kind: "town".into(),
         border: border[t],
         stronghold: t == first && is_city,
-        resources: if iron_town[t] { vec!["iron".into()] } else { Vec::new() },
+        resources: found_in_town[t].clone(),
     }));
     let mut config = base.clone();
     config.villages = places;
@@ -401,6 +417,39 @@ mod tests {
         assert_eq!(a, b);
         let c = region(&RegionSettings { seed: 2, ..s }, &default_config()).unwrap();
         assert_ne!(a.villages, c.villages);
+    }
+
+    #[test]
+    fn each_resource_lies_in_its_own_terrains_and_the_towns_nearest_and_iron_stays_where_it_was() {
+        let s = RegionSettings { villages: 400, ..Default::default() };
+        let config = region(&s, &default_config()).unwrap();
+        let places = &config.villages;
+        for deposit in &s.deposits {
+            let with: Vec<&VillageConfig> = places.iter().filter(|v| v.resources.contains(&deposit.name)).collect();
+            assert!(with.iter().any(|v| v.kind == "village"), "{} is found somewhere", deposit.name);
+            for v in with.iter().filter(|v| v.kind == "village") {
+                assert!(deposit.terrains.contains(&v.terrain), "{} in {}", deposit.name, v.terrain);
+            }
+            // (a town has it if and only if one of the villages nearest it does)
+            let towns: Vec<&VillageConfig> = places.iter().filter(|v| v.kind == "town").collect();
+            let nearest = |v: &VillageConfig| {
+                (0..towns.len())
+                    .min_by(|&a, &b| {
+                        let d = |t: &VillageConfig| (v.x - t.x).hypot(v.y - t.y);
+                        d(towns[a]).total_cmp(&d(towns[b]))
+                    })
+                    .unwrap()
+            };
+            for (k, town) in towns.iter().enumerate() {
+                let any = with.iter().any(|v| v.kind == "village" && nearest(v) == k);
+                assert_eq!(town.resources.contains(&deposit.name), any, "{} in {}", deposit.name, town.name);
+            }
+        }
+        let iron_only = RegionSettings { deposits: s.deposits[..1].to_vec(), ..s.clone() };
+        let alone = region(&iron_only, &default_config()).unwrap();
+        let iron =
+            |c: &Config| -> Vec<bool> { c.villages.iter().map(|v| v.resources.contains(&"iron".into())).collect() };
+        assert_eq!(iron(&alone), iron(&config), "the other resources are drawn after the iron");
     }
 
     #[test]

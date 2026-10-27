@@ -284,6 +284,17 @@ def normal_share(z: np.ndarray) -> np.ndarray:
 
 
 @dataclass(frozen=True)
+class Deposit:
+    """Where a resource is found: in `share` of the villages of these
+    `terrains`, where it runs richest, in patches about `patch_km` across."""
+
+    name: str
+    terrains: tuple[str, ...]
+    share: float
+    patch_km: float
+
+
+@dataclass(frozen=True)
 class RegionSettings:
     """A few settings for `region`."""
 
@@ -306,8 +317,16 @@ class RegionSettings:
     # spread along the region's edge; None: one for every 150 km of the edge.
     outlets: int | None = None
     upland: float = 0.2  # share of villages in the hills (to the west)
-    iron: float = 0.3  # share of the hill villages with iron, where the ore runs richest
     forest: float = 0.15  # share of the rest in the woods
+    # Where each resource is found (VillageConfig.resources), each drawn
+    # from a field of its own.
+    deposits: tuple[Deposit, ...] = (
+        Deposit("iron", ("upland",), 0.3, patch_km=30.0),
+        Deposit("lead", ("upland",), 0.15, patch_km=30.0),
+        # brine springs, where salt is boiled
+        Deposit("salt", ("plain", "valley", "coast"), 0.03, patch_km=15.0),
+        Deposit("clay", ("valley", "plain"), 0.15, patch_km=10.0),
+    )
     river: bool = True  # a river across the region, west to east
     coast: bool = False  # a coast along the east side
     seed: int = 1
@@ -405,15 +424,21 @@ def region(settings: RegionSettings = RegionSettings(), base: Config | None = No
         order = banks[np.argsort(px[banks])]
         rivers = [(int(a), int(b)) for a, b in zip(order[:-1], order[1:])]
 
-    # Iron in part of the hills, where a smooth field of ore runs richest
-    # (drawn last, so the rest of the region is as before); a town whose
-    # villages have it smelts and works it.
-    hill = terrain == "upland"
-    iron = np.zeros(n, dtype=bool)
-    if s.iron > 0 and hill.any():
-        ore = _smooth(x, y, side / 4, rng)
-        iron = hill & (ore >= np.quantile(ore[hill], 1.0 - s.iron))
-    iron_town = np.bincount(nearest[iron], minlength=m) > 0
+    # Each resource where a smooth field of it runs richest, in villages of
+    # its terrains (drawn last, so the rest of the region is as before); a
+    # town whose villages have it works it too.
+    found: list[tuple[str, ...]] = [() for _ in range(n)]
+    found_in_town: list[tuple[str, ...]] = [() for _ in range(m)]
+    for deposit in s.deposits:
+        fit = np.isin(terrain, deposit.terrains)
+        if deposit.share <= 0 or not fit.any():
+            continue
+        field = _smooth(x, y, deposit.patch_km, rng)
+        here = fit & (field >= np.quantile(field[fit], 1.0 - deposit.share))
+        for i in np.flatnonzero(here):
+            found[i] += (deposit.name,)
+        for t in np.flatnonzero(np.bincount(nearest[here], minlength=m) > 0):
+            found_in_town[t] += (deposit.name,)
 
     village = base.villages[0]
     per_person = village.land / village.population
@@ -423,7 +448,7 @@ def region(settings: RegionSettings = RegionSettings(), base: Config | None = No
             name=f"{str(terrain[i]).title()} {i + 1}", population=int(sizes[i]),
             land=round(per_person * sizes[i] * arable.get(str(terrain[i]), 1.0), 1),
             initial_food_months=village.initial_food_months, x=round(float(x[i]), 2), y=round(float(y[i]), 2),
-            terrain=str(terrain[i]), resources=("iron",) if iron[i] else (),
+            terrain=str(terrain[i]), resources=found[i],
         )
         for i in range(n)
     )
@@ -434,7 +459,7 @@ def region(settings: RegionSettings = RegionSettings(), base: Config | None = No
             initial_food_months=0.0,
             x=round(float(tx[t]), 2), y=round(float(ty[t]), 2), terrain="valley" if on_bank[t] else "plain",
             kind="town", border=bool(border[t]), stronghold=bool(t == first and is_city),
-            resources=("iron",) if iron_town[t] else (),
+            resources=found_in_town[t],
         )
         for t in range(m)
     )

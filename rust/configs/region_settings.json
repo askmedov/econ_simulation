@@ -12,8 +12,44 @@
   "city_share": 0.015,
   "outlets": null,
   "upland": 0.2,
-  "iron": 0.3,
   "forest": 0.15,
+  "deposits": [
+   {
+    "name": "iron",
+    "terrains": [
+     "upland"
+    ],
+    "share": 0.3,
+    "patch_km": 30.0
+   },
+   {
+    "name": "lead",
+    "terrains": [
+     "upland"
+    ],
+    "share": 0.15,
+    "patch_km": 30.0
+   },
+   {
+    "name": "salt",
+    "terrains": [
+     "plain",
+     "valley",
+     "coast"
+    ],
+    "share": 0.03,
+    "patch_km": 15.0
+   },
+   {
+    "name": "clay",
+    "terrains": [
+     "valley",
+     "plain"
+    ],
+    "share": 0.15,
+    "patch_km": 10.0
+   }
+  ],
   "river": true,
   "coast": false,
   "seed": 1

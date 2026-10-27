@@ -65,7 +65,9 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
-   "resources": [],
+   "resources": [
+    "salt"
+   ],
    "stronghold": false
   },
   {
@@ -169,7 +171,9 @@
    "terrain": "upland",
    "kind": "village",
    "border": false,
-   "resources": [],
+   "resources": [
+    "iron"
+   ],
    "stronghold": false
   },
   {
@@ -195,7 +199,9 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
-   "resources": [],
+   "resources": [
+    "clay"
+   ],
    "stronghold": false
   },
   {
@@ -208,9 +214,7 @@
    "terrain": "upland",
    "kind": "village",
    "border": false,
-   "resources": [
-    "iron"
-   ],
+   "resources": [],
    "stronghold": false
   },
   {
@@ -223,7 +227,9 @@
    "terrain": "valley",
    "kind": "village",
    "border": false,
-   "resources": [],
+   "resources": [
+    "clay"
+   ],
    "stronghold": false
   },
   {
@@ -262,7 +268,9 @@
    "terrain": "upland",
    "kind": "village",
    "border": false,
-   "resources": [],
+   "resources": [
+    "lead"
+   ],
    "stronghold": false
   },
   {
@@ -276,7 +284,10 @@
    "kind": "town",
    "border": true,
    "resources": [
-    "iron"
+    "iron",
+    "lead",
+    "salt",
+    "clay"
    ],
    "stronghold": false
   }
@@ -955,6 +966,21 @@
     "name": "iron",
     "use": "material",
     "carriage": 0.5
+   },
+   {
+    "name": "salt",
+    "use": "staple",
+    "carriage": 1.0
+   },
+   {
+    "name": "pottery",
+    "use": "comfort",
+    "carriage": 0.5
+   },
+   {
+    "name": "lead",
+    "use": "material",
+    "carriage": 0.5
    }
   ],
   "businesses": [
@@ -966,10 +992,48 @@
     "inputs": [],
     "uses_land": false,
     "initial_share": 0.001,
-    "resource": "iron"
+    "resource": "iron",
+    "woods": 1.0
+   },
+   {
+    "name": "saltworks",
+    "product": "salt",
+    "output": 30.0,
+    "tool_boost": 0.2,
+    "inputs": [],
+    "uses_land": false,
+    "initial_share": 0.004,
+    "resource": "salt",
+    "woods": 0.25
+   },
+   {
+    "name": "potting",
+    "product": "pottery",
+    "output": 3.0,
+    "tool_boost": 0.2,
+    "inputs": [
+     [
+      "lead",
+      0.03
+     ]
+    ],
+    "uses_land": false,
+    "initial_share": 0.0,
+    "resource": "clay",
+    "woods": 0.5
+   },
+   {
+    "name": "leadworks",
+    "product": "lead",
+    "output": 8.0,
+    "tool_boost": 0.3,
+    "inputs": [],
+    "uses_land": false,
+    "initial_share": 0.001,
+    "resource": "lead",
+    "woods": 0.5
    }
   ],
-  "charcoal": 1.0,
   "smithing_inputs": [
    [
     "iron",
@@ -980,17 +1044,39 @@
     1.5
    ]
   ],
+  "staples": [
+   [
+    "salt",
+    0.1
+   ]
+  ],
+  "comforts": [
+   [
+    "clothing",
+    0.8
+   ],
+   [
+    "pottery",
+    0.2
+   ]
+  ],
   "exports": [
    [
     "clothing",
-    2.5
+    2.5,
+    40.0
    ],
    [
     "iron",
+    2.0,
+    0.65
+   ],
+   [
+    "lead",
+    3.0,
     2.0
    ]
-  ],
-  "export_share": 0.1
+  ]
  },
  "products": [
   {
@@ -1023,7 +1109,8 @@
    "inputs": [],
    "uses_land": true,
    "initial_share": 0.8,
-   "resource": null
+   "resource": null,
+   "woods": 0.0
   },
   {
    "name": "woodcutting",
@@ -1033,7 +1120,8 @@
    "inputs": [],
    "uses_land": false,
    "initial_share": 0.1,
-   "resource": null
+   "resource": null,
+   "woods": 0.0
   },
   {
    "name": "weaving",
@@ -1043,7 +1131,8 @@
    "inputs": [],
    "uses_land": false,
    "initial_share": 0.07,
-   "resource": null
+   "resource": null,
+   "woods": 0.0
   },
   {
    "name": "smithing",
@@ -1058,7 +1147,8 @@
    ],
    "uses_land": false,
    "initial_share": 0.03,
-   "resource": null
+   "resource": null,
+   "woods": 0.0
   }
  ],
  "events": [

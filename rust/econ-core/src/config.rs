@@ -124,6 +124,7 @@ pub struct BusinessSpec {
     pub uses_land: bool,
     pub initial_share: f64,
     pub resource: Option<String>,
+    pub woods: f64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -415,10 +416,10 @@ pub struct CraftsConfig {
     pub enabled: bool,
     pub products: Vec<ProductSpec>,
     pub businesses: Vec<BusinessSpec>,
-    pub charcoal: f64,
     pub smithing_inputs: Vec<(String, f64)>,
-    pub exports: Vec<(String, f64)>,
-    pub export_share: f64,
+    pub staples: Vec<(String, f64)>,
+    pub comforts: Vec<(String, f64)>,
+    pub exports: Vec<(String, f64, f64)>,
 }
 
 /// What the chronicle tells (see `chronicle.rs`; Python's `ChronicleConfig`).

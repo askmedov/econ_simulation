@@ -7,7 +7,8 @@ Rust is [docs/RUST_HANDOFF.md](docs/RUST_HANDOFF.md).
 
 Last updated: October 2026, after the Rust engine's milestones 1-7 and its
 Phase 3 work through ten million people, starting points, a ranked log and
-a richer economy (the Python model at the end of Phase 3 step 4).
+a richer economy of four resources (the Python model at the end of Phase 3
+step 4).
 
 ## What this is
 
@@ -87,6 +88,15 @@ validation runs.
   their price without it, and the exports' coins keep 1.4% more people.
   The chronicle tells when tools grow dear. `--set crafts.enabled=false`
   (or `--start village-crafts`) gives the old economy, month for month.
+- **More resources and trades** (branch `claude/rust-more-crafts`;
+  PLAN.md, "Rust engine", section 15): lead in the hills, salt at brine
+  springs, clay in the valleys, each in patches of its own. Saltworks
+  make a staple every family needs, potters make pots that take a fifth of
+  families' comfort spending and need lead for their glaze, and lead is
+  also sold beyond the region. A town's salt pans and kilns burn wood from
+  its countryside. Over ten years at a million, tools stay below their
+  price without the crafts, families get about three-quarters of their
+  salt, wages buy a third more food, and the region ends 4.4% bigger.
 - **Ten million people run** (branch `claude/rust-ten-million`; PLAN.md,
   "Rust engine", section 11): 24,600 villages, 984 towns, 13 outlets and
   a city of 148,246 (`export_config.py --large`, then `econ-sim --size
@@ -277,7 +287,7 @@ that is booked in the outside purse) and that **people add up**
 The Rust engine (`cd rust`; the binary is `target/release/econ-sim`):
 
 ```bash
-cargo build --release && cargo test --release       # 157 tests
+cargo build --release && cargo test --release       # 162 tests
 econ-sim --event drought@4 --runs 20                # the standard region of a million, with minds (4 min)
 econ-sim --size 100k --event drought@4 --runs 100   # the region of 100,000 (2 min)
 python ../scripts/export_config.py --large          # once: the region of ten million (7 MB, not in git)
@@ -300,7 +310,7 @@ python ../scripts/export_config.py                  # after changing config.py: 
 The Python model:
 
 ```bash
-.venv/bin/python -m pytest -q                       # 311 tests, about 2 minutes
+.venv/bin/python -m pytest -q                       # 312 tests, about 2 minutes
 .venv/bin/python scripts/sanity_check.py            # quick; --full: 3,010 runs, a few minutes on 4 cores
 .venv/bin/python scripts/stress_test.py             # 40-year drift check; --full, --only NAME
 .venv/bin/python scripts/benchmark.py --quick       # speed; --profile 200000 for where the time goes

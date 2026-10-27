@@ -15,5 +15,5 @@
 {"name":"closed","about":"No grain trade with the world beyond the region","set":[["town.outside_capacity",0.0]],"scale":[]},
 {"name":"no-garrison","about":"The state spends none of its tax in the city","set":[["state.garrison",0.0]],"scale":[]},
 {"name":"few-ironworkers","about":"A mine flooded and a fever went through the iron hills: a quarter of the usual ironworkers","set":[],"scale":[["crafts.businesses.ironworks.initial_share",0.25]]},
-{"name":"village-crafts","about":"Only the village's four crafts: no iron for the smiths, no crafts sold beyond the region","set":[["crafts.enabled",false]],"scale":[]}
+{"name":"village-crafts","about":"Only the village's four crafts: no iron, salt, pots or lead, no crafts sold beyond the region","set":[["crafts.enabled",false]],"scale":[]}
 ]

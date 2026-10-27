@@ -227,13 +227,22 @@ impl Simulation {
         let seller = economy::seller_of(config);
         let fuel = config.product_for("heating");
         let wood = seller[fuel].expect("a trade that cuts firewood");
-        // (and so does the charcoal the ironworks burn)
-        let charcoal = crafts::charcoal(config);
         let reach = environment::woods_reach(&world.woods, &world.woods_normal, config);
         for v in 0..n {
             *mods.production_mult.at(v, wood) *= reach[v];
-            for (b, _) in charcoal.iter().enumerate().filter(|&(_, &c)| c > 0.0) {
-                *mods.production_mult.at(v, b) *= reach[v];
+        }
+        // And so does the work of the trades that burn their own: the
+        // ironworks' charcoal, the salt pans' and the kilns' fires (in a
+        // town, from the woods of its countryside too).
+        let burns: Vec<f64> = config.businesses.iter().map(|b| b.woods).collect();
+        if burns.iter().any(|&w| w > 0.0) {
+            let around = crafts::woods_around(&world.woods, &world.geo);
+            let normal = crafts::woods_around(&world.woods_normal, &world.geo);
+            let reach = environment::woods_reach(&around, &normal, config);
+            for v in 0..n {
+                for (b, _) in burns.iter().enumerate().filter(|&(_, &w)| w > 0.0) {
+                    *mods.production_mult.at(v, b) *= reach[v];
+                }
             }
         }
 
@@ -734,25 +743,33 @@ impl Simulation {
         let homespun = work::home_cloth(&world.population, n_hh, month_of_year, config);
         let input_needs = economy::input_needs(config);
         // What the world beyond pays a unit of each craft it buys at the
-        // border towns, and the most it buys at each: a share of what the
-        // region orders, shared among them.
+        // border towns, and the most it buys at each: so much for every
+        // 1,000 of the region's people, shared among them.
         let mut crafts_sold = 0.0;
         let borders: Vec<usize> = (0..n).filter(|&v| world.geo.town[v] && world.geo.border[v]).collect();
+        let thousands_here = people_here.iter().sum::<f64>() / 1000.0;
         let pays_beyond: Vec<Option<Beyond>> = (0..config.products.len())
             .map(|p| {
-                let rations = config.crafts.exports.iter().find(|(name, _)| *name == config.products[p].name)?.1;
+                let &(_, rations, most) = config.crafts.exports.iter().find(|e| e.0 == config.products[p].name)?;
                 (has_towns && config.crafts.enabled && !borders.is_empty()).then(|| {
-                    let ordered: f64 = world.orders.column(p).iter().sum();
                     let mut beyond = Beyond { pays: vec![0.0; n], most: vec![0.0; n] };
                     for &v in &borders {
                         beyond.pays[v] = rations * town_price[v] * (1.0 - config.town.outside_transport);
-                        beyond.most[v] = config.crafts.export_share * ordered / borders.len() as f64;
+                        beyond.most[v] = most * thousands_here / borders.len() as f64;
                     }
                     beyond
                 })
             })
             .collect();
-        for (product, spec) in config.products.iter().enumerate() {
+        let cloth = config.product_for("comfort");
+        let (mut staples_needed, mut staples_bought) = (0.0, 0.0);
+        // (the staples first: a family short of coins buys its salt, and
+        // gathers its fuel on the commons)
+        let staples_first = (0..config.products.len())
+            .filter(|&p| config.products[p].use_ == "staple")
+            .chain((0..config.products.len()).filter(|&p| config.products[p].use_ != "staple"));
+        for product in staples_first {
+            let spec = &config.products[product];
             let business_want = business_want(world, config, &workers, &possible, &input_needs, product);
             match spec.use_.as_str() {
                 "food" => continue,
@@ -774,17 +791,21 @@ impl Simulation {
                     );
                 }
                 "comfort" => {
+                    // (each comfort good its share of what families spend on them)
+                    let share = crafts::comfort_share(config, product);
                     let mut spend = vec![0.0; n_hh];
                     let mut want = vec![0.0; n_hh];
                     for h in 0..n_hh {
                         let spare = (world.households.money[h] - coin_target[h]).max(0.0);
                         let price = world.prices.get(hh_loc[h] as usize, product);
                         // Families wear their homespun first and buy less cloth.
-                        spend[h] = (config.needs.spare_spending * spare - homespun[h] * price).max(0.0);
+                        let home = if product == cloth { homespun[h] * price } else { 0.0 };
+                        spend[h] = (share * config.needs.spare_spending * spare - home).max(0.0);
                         want[h] = if spend[h] > 0.0 && price > 0.0 { spend[h] / price } else { 0.0 };
                     }
-                    // The lord's household buys the place's cloth too.
-                    let lord_spend = lords::local_spending(&world.lord, config, has_towns);
+                    // The lord's household buys the place's cloth and pots too.
+                    let lord_spend: Vec<f64> =
+                        lords::local_spending(&world.lord, config, has_towns).iter().map(|s| share * s).collect();
                     bought[product] = trade(
                         world,
                         config,
@@ -800,6 +821,28 @@ impl Simulation {
                         &mut crafts_sold,
                         &possible,
                     );
+                }
+                "staple" => {
+                    // Every family needs a little each month, bought with its coins.
+                    let need = crafts::staple_need(config, product);
+                    let want: Vec<f64> = members.iter().map(|m| need * m).collect();
+                    staples_needed += want.iter().sum::<f64>();
+                    let got = trade(
+                        world,
+                        config,
+                        cart.as_ref(),
+                        &offer,
+                        &mut demand,
+                        &mut sold,
+                        product,
+                        Some((&want, FamilyCoins::Theirs)),
+                        business_want,
+                        None,
+                        pays_beyond[product].as_ref(),
+                        &mut crafts_sold,
+                        &possible,
+                    );
+                    staples_bought += got.map_or(0.0, |g| g.iter().sum::<f64>());
                 }
                 _ => {
                     trade(
@@ -859,12 +902,13 @@ impl Simulation {
                 (family_fuel[h] - bought_fuel[h]).clamp(0.0, can_gather.max(0.0))
             })
             .collect();
-        // The woods regrow, less what was cut, gathered and burned as
-        // charcoal, and what burned in fires; the soil tires on crowded land
+        // The woods regrow, less what was cut, gathered and burned by the
+        // trades, and what burned in fires; the soil tires on crowded land
         // and recovers on land left to rest.
         let gathered_wood =
             market::by_village(&gathered.iter().map(|g| g * (1.0 - other)).collect::<Vec<_>>(), &hh_loc, n);
-        let burned: Vec<f64> = (0..n).map(|v| (0..nb).map(|b| made.get(v, b) * charcoal[b]).sum()).collect();
+        let burned: Vec<f64> = (0..n).map(|v| (0..nb).map(|b| made.get(v, b) * burns[b]).sum()).collect();
+        let burned = crafts::spread_burned(&burned, &world.woods, &world.geo);
         let cut: Vec<f64> = (0..n).map(|v| made.get(v, wood) + gathered_wood[v] + burned[v]).collect();
         let woods_burned =
             environment::grow_woods(&mut world.woods, &world.woods_capacity, &cut, &mods.woods_burned, config);
@@ -1419,6 +1463,7 @@ impl Simulation {
             grain_beyond: sum(&beyond),
             grain_between_towns: between.iter().map(|b| b.max(0.0)).sum(),
             wool_sold: sum(&wool_by_place),
+            staples_bought: div_or(staples_bought, staples_needed, 1.0),
             crafts_sold,
             coins_lost: world.town.coins_lost,
             emigrants: sum(&moves.left) as i64,
