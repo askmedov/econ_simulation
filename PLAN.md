@@ -2506,3 +2506,125 @@ Year 2 (Jan to Dec): 980,622 people to 918,457 (-6.3%); 32,005 born, 80,276 died
   rest, and the same famine next month is no news, its end is; 8 deaths
   where 3 are usual is luck, 30 is a surge; the same seed tells the same
   chronicle.
+
+### 14. A richer economy: iron, and crafts sold beyond the region (built)
+
+Every village had the same four crafts, made and sold where it was. Now a
+chain of production crosses the region: iron is dug and smelted only where
+the hills have it, carried to every smith, and made into the tools every
+farm needs; and the region's crafts are sold beyond it. Rust only: the
+settings are Python's `CraftsConfig` (`crafts.rs`), and switched off the
+engine gives month for month the same results as before.
+
+- **Where the iron is:** the region's layout (`RegionSettings.iron`) gives
+  iron to 3 in 10 hill villages, and to the town each one is nearest,
+  where it is smelted and sold (`VillageConfig.resources`). At a million,
+  160 places of 2,558 with 4.8% of the people; at 100,000, 16 places with
+  8% (the city is an iron town); at ten million, 1,537.
+- **The ironworks**, a trade worked only where a place has iron
+  (`BusinessSpec.resource`): 8 units of iron a worker a month, 30% more
+  with tools. The miner-smelters burn their own charcoal, a unit of
+  wood for a unit of iron, cut from the place's woods, so their work goes
+  slower where the woods have thinned, as the woodcutters' does. They
+  start with a thousandth of the region's workers, the same share of each
+  iron place's, about what the smiths' iron settles at. A smith now needs
+  a quarter of a unit of iron for a tool, and 1.5 of firewood (2 before).
+- **The iron trade:** merchants sell iron across the region from the
+  makers' stock.
+  - Each place without iron gets it along a **supply line**, found once
+    from the map: the cheapest way from the nearest maker, along the roads
+    from villages to their market towns and the routes between towns. Each
+    leg costs a share of the price (the carting, at most 0.9, and the
+    merchants' margin), and the shares multiply along the way.
+  - Its **price** there is the makers' price (weighted by their stock)
+    times the way, with no mark-up of its own: a scarcity is priced where
+    the iron is made, and its price reaches everywhere.
+  - Buyers everywhere **share a short stock** evenly. Each maker sells by
+    its stock, and takes what its own place paid and the makers' price for
+    the rest. The carting and the margin go to the merchants of the
+    buyer's market town, and from them to its families, as the grain
+    dealers' earnings do.
+  - The **orders** go to the makers by what each can make this month (at
+    least a tenth of the makers' mean, so an idle one can start again),
+    not by their stock: a maker that ran out still has its customers.
+- **Crafts sold beyond the region:** at the border towns the world beyond
+  buys cloth (2.5 rations' worth a unit at the outside grain price, less
+  the carting) and iron (2 rations), up to a tenth of what the region
+  orders of them a month, shared among the border towns. It buys a full
+  load once its price beats the town's by the full-load margin. The coins
+  come into the region, as wool's do (`crafts_sold` in the records).
+- **The chronicle** tells when tools grow dear (1.4 times their usual
+  price, rank 2) and when they no longer are (rank 3). Grain's dearth
+  uses the same rule.
+- **Two new starting points:** `few-ironworkers` (a mine flooded and a
+  fever went through the iron hills: a quarter of the usual ironworkers)
+  and `village-crafts` (only the village's four crafts, to compare with).
+- **What didn't work first:**
+  - Ironworks buying their firewood: in the hills the woodcutters thin out
+    over the years, as they do everywhere in the baseline, and the
+    ironworks couldn't buy it. By year four they made a fifth of what
+    their hands could, iron ran out, and tools rose to six or eight times
+    the baseline. Charcoal from their own woods fixed it.
+  - Starting hands as a share of the iron places' workers gave twice as
+    many a head at 100,000 as at a million (towns, where nobody farms, got
+    five times the share). The glut drove ironworkers off, and when the
+    shortage came they came back slowly: new hands come mostly from the
+    young, since nobody leaves farming unless it has too many. Starting
+    near the number they settle at fixed it.
+  - Iron carried by the carts couldn't get past one town; merchants
+    buying at one place to sell at the next sent prices round in loops;
+    mark-ups compounded along the way. The fixed supply line, with no
+    mark-up where iron is brought in, replaced all three.
+- **Ten years at a million** (seed 42), with the crafts and without:
+
+| Year | Tools | Grain | Ironworkers | People | Exports, coins a month |
+|---|---|---|---|---|---|
+| 1 | 2.71 / 2.80 | 1.07 / 1.06 | 509 | 1,009,379 / 1,009,309 | 8,797 |
+| 2 | 3.24 / 3.48 | 1.22 / 1.20 | 394 | 1,001,431 / 1,000,950 | 13,318 |
+| 3 | 2.91 / 2.99 | 1.16 / 1.14 | 350 | 997,822 / 996,031 | 24,346 |
+| 4 | 3.01 / 2.93 | 1.04 / 1.01 | 471 | 998,485 / 994,434 | 19,722 |
+| 5 | 3.29 / 3.23 | 0.93 / 0.89 | 444 | 998,755 / 992,787 | 34,383 |
+| 6 | 3.43 / 3.37 | 0.84 / 0.79 | 510 | 1,003,969 / 995,251 | 43,416 |
+| 7 | 3.44 / 3.45 | 1.05 / 0.96 | 465 | 1,006,379 / 995,239 | 50,525 |
+| 8 | 3.77 / 3.48 | 1.20 / 1.04 | 478 | 1,007,764 / 994,713 | 34,808 |
+| 9 | 4.27 / 3.56 | 1.25 / 1.02 | 520 | 1,004,258 / 990,278 | 27,670 |
+| 10 | 4.35 / 3.49 | 1.06 / 0.85 | 556 | 1,004,198 / 989,988 | 24,178 |
+
+  (yearly averages; prices are a plain mean over places)
+  - Tools stay within 0.93 to 1.25 times their price without the crafts.
+    The ironworks settle at about 500 hands, a thousandth of the workers.
+  - The coins the exports bring keep 1.4% more people by year ten, and
+    make grain dearer, by up to a quarter.
+  - At 100,000 (three seeds) tools stay within 0.95 to 1.55 times the
+    baseline, the most in a run of dear tools (seed 11, years 7 to 9) that
+    the chronicle reports. Ironworkers number 35 to 61.
+  - At ten million (two years) tools cost 3.0 to 4.0, as at the other
+    sizes. Ironworkers ease from 5,300 to 3,200 as the smiths shrink from
+    237,000 to 181,000: they start with too many hands, as in the
+    baseline. Iron averages five times the makers' price, since most
+    places are several towns from the nearest of the 75 iron towns.
+- **What-ifs:**
+  - A tenth of the usual work in the iron hills (the city and 3 towns,
+    months 7 to 18): iron 14 to 40 times dearer where it is brought in,
+    tools 1.7 to 2.1 times.
+  - From `few-ironworkers` at a million, tools are 1.3 times dearer in
+    year one and 1.5 times in year two, and back by year three, as the
+    ironworkers grow from 313 to 519.
+  - Over ten years at a million, the region ends 1.5% bigger with the
+    crafts than with only the village's four (`village-crafts`).
+- **Speed:** the crafts cost nothing measurable (60 s against 59 s for ten
+  years of a million on one core).
+- **Parity:** with the crafts off, the engine gives the same records as
+  before, month for month (checked on the city and 3 towns, the region of
+  20 and the village). `scripts/parity.py` turns them off, as it does
+  minds and the garrison.
+- **Checked by tests:** nobody works iron where there is none, and the
+  smiths there have it all the same; when the iron hills make little iron,
+  tools grow dear across the region; the world beyond buys the region's
+  crafts at its border towns (and none without exports); without the
+  crafts the iron in the hills changes nothing; a village off the map
+  makes its own iron; each place gets iron by the cheapest way from a
+  maker, the costs multiplying along it; the regional market shares a
+  short stock evenly and every coin paid goes to a maker or a merchant; a
+  good is dear from the surge until halfway back. Invariants and coins are
+  checked every month with the crafts on (city and 3 towns, region of 20).

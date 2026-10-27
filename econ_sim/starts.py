@@ -115,4 +115,14 @@ STARTS: tuple[Start, ...] = (
         "The state spends none of its tax in the city",
         set=(("state.garrison", 0.0),),
     ),
+    Start(
+        "few-ironworkers",
+        "A mine flooded and a fever went through the iron hills: a quarter of the usual ironworkers",
+        scale=(("crafts.businesses.ironworks.initial_share", 0.25),),
+    ),
+    Start(
+        "village-crafts",
+        "Only the village's four crafts: no iron for the smiths, no crafts sold beyond the region",
+        set=(("crafts.enabled", False),),
+    ),
 )

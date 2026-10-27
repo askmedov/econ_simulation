@@ -6,6 +6,7 @@ use std::sync::Arc;
 use crate::chronicle::{self, Chronicle};
 use crate::config::Config;
 use crate::council;
+use crate::crafts;
 use crate::credit;
 use crate::economy::{self, Workforce};
 use crate::environment;
@@ -42,6 +43,13 @@ pub struct Simulation {
     pub places: Vec<Vec<Vec<f64>>>, // per series in PLACE_SERIES: month by month, per place
 }
 
+/// What the world beyond pays a unit of a craft at each place (0: it buys
+/// none there), and the most it buys there a month.
+struct Beyond {
+    pays: Vec<f64>,
+    most: Vec<f64>,
+}
+
 /// Where a market's buyers in families get their coins.
 enum FamilyCoins {
     Theirs,           // their own savings
@@ -50,6 +58,7 @@ enum FamilyCoins {
 
 impl Simulation {
     pub fn new(config: Config) -> Result<Simulation, String> {
+        let config = crafts::with_crafts(&config);
         events::validate(&config.events)?;
         events::validate_schedule(&config.scheduled_events, &config.events, config.villages.len(), config.map.enabled)?;
         if !(1..=12).contains(&config.start_month) {
@@ -218,9 +227,14 @@ impl Simulation {
         let seller = economy::seller_of(config);
         let fuel = config.product_for("heating");
         let wood = seller[fuel].expect("a trade that cuts firewood");
+        // (and so does the charcoal the ironworks burn)
+        let charcoal = crafts::charcoal(config);
         let reach = environment::woods_reach(&world.woods, &world.woods_normal, config);
         for v in 0..n {
             *mods.production_mult.at(v, wood) *= reach[v];
+            for (b, _) in charcoal.iter().enumerate().filter(|&(_, &c)| c > 0.0) {
+                *mods.production_mult.at(v, b) *= reach[v];
+            }
         }
 
         // 2. Businesses make goods, using up supplies and wearing out tools.
@@ -340,6 +354,8 @@ impl Simulation {
                 fair.set(v, food, delivered[v].min(neighbours[v]));
             }
         }
+        // where a good can't be made, it costs what it takes to bring it
+        crafts::price_brought_in(&mut fair, &world.prices, &world.stock, &world.supply);
         world.prices = fair.zip_map(&world.markup, |f, m| f * m);
 
         // 3. How well the place's stores and coming harvests cover the year
@@ -398,8 +414,13 @@ impl Simulation {
             wanted.set_column(food, &need);
             let mut in_store = world.stock.clone();
             in_store.set_column(food, &world.dealers_grain);
-            let c =
+            let mut c =
                 towns::carts(&world.prices, &world.geo, &wanted, &in_store, &world.dealers_cash, &need, food, config);
+            for p in (0..world.supply.len()).filter(|&p| world.supply[p].is_some()) {
+                for q in 0..c.src.len() {
+                    c.goods.set(q, p, 0.0); // (sold across the region from the makers' stock instead)
+                }
+            }
             for v in 0..n {
                 for m in 0..outlook.cols {
                     *outlook.at(v, m) += world.arrivals[v];
@@ -712,6 +733,25 @@ impl Simulation {
 
         let homespun = work::home_cloth(&world.population, n_hh, month_of_year, config);
         let input_needs = economy::input_needs(config);
+        // What the world beyond pays a unit of each craft it buys at the
+        // border towns, and the most it buys at each: a share of what the
+        // region orders, shared among them.
+        let mut crafts_sold = 0.0;
+        let borders: Vec<usize> = (0..n).filter(|&v| world.geo.town[v] && world.geo.border[v]).collect();
+        let pays_beyond: Vec<Option<Beyond>> = (0..config.products.len())
+            .map(|p| {
+                let rations = config.crafts.exports.iter().find(|(name, _)| *name == config.products[p].name)?.1;
+                (has_towns && config.crafts.enabled && !borders.is_empty()).then(|| {
+                    let ordered: f64 = world.orders.column(p).iter().sum();
+                    let mut beyond = Beyond { pays: vec![0.0; n], most: vec![0.0; n] };
+                    for &v in &borders {
+                        beyond.pays[v] = rations * town_price[v] * (1.0 - config.town.outside_transport);
+                        beyond.most[v] = config.crafts.export_share * ordered / borders.len() as f64;
+                    }
+                    beyond
+                })
+            })
+            .collect();
         for (product, spec) in config.products.iter().enumerate() {
             let business_want = business_want(world, config, &workers, &possible, &input_needs, product);
             match spec.use_.as_str() {
@@ -728,6 +768,9 @@ impl Simulation {
                         Some((&family_fuel, FamilyCoins::Theirs)),
                         business_want,
                         None,
+                        pays_beyond[product].as_ref(),
+                        &mut crafts_sold,
+                        &possible,
                     );
                 }
                 "comfort" => {
@@ -753,6 +796,9 @@ impl Simulation {
                         Some((&want, FamilyCoins::Budget(spend))),
                         business_want,
                         Some(lord_spend),
+                        pays_beyond[product].as_ref(),
+                        &mut crafts_sold,
+                        &possible,
                     );
                 }
                 _ => {
@@ -767,6 +813,9 @@ impl Simulation {
                         None,
                         business_want,
                         None,
+                        pays_beyond[product].as_ref(),
+                        &mut crafts_sold,
+                        &possible,
                     );
                 }
             }
@@ -810,11 +859,13 @@ impl Simulation {
                 (family_fuel[h] - bought_fuel[h]).clamp(0.0, can_gather.max(0.0))
             })
             .collect();
-        // The woods regrow, less what was cut and gathered, and what burned;
-        // the soil tires on crowded land and recovers on land left to rest.
+        // The woods regrow, less what was cut, gathered and burned as
+        // charcoal, and what burned in fires; the soil tires on crowded land
+        // and recovers on land left to rest.
         let gathered_wood =
             market::by_village(&gathered.iter().map(|g| g * (1.0 - other)).collect::<Vec<_>>(), &hh_loc, n);
-        let cut: Vec<f64> = (0..n).map(|v| made.get(v, wood) + gathered_wood[v]).collect();
+        let burned: Vec<f64> = (0..n).map(|v| (0..nb).map(|b| made.get(v, b) * charcoal[b]).sum()).collect();
+        let cut: Vec<f64> = (0..n).map(|v| made.get(v, wood) + gathered_wood[v] + burned[v]).collect();
         let woods_burned =
             environment::grow_woods(&mut world.woods, &world.woods_capacity, &cut, &mods.woods_burned, config);
         let usual_land = world.geo.usual_land(&world.land);
@@ -1112,13 +1163,20 @@ impl Simulation {
         for v in 0..n {
             for (b, &p) in product_of.iter().enumerate() {
                 let pull = world.markup.get(v, p).powf(config.trade.hiring_price_response);
-                work_needed.set(v, b, orders.get(v, b) / per_worker.get(v, b).max(1e-9) * pull);
+                let lacks = world.lacking[v][b]; // (what can't be made here is brought in)
+                work_needed.set(
+                    v,
+                    b,
+                    if lacks { 0.0 } else { orders.get(v, b) / per_worker.get(v, b).max(1e-9) * pull },
+                );
             }
         }
         let current = economy::headcount(&world.population, n, config, None);
         let wanted = economy::wanted_workers(&work_needed, &current, config);
-        let closed: Option<Vec<Vec<bool>>> =
-            has_towns.then(|| (0..n).map(|v| (0..nb).map(|b| is_town[v] && b == farm).collect()).collect()); // a town has no fields to work
+        let closed: Option<Vec<Vec<bool>>> = has_towns.then(|| {
+            // a town has no fields to work, and no place works a resource it lacks
+            (0..n).map(|v| (0..nb).map(|b| (is_town[v] && b == farm) || world.lacking[v][b]).collect()).collect()
+        });
         economy::assign_new_workers(&mut world.population, &wanted, config, closed.as_deref());
         let switched = economy::move_workers(&mut world.population, &wanted, config, self.streams.get("jobs"));
         // Measure families before weddings move young people into new homes.
@@ -1257,6 +1315,13 @@ impl Simulation {
         }
         let food_markup = world.markup.column(food);
         world.markup = market::adjust_markup(&world.markup, &steady, &supply, config);
+        // (a good a place only brings in is priced where it is made, and
+        // carried at its price plus the way: no mark-up of its own)
+        for (v, row) in world.lacking.iter().enumerate() {
+            for (b, _) in row.iter().enumerate().filter(|&(_, &lacks)| lacks) {
+                world.markup.set(v, product_of[b], 1.0);
+            }
+        }
         // Grain follows how short the year's supply looks (King-Davenant).
         world.markup.set_column(food, &market::grain_markup(&food_markup, &supply_cover, config));
         if has_towns {
@@ -1354,6 +1419,7 @@ impl Simulation {
             grain_beyond: sum(&beyond),
             grain_between_towns: between.iter().map(|b| b.max(0.0)).sum(),
             wool_sold: sum(&wool_by_place),
+            crafts_sold,
             coins_lost: world.town.coins_lost,
             emigrants: sum(&moves.left) as i64,
             immigrants: sum(&moves.arrived) as i64,
@@ -1621,6 +1687,9 @@ fn trade(
     family: Option<(&[f64], FamilyCoins)>,
     business_want: Option<Grid>,
     lord_spend: Option<Vec<f64>>,
+    beyond: Option<&Beyond>,
+    sold_beyond: &mut f64,
+    possible: &Grid,
 ) -> Option<Vec<f64>> {
     let n = world.n_locations();
     let nb = config.businesses.len();
@@ -1662,42 +1731,82 @@ fn trade(
             }
         }
     }
+    // The world beyond buys the region's crafts at its border towns, up to
+    // its most there, a full load once the price it pays beats the town's
+    // by `full_load_margin`.
+    let beyond_first = money.len();
+    let mut buying_beyond: Vec<usize> = Vec::new();
+    if let Some(Beyond { pays, most }) = beyond {
+        let ramp = config.map.full_load_margin;
+        for v in (0..n).filter(|&v| pays[v] > 0.0 && prices[v] > 0.0) {
+            let load = crate::grid::clip((pays[v] / prices[v] - 1.0) / ramp, 0.0, 1.0);
+            let w = load * most[v];
+            money.push(w * prices[v]);
+            want.push(w);
+            place.push(v as u32);
+            buying_beyond.push(v);
+        }
+    }
     let offer_here = offer.column(product);
-    let sale = market::buy(&mut money, &want, &prices, &offer_here, &place);
-    let spent_at = market::by_village(&sale.spent, &place, n);
     let seller = economy::seller_of(config)[product];
-    match cart {
-        None => {
-            for v in 0..n {
-                let s = world.stock.at(v, product);
-                *s = (*s - sale.sold[v]).max(0.0);
-                if let Some(b) = seller {
-                    *world.cash.at(v, b) += spent_at[v];
+    let regional = world.supply.get(product).and_then(|line| line.clone());
+    let sale = if let Some(line) = regional {
+        // a good made only where a resource is: sold across the region from the makers' stock
+        let at_makers = crafts::makers_price(&world.prices, &world.stock, &line, product);
+        let held = world.stock.column(product);
+        let b = seller.expect("a business makes every good");
+        let can = possible.column(b);
+        let r = crafts::regional_market(&mut money, &want, &place, &prices, &held, &can, &line, at_makers, &world.geo);
+        for v in 0..n {
+            let s = world.stock.at(v, product);
+            *s = (*s - r.sold_by[v]).max(0.0);
+            *world.cash.at(v, b) += r.paid_to[v];
+            world.dealers_cash[v] += r.merchants[v];
+        }
+        demand.set_column(product, &r.sale.demand);
+        r.sale
+    } else {
+        let sale = market::buy(&mut money, &want, &prices, &offer_here, &place);
+        let spent_at = market::by_village(&sale.spent, &place, n);
+        match cart {
+            None => {
+                for v in 0..n {
+                    let s = world.stock.at(v, product);
+                    *s = (*s - sale.sold[v]).max(0.0);
+                    if let Some(b) = seller {
+                        *world.cash.at(v, b) += spent_at[v];
+                    }
                 }
+                demand.set_column(product, &sale.demand);
             }
-            demand.set_column(product, &sale.demand);
+            Some(cart) => {
+                // goods carted in are sold for the business that made them, and count in its orders
+                let mut stock = world.stock.column(product);
+                let b = seller.expect("a business makes every good that is carted");
+                let mut cash = world.cash.column(b);
+                let mut asked = demand.column(product);
+                towns::settle(
+                    cart,
+                    product,
+                    &mut stock,
+                    &mut cash,
+                    &mut asked,
+                    &offer_here,
+                    &sale.sold,
+                    &spent_at,
+                    &sale.demand,
+                );
+                world.stock.set_column(product, &stock);
+                world.cash.set_column(b, &cash);
+                demand.set_column(product, &asked);
+            }
         }
-        Some(cart) => {
-            // goods carted in are sold for the business that made them, and count in its orders
-            let mut stock = world.stock.column(product);
-            let b = seller.expect("a business makes every good that is carted");
-            let mut cash = world.cash.column(b);
-            let mut asked = demand.column(product);
-            towns::settle(
-                cart,
-                product,
-                &mut stock,
-                &mut cash,
-                &mut asked,
-                &offer_here,
-                &sale.sold,
-                &spent_at,
-                &sale.demand,
-            );
-            world.stock.set_column(product, &stock);
-            world.cash.set_column(b, &cash);
-            demand.set_column(product, &asked);
-        }
+        sale
+    };
+    for (k, _) in buying_beyond.iter().enumerate() {
+        let coins = sale.spent[beyond_first + k];
+        world.town.purse -= coins; // (the world beyond pays)
+        *sold_beyond += coins;
     }
     sold.set_column(product, &sale.sold);
     let mut bought = None;

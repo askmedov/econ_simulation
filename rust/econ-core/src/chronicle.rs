@@ -1,17 +1,17 @@
 //! The chronicle: what happened in a run, ranked by importance, through time.
 //!
 //! Each month it notes the events that started, famines and shortages that
-//! began or ended, deaths and departures far above the usual, grain grown
-//! dear, a hungry city, councils formed and villages emptied. An entry
-//! names the places it touched, worst first, under it. Entries are of four
-//! ranks (`ChronicleConfig`): 1, what touches a large share of the region's
-//! people, and every forced event; 2, a smaller but notable share, or a
-//! town; 3, a place or a few; 4, the small change of a month. Written out,
-//! the chronicle goes year by year (the year in brief first, then its
+//! began or ended, deaths and departures far above the usual, grain and
+//! tools grown dear, a hungry city, councils formed and villages emptied.
+//! An entry names the places it touched, worst first, under it. Entries are
+//! of four ranks (`ChronicleConfig`): 1, what touches a large share of the
+//! region's people, and every forced event; 2, a smaller but notable share,
+//! or a town; 3, a place or a few; 4, the small change of a month. Written
+//! out, the chronicle goes year by year (the year in brief first, then its
 //! months), each month's entries from the most important down.
 //!
-//! The usual deaths, departures and grain price are running averages of
-//! the months without a surge, so a long dearth is still a dearth.
+//! The usual deaths, departures and prices are running averages of the
+//! months without a surge, so a long dearth is still a dearth.
 
 use serde::Serialize;
 
@@ -72,10 +72,40 @@ pub struct Chronicle {
     lived_in: Vec<bool>,
     usual_deaths: Option<f64>,  // a month, per person, in the region
     usual_leaving: Option<f64>, // a month, per person
-    usual_price: Option<f64>,
-    dear: bool,
+    grain: Dearness,
+    tools: Dearness,
     city_hungry: bool,
     famine_people: f64, // in famine last month
+}
+
+/// A good's usual price (a running average of the months it was not
+/// dear), and whether it is dear.
+#[derive(Clone, Debug, Default)]
+struct Dearness {
+    usual: Option<f64>,
+    dear: bool,
+}
+
+impl Dearness {
+    /// This month's `price`: Some(true) if the good has grown dear (`surge`
+    /// times its usual price), Some(false) if it is no longer dear (back
+    /// below halfway there); with its usual price, then.
+    fn month(&mut self, price: f64, surge: f64) -> (Option<bool>, f64) {
+        let usual = *self.usual.get_or_insert(price);
+        let change = if !self.dear && price >= surge * usual {
+            self.dear = true;
+            Some(true)
+        } else if self.dear && price < 0.5 * (1.0 + surge) * usual {
+            self.dear = false;
+            Some(false)
+        } else {
+            None
+        };
+        if !self.dear {
+            self.usual = Some(usual + (price - usual) / 12.0);
+        }
+        (change, usual)
+    }
 }
 
 /// What a month left, per place, for the chronicle.
@@ -381,22 +411,36 @@ impl Chronicle {
         }
 
         // Grain grown dear, and back to its usual price.
-        let usual_price = *self.usual_price.get_or_insert(r.food_price);
-        if !self.dear && r.food_price >= cfg.price_surge * usual_price {
-            self.dear = true;
-            let what = format!(
-                "Grain is dear: {:.2} a ration, {:.1} times its usual price",
-                r.food_price,
-                r.food_price / usual_price
-            );
-            self.note(r, 1, "dearth", what, total, Vec::new(), listed);
-        } else if self.dear && r.food_price < 0.5 * (1.0 + cfg.price_surge) * usual_price {
-            self.dear = false;
-            let what = format!("Grain is no longer dear: {:.2} a ration", r.food_price);
-            self.note(r, 3, "dearth over", what, total, Vec::new(), listed);
+        match self.grain.month(r.food_price, cfg.price_surge) {
+            (Some(true), usual) => {
+                let what = format!(
+                    "Grain is dear: {:.2} a ration, {:.1} times its usual price",
+                    r.food_price,
+                    r.food_price / usual
+                );
+                self.note(r, 1, "dearth", what, total, Vec::new(), listed);
+            }
+            (Some(false), _) => {
+                let what = format!("Grain is no longer dear: {:.2} a ration", r.food_price);
+                self.note(r, 3, "dearth over", what, total, Vec::new(), listed);
+            }
+            (None, _) => {}
         }
-        if !self.dear {
-            self.usual_price = Some(usual_price + (r.food_price - usual_price) / 12.0);
+        // Tools too (the smiths short of iron, or of hands): every farm feels it.
+        let tool = &config.products[config.product_for("tool")].name;
+        if let Some(&(_, price)) = r.prices.iter().find(|(name, _)| name == tool) {
+            match self.tools.month(price, cfg.price_surge) {
+                (Some(true), usual) => {
+                    let what =
+                        format!("Tools are dear: {price:.2} a tool, {:.1} times their usual price", price / usual);
+                    self.note(r, 2, "tools dear", what, total, Vec::new(), listed);
+                }
+                (Some(false), _) => {
+                    let what = format!("Tools are no longer dear: {price:.2} a tool");
+                    self.note(r, 3, "tools dear over", what, total, Vec::new(), listed);
+                }
+                (None, _) => {}
+            }
         }
 
         // The city hungry (its people die and leave first in a dearth).
@@ -558,4 +602,20 @@ fn brief_lines(brief: &[&Entry]) -> Vec<String> {
             format!("[{}] {until}: {what}", first.rank)
         })
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_good_grows_dear_at_the_surge_and_is_dear_until_halfway_back_to_its_usual_price() {
+        let mut good = Dearness::default();
+        let changes: Vec<Option<bool>> =
+            [2.0, 2.0, 2.7, 2.9, 2.5, 2.3, 2.3].iter().map(|&p| good.month(p, 1.4).0).collect();
+        assert_eq!(changes, [None, None, None, Some(true), None, Some(false), None]);
+        // (the usual price stood still while the good was dear)
+        let (_, usual) = good.month(2.0, 1.4);
+        assert!(usual > 2.0 && usual < 2.1, "{usual}");
+    }
 }

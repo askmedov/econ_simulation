@@ -2,6 +2,7 @@
 
 use crate::config::Config;
 use crate::council::{self, Councils};
+use crate::crafts;
 use crate::economy;
 use crate::environment;
 use crate::events::{ActiveEvent, LastStarted};
@@ -69,6 +70,10 @@ pub struct World {
     /// `refugees.memory_months`, per place (with `refugees.enabled`).
     pub refugees: Vec<f64>,
     pub skill: Grid,
+    /// Where a trade lacks its resource (places x businesses: see `crafts`).
+    pub lacking: Vec<Vec<bool>>,
+    /// Where each place lacking a good gets it from (per product: see `crafts`).
+    pub supply: Vec<Option<crafts::SupplyLine>>,
 }
 
 impl World {
@@ -142,7 +147,10 @@ pub fn create_world(config: &Config, streams: &mut RandomStreams) -> Result<Worl
     let mut households = households::form_households(&mut population, n, streams.get("setup"), yearly_marriage);
     households::link_kin(&mut households, &population, streams.get("kin"));
     let geo = geography::build(config)?;
-    economy::assign_starting_jobs(&mut population, config, streams.get("setup"), Some(&geo.town));
+    let lacking = crafts::lacking(config, &geo);
+    let lacks = crafts::any_lacking(&lacking).then_some(lacking.as_slice());
+    let supply = crafts::supply_lines(config, &geo, &lacking);
+    economy::assign_starting_jobs(&mut population, config, streams.get("setup"), Some(&geo.town), lacks);
     let land: Vec<f64> = config.villages.iter().map(|v| v.land).collect();
     let food = config.product_for("food");
 
@@ -187,6 +195,14 @@ pub fn create_world(config: &Config, streams: &mut RandomStreams) -> Result<Worl
             unhealthy[r] = config.town.mortality;
         }
     }
+    // A trade can't be worked where its resource is lacking.
+    for (r, row) in lacking.iter().enumerate() {
+        for (b, &lacks) in row.iter().enumerate() {
+            if lacks {
+                skill.set(r, b, 0.0);
+            }
+        }
+    }
     let per_worker = economy::productivity(&population, &force, &tools, &workers, &land, config, Some(&animals), None)
         .zip_map(&skill, |p, s| p * s);
     let mut wage: Vec<f64> = (0..n).map(|r| config.money.food_price * per_worker.get(r, farming)).collect();
@@ -213,6 +229,9 @@ pub fn create_world(config: &Config, streams: &mut RandomStreams) -> Result<Worl
             let delivered = towns::delivered_price(&prices.column(food), &geo, &sizes);
             prices.set_column(food, &delivered);
         }
+        // where a good can't be made, it costs what it takes to bring it
+        let made_here = prices.clone();
+        crafts::price_brought_in(&mut prices, &made_here, &Grid::zeros(n, np), &supply);
     }
 
     // Every family starts with a few months of food and firewood money saved.
@@ -247,6 +266,8 @@ pub fn create_world(config: &Config, streams: &mut RandomStreams) -> Result<Worl
     }
     let mut stock = orders.map(|o| config.trade.stock_target_months * o);
     stock.set_column(food, &vec![0.0; n]);
+    let cash = workers.map(|w| config.money.initial_business_cash_per_worker * w);
+    let needs = economy::input_needs(config);
 
     // Families hold the food in store: half of each place's stores spread
     // by families' needs, half by the land they hold.
@@ -258,7 +279,6 @@ pub fn create_world(config: &Config, streams: &mut RandomStreams) -> Result<Worl
         let by_land = div_or(households.land[h], held[v], by_need);
         households.grain[h] = in_store * (0.5 * by_need + 0.5 * by_land);
     }
-    let needs = economy::input_needs(config);
     let mut supplies = Grid3::zeros(n, nb, np);
     for r in 0..n {
         for b in 0..nb {
@@ -352,7 +372,7 @@ pub fn create_world(config: &Config, streams: &mut RandomStreams) -> Result<Worl
         stock,
         prices,
         markup: Grid::new(n, np, 1.0),
-        cash: workers.map(|w| config.money.initial_business_cash_per_worker * w),
+        cash,
         tools,
         supplies,
         pay: Grid::spread(&wage, nb),
@@ -382,6 +402,8 @@ pub fn create_world(config: &Config, streams: &mut RandomStreams) -> Result<Worl
         unhealthy,
         refugees: vec![0.0; n],
         skill,
+        lacking,
+        supply,
     })
 }
 

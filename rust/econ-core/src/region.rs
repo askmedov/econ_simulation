@@ -32,6 +32,7 @@ pub struct RegionSettings {
     pub city_share: f64,        // and in a big region at least this share of all its people
     pub outlets: Option<usize>, // towns trading beyond the region; None: one for every 150 km of its edge
     pub upland: f64,            // share of villages in the hills (to the west)
+    pub iron: f64,              // share of the hill villages with iron, where the ore runs richest
     pub forest: f64,            // share of the rest in the woods
     pub river: bool,            // a river across the region, west to east
     pub coast: bool,            // a coast along the east side
@@ -276,15 +277,19 @@ pub fn region(settings: &RegionSettings, base: &Config) -> Result<Config, String
     let outlets = s.outlets.unwrap_or_else(|| ((4.0 * side / 150.0).round_ties_even() as usize).max(1));
     spread_outlets(&tx, &ty, side, s.spacing_km * (n as f64 / m as f64).sqrt(), &mut border, outlets);
     let mut around = vec![0.0; m];
+    let nearest: Vec<usize> = (0..n)
+        .map(|i| {
+            (1..m).fold(0, |best, t| {
+                if (x[i] - tx[t]).hypot(y[i] - ty[t]) < (x[i] - tx[best]).hypot(y[i] - ty[best]) {
+                    t
+                } else {
+                    best
+                }
+            })
+        })
+        .collect();
     for i in 0..n {
-        let nearest = (1..m).fold(0, |best, t| {
-            if (x[i] - tx[t]).hypot(y[i] - ty[t]) < (x[i] - tx[best]).hypot(y[i] - ty[best]) {
-                t
-            } else {
-                best
-            }
-        });
-        around[nearest] += sizes[i] as f64;
+        around[nearest[i]] += sizes[i] as f64;
     }
     let mut town_sizes: Vec<i64> = around
         .iter()
@@ -327,6 +332,23 @@ pub fn region(settings: &RegionSettings, base: &Config) -> Result<Config, String
         rivers = order.windows(2).map(|w| (w[0], w[1])).collect();
     }
 
+    // Iron in part of the hills, where a smooth field of ore runs richest
+    // (drawn last, so the rest of the region is as before); a town whose
+    // villages have it smelts and works it.
+    let hill: Vec<usize> = (0..n).filter(|&i| terrain[i] == "upland").collect();
+    let mut iron = vec![false; n];
+    if s.iron > 0.0 && !hill.is_empty() {
+        let ore = smooth(&x, &y, side / 4.0, &mut rng);
+        let line = quantile(&hill.iter().map(|&i| ore[i]).collect::<Vec<_>>(), 1.0 - s.iron);
+        for &i in &hill {
+            iron[i] = ore[i] >= line;
+        }
+    }
+    let mut iron_town = vec![false; m];
+    for i in (0..n).filter(|&i| iron[i]) {
+        iron_town[nearest[i]] = true;
+    }
+
     let village = &base.villages[0];
     let per_person = village.land / village.population as f64;
     let arable = |t: &str| base.map.terrains.iter().find(|s| s.name == t).map_or(1.0, |s| s.arable);
@@ -342,6 +364,7 @@ pub fn region(settings: &RegionSettings, base: &Config) -> Result<Config, String
             kind: "village".into(),
             border: false,
             stronghold: false,
+            resources: if iron[i] { vec!["iron".into()] } else { Vec::new() },
         })
         .collect();
     places.extend((0..m).map(|t| VillageConfig {
@@ -355,6 +378,7 @@ pub fn region(settings: &RegionSettings, base: &Config) -> Result<Config, String
         kind: "town".into(),
         border: border[t],
         stronghold: t == first && is_city,
+        resources: if iron_town[t] { vec!["iron".into()] } else { Vec::new() },
     }));
     let mut config = base.clone();
     config.villages = places;

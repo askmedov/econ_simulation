@@ -12,6 +12,7 @@
   "city_share": 0.015,
   "outlets": null,
   "upland": 0.2,
+  "iron": 0.3,
   "forest": 0.15,
   "river": true,
   "coast": false,

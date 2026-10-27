@@ -113,11 +113,16 @@ def setup_settings() -> list[Setting]:
 
 
 def write_config(config: Config) -> str:
-    """The config for the Rust engine, with its families following the rules
-    and no garrison in the stronghold: this model has neither, so parity is
-    checked without them."""
+    """The config for the Rust engine, with its families following the rules,
+    no garrison in the stronghold and no crafts beyond the village's four:
+    this model has none of them, so parity is checked without them."""
     handle = tempfile.NamedTemporaryFile("w", suffix=".json", delete=False)
-    rules = replace(config, minds=replace(config.minds, enabled=False), state=replace(config.state, garrison=0.0))
+    rules = replace(
+        config,
+        minds=replace(config.minds, enabled=False),
+        state=replace(config.state, garrison=0.0),
+        crafts=replace(config.crafts, enabled=False),
+    )
     json.dump(json.loads(json.dumps(dataclasses.asdict(rules))), handle)
     handle.close()
     return handle.name

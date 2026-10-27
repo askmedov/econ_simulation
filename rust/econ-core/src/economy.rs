@@ -497,8 +497,16 @@ pub fn assign_new_workers(population: &mut Population, wanted: &Grid, config: &C
 }
 
 /// Spread the starting workers over the trades by their starting shares
-/// (in places marked `no_farming`, the towns, over the other trades).
-pub fn assign_starting_jobs(population: &mut Population, config: &Config, rng: &mut Rng, no_farming: Option<&[bool]>) {
+/// (in places marked `no_farming`, the towns, over the other trades). Where
+/// a trade `lacks` its resource (places x businesses) nobody works it, and
+/// its share is of the whole region's workers, all where the resource is.
+pub fn assign_starting_jobs(
+    population: &mut Population,
+    config: &Config,
+    rng: &mut Rng,
+    no_farming: Option<&[bool]>,
+    lacks: Option<&[Vec<bool>]>,
+) {
     let mut shares: Vec<f64> = config.businesses.iter().map(|b| b.initial_share).collect();
     let total: f64 = shares.iter().sum();
     let nb = shares.len();
@@ -506,6 +514,49 @@ pub fn assign_starting_jobs(population: &mut Population, config: &Config, rng: &
         shares.iter_mut().for_each(|s| *s /= total);
     } else {
         shares = vec![1.0 / nb as f64; nb];
+    }
+    if let Some(lacks) = lacks {
+        // Each place its own shares: a trade whose resource only some places
+        // have takes the same share of each one's workers, as many as its
+        // share of the whole region's; the other trades share the rest.
+        let n = lacks.len();
+        let mut able = vec![0.0; n];
+        for i in 0..population.len() {
+            if is_working_age(population, i, config) {
+                able[population.location[i] as usize] += population.count[i] as f64;
+            }
+        }
+        let everyone: f64 = able.iter().sum();
+        let bound: Vec<bool> = (0..nb).map(|b| lacks.iter().any(|row| row[b])).collect();
+        let there: Vec<f64> = (0..nb)
+            .map(|b| {
+                let with_it: f64 = (0..n).filter(|&v| !lacks[v][b]).map(|v| able[v]).sum();
+                (shares[b] * div_or(everyone, with_it, 1.0)).min(1.0)
+            })
+            .collect();
+        let at: Vec<Vec<f64>> = (0..n)
+            .map(|v| {
+                let mut here: Vec<f64> =
+                    (0..nb).map(|b| if lacks[v][b] || bound[b] { 0.0 } else { shares[b] }).collect();
+                if no_farming.is_some_and(|town| town[v]) {
+                    here[config.farming()] = 0.0;
+                }
+                let others: f64 = here.iter().sum();
+                let taken: f64 = (0..nb).filter(|&b| bound[b] && !lacks[v][b]).map(|b| there[b]).sum::<f64>().min(1.0);
+                for b in 0..nb {
+                    here[b] =
+                        if bound[b] && !lacks[v][b] { there[b] } else { (1.0 - taken) * div_or(here[b], others, 0.0) };
+                }
+                cumulative(&here)
+            })
+            .collect();
+        for i in 0..population.len() {
+            population.job[i] = NO_JOB;
+            if is_working_age(population, i, config) {
+                population.job[i] = rng.choose_weighted(&at[population.location[i] as usize]) as i16;
+            }
+        }
+        return;
     }
     let all = cumulative(&shares);
     let mut crafts = shares.clone();

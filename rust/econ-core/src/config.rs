@@ -38,6 +38,7 @@ pub struct VillageConfig {
     pub kind: String,
     pub border: bool,
     pub stronghold: bool,
+    pub resources: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -122,6 +123,7 @@ pub struct BusinessSpec {
     pub inputs: Vec<(String, f64)>,
     pub uses_land: bool,
     pub initial_share: f64,
+    pub resource: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -406,6 +408,19 @@ pub struct RefugeesConfig {
     pub memory_months: f64,
 }
 
+/// Crafts beyond the village's four (see `crafts.rs`; Python's `CraftsConfig`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct CraftsConfig {
+    pub enabled: bool,
+    pub products: Vec<ProductSpec>,
+    pub businesses: Vec<BusinessSpec>,
+    pub charcoal: f64,
+    pub smithing_inputs: Vec<(String, f64)>,
+    pub exports: Vec<(String, f64)>,
+    pub export_share: f64,
+}
+
 /// What the chronicle tells (see `chronicle.rs`; Python's `ChronicleConfig`).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -500,6 +515,7 @@ pub struct Config {
     pub refugees: RefugeesConfig,
     pub minds: MindsConfig,
     pub chronicle: ChronicleConfig,
+    pub crafts: CraftsConfig,
     pub products: Vec<ProductSpec>,
     pub businesses: Vec<BusinessSpec>,
     pub events: Vec<EventSpec>,

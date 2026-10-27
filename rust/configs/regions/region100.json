@@ -13,6 +13,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -25,6 +26,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -37,6 +39,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -49,6 +52,7 @@
    "terrain": "upland",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -61,6 +65,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -73,6 +78,7 @@
    "terrain": "upland",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -85,6 +91,7 @@
    "terrain": "valley",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -97,6 +104,7 @@
    "terrain": "upland",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -109,6 +117,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -121,6 +130,7 @@
    "terrain": "valley",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -133,6 +143,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -145,6 +156,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -157,6 +169,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -169,6 +182,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -181,6 +195,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -193,6 +208,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -205,6 +221,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -217,6 +234,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -229,6 +247,7 @@
    "terrain": "forest",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -241,6 +260,7 @@
    "terrain": "upland",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -253,6 +273,7 @@
    "terrain": "forest",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -265,6 +286,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -277,6 +299,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -289,6 +312,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -301,6 +325,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -313,6 +338,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -325,6 +351,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -337,6 +364,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -349,6 +377,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -361,6 +390,9 @@
    "terrain": "upland",
    "kind": "village",
    "border": false,
+   "resources": [
+    "iron"
+   ],
    "stronghold": false
   },
   {
@@ -373,6 +405,9 @@
    "terrain": "upland",
    "kind": "village",
    "border": false,
+   "resources": [
+    "iron"
+   ],
    "stronghold": false
   },
   {
@@ -385,6 +420,7 @@
    "terrain": "forest",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -397,6 +433,9 @@
    "terrain": "upland",
    "kind": "village",
    "border": false,
+   "resources": [
+    "iron"
+   ],
    "stronghold": false
   },
   {
@@ -409,6 +448,7 @@
    "terrain": "upland",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -421,6 +461,7 @@
    "terrain": "valley",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -433,6 +474,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -445,6 +487,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -457,6 +500,7 @@
    "terrain": "valley",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -469,6 +513,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -481,6 +526,7 @@
    "terrain": "forest",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -493,6 +539,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -505,6 +552,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -517,6 +565,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -529,6 +578,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -541,6 +591,7 @@
    "terrain": "upland",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -553,6 +604,9 @@
    "terrain": "upland",
    "kind": "village",
    "border": false,
+   "resources": [
+    "iron"
+   ],
    "stronghold": false
   },
   {
@@ -565,6 +619,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -577,6 +632,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -589,6 +645,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -601,6 +658,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -613,6 +671,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -625,6 +684,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -637,6 +697,7 @@
    "terrain": "valley",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -649,6 +710,7 @@
    "terrain": "valley",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -661,6 +723,7 @@
    "terrain": "upland",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -673,6 +736,7 @@
    "terrain": "valley",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -685,6 +749,7 @@
    "terrain": "upland",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -697,6 +762,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -709,6 +775,7 @@
    "terrain": "forest",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -721,6 +788,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -733,6 +801,7 @@
    "terrain": "forest",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -745,6 +814,9 @@
    "terrain": "upland",
    "kind": "village",
    "border": false,
+   "resources": [
+    "iron"
+   ],
    "stronghold": false
   },
   {
@@ -757,6 +829,7 @@
    "terrain": "valley",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -769,6 +842,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -781,6 +855,7 @@
    "terrain": "valley",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -793,6 +868,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -805,6 +881,7 @@
    "terrain": "valley",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -817,6 +894,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -829,6 +907,7 @@
    "terrain": "forest",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -841,6 +920,7 @@
    "terrain": "upland",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -853,6 +933,7 @@
    "terrain": "valley",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -865,6 +946,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -877,6 +959,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -889,6 +972,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -901,6 +985,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -913,6 +998,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -925,6 +1011,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -937,6 +1024,7 @@
    "terrain": "valley",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -949,6 +1037,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -961,6 +1050,7 @@
    "terrain": "upland",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -973,6 +1063,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -985,6 +1076,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -997,6 +1089,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -1009,6 +1102,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -1021,6 +1115,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -1033,6 +1128,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -1045,6 +1141,7 @@
    "terrain": "forest",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -1057,6 +1154,7 @@
    "terrain": "upland",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -1069,6 +1167,7 @@
    "terrain": "forest",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -1081,6 +1180,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -1093,6 +1193,7 @@
    "terrain": "forest",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -1105,6 +1206,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -1117,6 +1219,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -1129,6 +1232,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -1141,6 +1245,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -1153,6 +1258,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -1165,6 +1271,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -1177,6 +1284,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -1189,6 +1297,7 @@
    "terrain": "forest",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -1201,6 +1310,7 @@
    "terrain": "plain",
    "kind": "village",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -1213,6 +1323,7 @@
    "terrain": "plain",
    "kind": "town",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -1225,6 +1336,7 @@
    "terrain": "plain",
    "kind": "town",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -1237,6 +1349,7 @@
    "terrain": "plain",
    "kind": "town",
    "border": false,
+   "resources": [],
    "stronghold": false
   },
   {
@@ -1249,6 +1362,9 @@
    "terrain": "valley",
    "kind": "town",
    "border": true,
+   "resources": [
+    "iron"
+   ],
    "stronghold": true
   }
  ],
@@ -2551,6 +2667,50 @@
   "price_surge": 1.4,
   "places_listed": 5
  },
+ "crafts": {
+  "enabled": true,
+  "products": [
+   {
+    "name": "iron",
+    "use": "material",
+    "carriage": 0.5
+   }
+  ],
+  "businesses": [
+   {
+    "name": "ironworks",
+    "product": "iron",
+    "output": 8.0,
+    "tool_boost": 0.3,
+    "inputs": [],
+    "uses_land": false,
+    "initial_share": 0.001,
+    "resource": "iron"
+   }
+  ],
+  "charcoal": 1.0,
+  "smithing_inputs": [
+   [
+    "iron",
+    0.25
+   ],
+   [
+    "firewood",
+    1.5
+   ]
+  ],
+  "exports": [
+   [
+    "clothing",
+    2.5
+   ],
+   [
+    "iron",
+    2.0
+   ]
+  ],
+  "export_share": 0.1
+ },
  "products": [
   {
    "name": "food",
@@ -2581,7 +2741,8 @@
    "tool_boost": 0.25,
    "inputs": [],
    "uses_land": true,
-   "initial_share": 0.8
+   "initial_share": 0.8,
+   "resource": null
   },
   {
    "name": "woodcutting",
@@ -2590,7 +2751,8 @@
    "tool_boost": 0.3,
    "inputs": [],
    "uses_land": false,
-   "initial_share": 0.1
+   "initial_share": 0.1,
+   "resource": null
   },
   {
    "name": "weaving",
@@ -2599,7 +2761,8 @@
    "tool_boost": 0.0,
    "inputs": [],
    "uses_land": false,
-   "initial_share": 0.07
+   "initial_share": 0.07,
+   "resource": null
   },
   {
    "name": "smithing",
@@ -2613,7 +2776,8 @@
     ]
    ],
    "uses_land": false,
-   "initial_share": 0.03
+   "initial_share": 0.03,
+   "resource": null
   }
  ],
  "events": [

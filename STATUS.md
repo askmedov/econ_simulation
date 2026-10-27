@@ -6,8 +6,8 @@ Written for whoever picks this project up next. Read this first, then
 Rust is [docs/RUST_HANDOFF.md](docs/RUST_HANDOFF.md).
 
 Last updated: October 2026, after the Rust engine's milestones 1-7 and its
-Phase 3 work through ten million people (the Python model at the end of
-Phase 3 step 4).
+Phase 3 work through ten million people, starting points, a ranked log and
+a richer economy (the Python model at the end of Phase 3 step 4).
 
 ## What this is
 
@@ -65,7 +65,7 @@ validation runs.
   of the tax, spent there (Rust only). Four towns trade beyond the
   region at a million. Smaller regions are laid out as before.
 - **Runs start from many states** (branch `claude/rust-starting-points`;
-  PLAN.md, "Rust engine", section 12): fifteen starting points (after a
+  PLAN.md, "Rust engine", section 12): seventeen starting points (after a
   plague, crowded, lean or full barns, short of coin, heavy lords, free
   peasants, in debt, war-torn, worn land, open or closed trade...), any
   parameter changed from the command line (`--set`, `--scale`), and
@@ -77,6 +77,16 @@ validation runs.
   first, then each month's entries from rank 1 (much of the region, or a
   forced event) to 4 (the small change of a month), the places under each,
   worst first. `log.txt` and `log.json`; `--log-level` sets how much.
+- **A richer economy** (branch `claude/rust-crafts`; PLAN.md, "Rust
+  engine", section 14): iron is dug and smelted only where the hills have
+  it (and in the towns nearest them), with charcoal from the place's
+  woods, and merchants sell it across the region from the makers' stock
+  along fixed supply lines, so trouble in the iron hills makes tools dear
+  everywhere. Cloth and iron are sold beyond the region at the border
+  towns. Over ten years at a million, tools stay within 0.93 to 1.25 times
+  their price without it, and the exports' coins keep 1.4% more people.
+  The chronicle tells when tools grow dear. `--set crafts.enabled=false`
+  (or `--start village-crafts`) gives the old economy, month for month.
 - **Ten million people run** (branch `claude/rust-ten-million`; PLAN.md,
   "Rust engine", section 11): 24,600 villages, 984 towns, 13 outlets and
   a city of 148,246 (`export_config.py --large`, then `econ-sim --size
@@ -267,7 +277,7 @@ that is booked in the outside purse) and that **people add up**
 The Rust engine (`cd rust`; the binary is `target/release/econ-sim`):
 
 ```bash
-cargo build --release && cargo test --release       # 147 tests
+cargo build --release && cargo test --release       # 157 tests
 econ-sim --event drought@4 --runs 20                # the standard region of a million, with minds (4 min)
 econ-sim --size 100k --event drought@4 --runs 100   # the region of 100,000 (2 min)
 python ../scripts/export_config.py --large          # once: the region of ten million (7 MB, not in git)
@@ -276,6 +286,7 @@ econ-sim bench --config configs/regions/region1m.json   # time any setting
 econ-sim starts --months 60 --runs 2                # every starting point side by side (5 min)
 econ-sim starts --only standard,crowded --event drought@4   # what a drought does from each
 econ-sim --start after-plague --set lord.demesne=0.4 --scale villages.land=1.2   # a start of your own
+econ-sim starts --size 100k --months 120 --only standard,few-ironworkers,village-crafts   # the iron trade
 econ-sim logs --size 100k --event drought@4 --log-level 2   # what happened, the most important first
 econ-sim --population 1000 --event drought@4 --runs 200   # one village
 econ-sim --region 50 --event drought@4@0,12,11 --runs 40

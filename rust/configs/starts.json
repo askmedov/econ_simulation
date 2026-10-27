@@ -13,5 +13,7 @@
 {"name":"worn-land","about":"Soil worn out and woods cut back by generations of crowding","set":[["environment.initial_soil",0.75],["environment.initial_woods",0.5]],"scale":[]},
 {"name":"open-trade","about":"Good roads and rivers: carting costs halved, twice the grain trade beyond the region","set":[],"scale":[["map.handling",0.5],["map.road_per_km",0.5],["map.river_per_km",0.5],["town.outside_capacity",2.0]]},
 {"name":"closed","about":"No grain trade with the world beyond the region","set":[["town.outside_capacity",0.0]],"scale":[]},
-{"name":"no-garrison","about":"The state spends none of its tax in the city","set":[["state.garrison",0.0]],"scale":[]}
+{"name":"no-garrison","about":"The state spends none of its tax in the city","set":[["state.garrison",0.0]],"scale":[]},
+{"name":"few-ironworkers","about":"A mine flooded and a fever went through the iron hills: a quarter of the usual ironworkers","set":[],"scale":[["crafts.businesses.ironworks.initial_share",0.25]]},
+{"name":"village-crafts","about":"Only the village's four crafts: no iron for the smiths, no crafts sold beyond the region","set":[["crafts.enabled",false]],"scale":[]}
 ]

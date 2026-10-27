@@ -11,6 +11,7 @@ pub mod checks;
 pub mod chronicle;
 pub mod config;
 pub mod council;
+pub mod crafts;
 pub mod credit;
 pub mod economy;
 pub mod environment;

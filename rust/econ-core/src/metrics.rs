@@ -194,6 +194,9 @@ pub struct MonthRecord {
     pub grain_between_towns: f64,
     /// Coins the region's wool fetched beyond it (at shearing).
     pub wool_sold: f64,
+    /// Coins the region's crafts fetched beyond it, at its border towns
+    /// (Rust only: see `CraftsConfig`).
+    pub crafts_sold: f64,
     /// Coins lost, worn away or buried since the start.
     pub coins_lost: f64,
     /// People who left their village (for the town, beyond, or another village).
@@ -353,6 +356,7 @@ impl MonthRecord {
         f("grain_beyond", Cell::Float(self.grain_beyond));
         f("grain_between_towns", Cell::Float(self.grain_between_towns));
         f("wool_sold", Cell::Float(self.wool_sold));
+        f("crafts_sold", Cell::Float(self.crafts_sold));
         f("coins_lost", Cell::Float(self.coins_lost));
         f("emigrants", Cell::Int(self.emigrants));
         f("immigrants", Cell::Int(self.immigrants));
