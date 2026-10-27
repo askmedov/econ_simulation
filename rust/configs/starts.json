@@ -1,0 +1,17 @@
+[
+{"name":"standard","about":"The standard settings, as every run starts","set":[],"scale":[]},
+{"name":"after-plague","about":"A plague has just carried off a third of the people: land to spare, labour scarce","set":[],"scale":[["villages.population",0.6666666666666666]]},
+{"name":"crowded","about":"Half as many people again as the land feeds well; the soil tired, the woods thinned","set":[["environment.initial_soil",0.85],["environment.initial_woods",0.7]],"scale":[["villages.population",1.5]]},
+{"name":"lean-barns","about":"After a bad harvest: a month of food in store, and half the usual savings","set":[],"scale":[["villages.initial_food_months",0.2],["money.initial_savings_months",0.5]]},
+{"name":"full-barns","about":"After a run of good harvests: a year of food in store","set":[],"scale":[["villages.initial_food_months",2.4]]},
+{"name":"short-of-coin","about":"Coin is scarce: a third of the usual savings and business cash","set":[],"scale":[["money.initial_savings_months",0.3333333333333333],["money.initial_business_cash_per_worker",0.3333333333333333]]},
+{"name":"heavy-lords","about":"The lords and the state take twice as much: twice the demesne and labour days, twice the tax","set":[],"scale":[["lord.demesne",2.0],["lord.labour_service",2.0],["state.hearth_tax_months",2.0],["state.land_tax",2.0]]},
+{"name":"free-peasants","about":"No lords, half the tax, and more families holding land","set":[["lord.enabled",false],["land.landless_share",0.15]],"scale":[["state.hearth_tax_months",0.5],["state.land_tax",0.5]]},
+{"name":"unequal","about":"Land in few hands: half the families landless, the rest's holdings more uneven","set":[["land.landless_share",0.5],["land.holding_spread",1.2]],"scale":[]},
+{"name":"in-debt","about":"Landholding families owe a year and a half's wage to the biggest landholders, and have half the usual savings","set":[["credit.initial_debt_months",18.0]],"scale":[["money.initial_savings_months",0.5]]},
+{"name":"war-torn","about":"After a war: a seventh of the people gone, the rest weakened, barns and herds plundered","set":[["health.initial",[55.0,90.0]],["livestock.initial_herds",0.5]],"scale":[["villages.population",0.85],["villages.initial_food_months",0.4]]},
+{"name":"worn-land","about":"Soil worn out and woods cut back by generations of crowding","set":[["environment.initial_soil",0.75],["environment.initial_woods",0.5]],"scale":[]},
+{"name":"open-trade","about":"Good roads and rivers: carting costs halved, twice the grain trade beyond the region","set":[],"scale":[["map.handling",0.5],["map.road_per_km",0.5],["map.river_per_km",0.5],["town.outside_capacity",2.0]]},
+{"name":"closed","about":"No grain trade with the world beyond the region","set":[["town.outside_capacity",0.0]],"scale":[]},
+{"name":"no-garrison","about":"The state spends none of its tax in the city","set":[["state.garrison",0.0]],"scale":[]}
+]

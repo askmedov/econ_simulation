@@ -164,6 +164,9 @@ pub fn create_world(config: &Config, streams: &mut RandomStreams) -> Result<Worl
     let farmland: Vec<f64> = land.iter().zip(&demesne).map(|(l, d)| l - d).collect();
     households::assign_land(&mut households, &population, &farmland, config, streams.get("land"));
     livestock::place_herds(&mut households, &land, config, streams.get("land"), Some(&geo.pasture));
+    for animals in households.animals.iter_mut() {
+        *animals *= config.livestock.initial_herds; // (a starting point may have fewer)
+    }
     let herds = households.by_place(n, |h| households.animals[h]);
     let animals = livestock::farm_factor(&herds, &land, config);
 
@@ -223,6 +226,10 @@ pub fn create_world(config: &Config, streams: &mut RandomStreams) -> Result<Worl
         let v = households.location[h] as usize;
         let monthly = family_need[h] * prices.get(v, food) + members[h] * mean_firewood * prices.get(v, fuel);
         households.money[h] = config.money.initial_savings_months * monthly;
+    }
+    // A starting point may have the landholders in debt.
+    if config.credit.initial_debt_months > 0.0 {
+        crate::credit::start_in_debt(&mut households, &wage, config.credit.initial_debt_months);
     }
 
     let effort = economy::labor(&population, &force, config, None, false);
@@ -330,6 +337,9 @@ pub fn create_world(config: &Config, streams: &mut RandomStreams) -> Result<Worl
         food_prices.iter().sum::<f64>() / n as f64 / (1.0 - config.town.transport)
     };
     let woods_normal = woods.clone();
+    // (a starting point may have them thinned)
+    let woods: Vec<f64> =
+        (0..n).map(|r| (woods[r] * config.environment.initial_woods).min(woods_capacity[r])).collect();
     population.sort_by_family();
     if config.minds.enabled {
         households.minds = Some(Minds::new(households.len(), &config.minds, streams.get("minds")));
@@ -363,7 +373,7 @@ pub fn create_world(config: &Config, streams: &mut RandomStreams) -> Result<Worl
         woods,
         woods_capacity,
         woods_normal,
-        soil: vec![1.0; n],
+        soil: vec![config.environment.initial_soil; n],
         geo,
         dealers_grain,
         dealers_cash,

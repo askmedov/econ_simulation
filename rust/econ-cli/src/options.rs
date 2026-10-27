@@ -3,6 +3,7 @@
 
 use clap::Args;
 use econ_core::config::{configs_dir, default_config, standard_region, Config, ScheduledEvent, Standard};
+use econ_core::starts;
 
 /// The size of the standard region.
 #[derive(clap::ValueEnum, Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -120,6 +121,18 @@ pub struct RunArgs {
     /// Months of food in store at the start
     #[arg(long)]
     pub food_months: Option<f64>,
+    /// Start from this starting point (econ-sim starts --list shows them)
+    #[arg(long, value_name = "NAME")]
+    pub start: Option<String>,
+    /// Set a parameter, e.g. --set lord.demesne=0.4; a path through a list
+    /// changes the item named, or every item (--set villages.City.population=20000,
+    /// --set events.plague.chance=0); repeatable
+    #[arg(long = "set", value_name = "PATH=VALUE")]
+    pub sets: Vec<String>,
+    /// Scale a parameter, e.g. --scale villages.population=0.8 (every place);
+    /// repeatable
+    #[arg(long = "scale", value_name = "PATH=FACTOR")]
+    pub scales: Vec<String>,
     /// Threads to run the runs on (default: all cores)
     #[arg(long)]
     pub workers: Option<usize>,
@@ -246,7 +259,22 @@ impl RunArgs {
                 event.repeat_chance = None;
             }
         }
-        Ok(config)
+        // Last, the starting point and the changes asked for, which may
+        // change any of the above.
+        if let Some(name) = &self.start {
+            config = starts::apply(&config, &starts::find(name)?)?;
+        }
+        self.changed(config)
+    }
+
+    /// `config` with the --set and --scale changes made.
+    pub fn changed(&self, config: Config) -> Result<Config, String> {
+        let sets = self.sets.iter().map(|s| starts::parse_set(s)).collect::<Result<Vec<_>, _>>()?;
+        let scales = self.scales.iter().map(|s| starts::parse_scale(s)).collect::<Result<Vec<_>, _>>()?;
+        if sets.is_empty() && scales.is_empty() {
+            return Ok(config);
+        }
+        starts::change(&config, &sets, &scales)
     }
 
     /// The forced events.

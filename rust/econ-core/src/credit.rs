@@ -17,6 +17,36 @@ use crate::grid::{clip, div_or};
 use crate::households::Households;
 use crate::market::by_village;
 
+/// A starting point in debt: in each place the biggest fifth of the
+/// landholding families (at least one) are the lenders, and every other
+/// landholding family owes them `months` of the place's customary `wage`,
+/// their claims in proportion to their land.
+pub fn start_in_debt(households: &mut Households, wage: &[f64], months: f64) {
+    let n = wage.len();
+    let mut landed: Vec<Vec<usize>> = vec![Vec::new(); n];
+    for h in 0..households.len() {
+        if households.land[h] > 0.0 {
+            landed[households.location[h] as usize].push(h);
+        }
+    }
+    for (v, families) in landed.iter_mut().enumerate() {
+        families.sort_by(|&a, &b| households.land[b].total_cmp(&households.land[a]));
+        let lenders = families.len().div_ceil(5);
+        if families.len() < 2 {
+            continue;
+        }
+        let (lending, owing) = families.split_at(lenders);
+        let owed = months * wage[v] * owing.len() as f64;
+        let land: f64 = lending.iter().map(|&h| households.land[h]).sum();
+        for &h in owing {
+            households.debt[h] += months * wage[v];
+        }
+        for &h in lending {
+            households.lent[h] += owed * households.land[h] / land;
+        }
+    }
+}
+
 /// Each household's share of its place's total, by `weights`.
 pub fn pro_rata(weights: &[f64], totals: &[f64], location: &[u32]) -> Vec<f64> {
     let village = by_village(weights, location, totals.len());

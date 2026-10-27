@@ -11,6 +11,7 @@ Each file is `dataclasses.asdict(config)` as it is (tuples become lists).
 The suites (`sanity.json`, `stress.json`) hold the settings of
 `scripts/sanity_check.py` and `scripts/stress_test.py`, each with its whole
 config, so the Rust checks run exactly what the Python ones run.
+`starts.json` holds the starting points (`econ_sim/starts.py`).
 """
 
 from __future__ import annotations
@@ -27,6 +28,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from econ_sim.config import Config  # noqa: E402
 from econ_sim.geography import SIZE_BY_TERRAIN, RegionSettings, region  # noqa: E402
+from econ_sim.starts import STARTS  # noqa: E402
 
 CONFIGS = ROOT / "rust" / "configs"
 
@@ -97,6 +99,7 @@ def standard_files() -> dict[str, object]:
         files[f"regions/{name}.json"] = as_json(region(settings, Config()))
     files["sanity.json"] = sanity_suite()
     files["stress.json"] = stress_suite()
+    files["starts.json"] = [json.loads(json.dumps(dataclasses.asdict(start))) for start in STARTS]
     return files
 
 

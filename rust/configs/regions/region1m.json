@@ -30916,7 +30916,8 @@
   "winter_losses": 0.3,
   "value_months": 6.0,
   "buyers_spend": 0.5,
-  "lowest_price": 0.2
+  "lowest_price": 0.2,
+  "initial_herds": 1.0
  },
  "credit": {
   "enabled": true,
@@ -30931,7 +30932,8 @@
   "default_at": 2.0,
   "years_purchase": 15.0,
   "buyers_spend": 0.5,
-  "lowest_price": 0.3
+  "lowest_price": 0.3,
+  "initial_debt_months": 0.0
  },
  "lord": {
   "enabled": true,
@@ -31044,7 +31046,9 @@
    0.6,
    1.1
   ],
-  "soil_recovery": 0.1
+  "soil_recovery": 0.1,
+  "initial_soil": 1.0,
+  "initial_woods": 1.0
  },
  "council": {
   "enabled": true,

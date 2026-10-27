@@ -188,6 +188,7 @@ pub struct LivestockConfig {
     pub value_months: f64,
     pub buyers_spend: f64,
     pub lowest_price: f64,
+    pub initial_herds: f64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -206,6 +207,7 @@ pub struct CreditConfig {
     pub years_purchase: f64,
     pub buyers_spend: f64,
     pub lowest_price: f64,
+    pub initial_debt_months: f64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -305,6 +307,8 @@ pub struct EnvironmentConfig {
     pub overcropping: f64,
     pub fertility_range: (f64, f64),
     pub soil_recovery: f64,
+    pub initial_soil: f64,
+    pub initial_woods: f64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

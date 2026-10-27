@@ -164,3 +164,44 @@ fn a_region_kept_as_a_config_runs_the_same_again() {
     let again = run(&["--config", kept.to_str().unwrap(), "--months", "3"], &out);
     assert_eq!(laid_out, again);
 }
+
+#[test]
+fn starting_points_are_compared_side_by_side() {
+    let out = folder("starts");
+    let report = run(&["starts", "--size", "100k", "--months", "12", "--only", "standard,crowded"], &out);
+    assert!(report.contains("2 starting points") && report.contains("Where each start leads"));
+    assert!(report.lines().any(|l| l.starts_with("crowded ")));
+    assert!(report.contains("People at the end of each year"));
+    let csv = std::fs::read_to_string(out.join("starts.csv")).unwrap();
+    assert_eq!(csv.lines().count(), 3);
+    let output = econ_sim(&["starts", "--list"]);
+    assert!(String::from_utf8_lossy(&output.stdout).contains("after-plague"));
+}
+
+#[test]
+fn starting_points_are_compared_over_ten_years_at_most() {
+    let out = folder("starts-long");
+    let output = econ_sim(&["starts", "--size", "100k", "--months", "180", "--out", out.to_str().unwrap()]);
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("10 years"));
+}
+
+#[test]
+fn a_run_starts_from_a_starting_point_with_changes_of_its_own() {
+    let out = folder("start");
+    let config = |args: &[&str]| -> serde_json::Value {
+        let output = econ_sim(&[&["config"], args].concat());
+        assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+        serde_json::from_slice(&output.stdout).unwrap()
+    };
+    let plague = config(&["--population", "1000", "--start", "after-plague"]);
+    assert_eq!(plague["villages"][0]["population"], 667);
+    let changed = config(&["--population", "1000", "--set", "lord.demesne=0.4", "--scale", "villages.land=2"]);
+    assert_eq!(changed["lord"]["demesne"], 0.4);
+    assert_eq!(changed["villages"][0]["land"], 700.0);
+    for bad in [&["--start", "golden-age"][..], &["--set", "lord.demesnee=0.4"][..]] {
+        let output =
+            econ_sim(&[&["--population", "1000", "--months", "1", "--out", out.to_str().unwrap()], bad].concat());
+        assert!(!output.status.success(), "{bad:?} was accepted");
+    }
+}

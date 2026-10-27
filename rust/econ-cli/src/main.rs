@@ -8,6 +8,7 @@ mod options;
 mod report;
 mod run;
 mod sanity;
+mod starts;
 mod stress;
 
 use clap::{Parser, Subcommand};
@@ -43,6 +44,19 @@ enum Command {
     /// without and with it, without and with the forced events
     Compare {
         switch: compare::Switch,
+        #[command(flatten)]
+        run: RunArgs,
+    },
+    /// The region run from several starting points (after a plague, crowded,
+    /// short of coin...), each from the same seeds, side by side for up to
+    /// ten years; with --event, what the event does from each
+    Starts {
+        /// Only these starting points, e.g. --only standard,crowded
+        #[arg(long, value_delimiter = ',')]
+        only: Vec<String>,
+        /// List the starting points and exit
+        #[arg(long)]
+        list: bool,
         #[command(flatten)]
         run: RunArgs,
     },
@@ -212,6 +226,14 @@ fn main() {
         Some(Command::Config(args)) => args.config().and_then(|config| {
             serde_json::to_string_pretty(&config).map(|text| println!("{text}")).map_err(|e| e.to_string())
         }),
+        Some(Command::Starts { list: true, .. }) => {
+            starts::list();
+            Ok(())
+        }
+        Some(Command::Starts { only, run, .. }) => {
+            threads(run.workers);
+            starts::run(&run, &only)
+        }
         Some(Command::Minds(args)) => {
             threads(args.workers);
             compare::run(&args, compare::Switch::Minds)

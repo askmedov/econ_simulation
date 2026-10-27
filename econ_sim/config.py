@@ -361,6 +361,9 @@ class LivestockConfig:
     value_months: float = 6.0
     buyers_spend: float = 0.5
     lowest_price: float = 0.2
+    # Herds at the start, as a share of the usual (a starting point: see
+    # `starts.py`). (Rust only.)
+    initial_herds: float = 1.0
 
 
 @dataclass(frozen=True)
@@ -398,6 +401,10 @@ class CreditConfig:
     years_purchase: float = 15.0
     buyers_spend: float = 0.5
     lowest_price: float = 0.3
+    # Landholding families start owing this many months of the customary
+    # wage, to the place's biggest landholders (a starting point: see
+    # `starts.py`). (Rust only.)
+    initial_debt_months: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -619,6 +626,11 @@ class EnvironmentConfig:
     overcropping: float = 0.2
     fertility_range: tuple[float, float] = (0.6, 1.1)
     soil_recovery: float = 0.1
+    # Soil fertility at the start, and the woods standing as a share of what
+    # is in balance with the place's use (starting points: see `starts.py`).
+    # (Rust only.)
+    initial_soil: float = 1.0
+    initial_woods: float = 1.0
 
 
 @dataclass(frozen=True)

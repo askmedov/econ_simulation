@@ -2333,3 +2333,96 @@ across. `python scripts/export_config.py --large` writes it in 46 s to
     of them down to 9% of their need in their worst month); the city 228
     more, ending at 51,359. As at a million, towns starve in a dearth for
     lack of coins at three times the usual price.
+
+### 12. Starting points (built)
+
+Runs no longer need to be long to be useful: they can start from many
+states and go from there. A **starting point** is a named set of changes
+to the settings a run starts from, defined in Python
+(`econ_sim/starts.py`, exported to `rust/configs/starts.json`).
+
+- **A change** sets a parameter or scales it, named by its path in the
+  config (`lord.demesne`). A path through a list changes the item named
+  (`events.plague.chance`, `villages.City.population`), or else every item
+  (`villages.population`: every place). Scaling keeps whole numbers whole,
+  and a town's empty store empty. A path that names no parameter, or a
+  value of the wrong kind, is refused.
+- **Four new settings** describe a starting state the config couldn't
+  before (Rust only; their defaults are the old start):
+  - `environment.initial_soil` and `initial_woods`: worn soil, thinned woods;
+  - `livestock.initial_herds`: herds plundered or lost;
+  - `credit.initial_debt_months`: landholders in debt to the biggest of
+    them, the biggest fifth of each place's landholders holding the
+    claims by their land, so debts and claims balance in every place.
+- **The command line:** `econ-sim --start NAME` runs from a starting
+  point. `--set PATH=VALUE` and `--scale PATH=FACTOR` make changes of your
+  own, on top. `econ-sim starts` runs every starting point (or `--only
+  a,b`) from the same seeds, side by side, for up to ten years, and with
+  `--event`, what the event does from each. It writes `starts.csv`.
+- **The fifteen starting points:** standard, after-plague (a third of the
+  people gone), crowded (half as many again), lean-barns, full-barns,
+  short-of-coin, heavy-lords, free-peasants, unequal, in-debt, war-torn,
+  worn-land, open-trade, closed (no grain trade beyond the region) and
+  no-garrison.
+- **Where each leads** (the region of a million, two seeds, five years):
+
+| Start | People at the end | Deaths / births a year per 1,000 | Grain price | Pay covers | Hungry months | Debt a family |
+|---|---|---|---|---|---|---|
+| standard | 996,457 (−1.6%) | 45.5 / 43.4 | 0.93 | 1.07 | 0 | 1.58 |
+| after-plague | 751,135 (+11.3%) | 45.5 / 45.9 | 0.73 | 1.89 | 0 | 0.61 |
+| crowded | 1,310,306 (−13.7%) | 55.5 / 35.5 | 2.11 | 0.72 | 43 | 5.35 |
+| lean-barns | 931,204 (−8.0%) | 52.2 / 40.0 | 0.73 | 1.36 | 14 | 2.78 |
+| full-barns | 1,045,910 (+3.3%) | 45.5 / 45.5 | 1.11 | 1.01 | 0 | 1.02 |
+| short-of-coin | 978,542 (−3.3%) | 46.3 / 42.5 | 0.73 | 1.10 | 2.5 | 1.61 |
+| heavy-lords | 974,380 (−3.7%) | 48.0 / 41.9 | 1.20 | 1.02 | 7 | 3.20 |
+| free-peasants | 1,049,927 (+3.7%) | 45.3 / 44.5 | 0.78 | 1.38 | 0 | 0.58 |
+| in-debt | 986,253 (−2.6%) | 45.8 / 42.8 | 0.79 | 1.08 | 0 | 5.18 |
+| war-torn | 817,493 (−5.0%) | 47.8 / 40.3 | 0.91 | 1.16 | 13 | 2.42 |
+| worn-land | 848,417 (−16.2%) | 60.9 / 35.1 | 1.86 | 0.83 | 40 | 5.64 |
+
+  (unequal, open-trade, closed and no-garrison end within 1% of standard;
+  pay covers: food a month's pay buys, over a worker's share of the need)
+  - After a plague the survivors have land to spare and labour is dear:
+    pay buys nearly twice the food, grain is cheap, and the region grows
+    a tenth in five years, as Europe did after 1348.
+  - A crowded region or worn land is Malthusian: grain twice the price,
+    pay short of the need, 40 hungry months in 60, and a seventh of the
+    people gone by year five (deaths, fewer births, and three times as
+    many leaving).
+  - Free peasants grow; heavy lords' tenants shrink, and more of them end
+    landless (45% against 34%).
+  - A debt of a year and a half's wage costs landholders 207 plots to
+    foreclosure in the first month (100,000 region) and leaves 41%
+    landless after five years.
+- **What a drought does from each start** (drought in month 4, two seeds,
+  three years): extra deaths per 1,000 people.
+
+| Start | Extra deaths per 1,000 | Worst month (without → with) | Highest grain price |
+|---|---|---|---|
+| full-barns | 25.0 | 99% → 89% | 1.16 → 2.39 |
+| after-plague | 57.8 | 100% → 75% | 1.06 → 3.35 |
+| free-peasants | 60.1 | 99% → 80% | 1.15 → 3.34 |
+| open-trade | 70.3 | 99% → 76% | 1.32 → 3.39 |
+| standard | 74.6 | 99% → 75% | 1.35 → 3.52 |
+| closed | 77.8 | 99% → 74% | 1.39 → 3.51 |
+| short-of-coin | 117.0 | 95% → 75% | 1.13 → 3.23 |
+| in-debt | 127.4 | 98% → 67% | 1.29 → 3.46 |
+| heavy-lords | 129.2 | 96% → 68% | 1.93 → 3.62 |
+| crowded | 137.9 | 79% → 61% | 3.75 → 4.05 |
+| war-torn | 161.7 | 86% → 60% | 2.73 → 3.64 |
+| worn-land | 170.7 | 77% → 56% | 4.16 → 4.70 |
+| lean-barns | 182.7 | 81% → 58% | 2.97 → 4.00 |
+
+  What is in the barns when the drought comes matters most: full barns
+  cut its toll to a third, lean ones raise it two and a half times. Debt,
+  heavy lords and scarce coin each make it about 1.7 times as deadly, by
+  leaving families without the coins or grain to ride it out. How open
+  the region is to trade barely matters (70 against 78 per 1,000).
+- **Checked by tests:** every starting point applies to the standard
+  regions and the village; invariants hold and coins are conserved every
+  month from every one; debts start balanced with claims, held by the
+  biggest landholders; herds, soil and woods start as set; a region after
+  a plague pays better and goes hungry less than a crowded one; a change
+  to a parameter that doesn't exist is refused. Fifteen starting points
+  over five years at a million, two seeds each, take 4.6 minutes on 4
+  cores.
