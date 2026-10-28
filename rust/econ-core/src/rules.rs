@@ -299,8 +299,27 @@ pub fn death_chance(
         .collect()
 }
 
+/// The oldest age a life table tells apart (in years): older people count with it.
+pub const OLDEST: usize = 100;
+
+/// People of each age in years (to `OLDEST`) and the deaths their monthly
+/// chances make likely, for a life table (`metrics::life_table`); only
+/// read, never used by a rule.
+#[derive(Clone, Debug, PartialEq)]
+pub struct AtRisk {
+    pub people: Vec<f64>,
+    pub dying: Vec<f64>,
+}
+
+impl Default for AtRisk {
+    fn default() -> AtRisk {
+        AtRisk { people: vec![0.0; OLDEST + 1], dying: vec![0.0; OLDEST + 1] }
+    }
+}
+
 /// The people who die this month leave their rows (emptied rows are removed
-/// at the end of the month); returns deaths per place.
+/// at the end of the month); returns deaths per place, and adds the people
+/// of each age and their chances of dying to `at_risk`.
 pub fn deaths(
     population: &mut Population,
     mortality_mult: &[f64],
@@ -308,8 +327,15 @@ pub fn deaths(
     rng: &mut Rng,
     n_locations: usize,
     care: Option<&[f64]>,
+    at_risk: &mut AtRisk,
 ) -> Vec<f64> {
     let chance = death_chance(population, mortality_mult, config, care);
+    for (i, &p) in chance.iter().enumerate() {
+        let age = (population.age_years(i).max(0) as usize).min(OLDEST);
+        let count = population.count[i] as f64;
+        at_risk.people[age] += count;
+        at_risk.dying[age] += count * p;
+    }
     let mut by_village = vec![0.0; n_locations];
     for (i, &p) in chance.iter().enumerate() {
         let died = rng.binomial(population.count[i] as u64, p) as u32;

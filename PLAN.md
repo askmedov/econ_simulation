@@ -2893,3 +2893,104 @@ the paired what-if first. Rust only, and read-only: no rule changed.
   one rate today, 20% a year, so a map of it would be flat); zoom and pan
   for ten million; and runs in the browser itself, with `econ-core`
   built for WebAssembly (it would need to run without rayon).
+
+### 17. Economic and welfare indicators (built)
+
+The user asked for economic and welfare indicators. The records gain
+eleven measures and the places five, all read-only (Rust only), and the
+viewer shows them on the map and in a chart group of their own. They are
+computed in every run and cost nothing measurable (a month of a million on
+one thread: 0.518 s against 0.521 s).
+
+- **In the records**, after every column there was (so the old columns
+  stay where they were):
+  - `output`: coins' worth of everything the trades made this month, at
+    this month's prices (the farms' grain at harvest);
+  - `cost_of_living`: coins a month for a grown-up's necessities, a ration
+    of grain, the year's mean firewood need (0.33 units) and the salt every
+    person needs (0.1), at each place's prices, averaged over people;
+  - `real_wage`: a worker's monthly wage over the cost of living, months
+    of necessities a month's pay buys;
+  - `coins_held` (coins in the places: families, trades, councils, grain
+    dealers) and `coins_gained` (this month's change: trade beyond, the
+    lords' and the state's take, coins lost);
+  - `family_income`: coins families earned this month;
+  - `wealth` (families' net worth a head: land at the place's price,
+    animals at their usual worth, grain, coins and claims, less debts),
+    `wealth_gini` (its Gini coefficient among people) and
+    `top_tenth_wealth` (the richest tenth's share);
+  - `life_expectancy` and `under_five_deaths`: life expectancy at birth,
+    and deaths before five per 1,000 born, if the last twelve months'
+    chances of dying at each age held for life. The chances are the ones
+    the deaths are drawn from (age, events, hunger, healers), tallied by
+    age in years, so the measure has no luck of the draw in it; a life
+    table turns them into years (a baby who dies lives a third of its
+    first year, others half of theirs).
+- **Per place** (`PLACE_SERIES`): `output`, `cost_of_living`, `underfed`
+  (people in families under 90% of their need), `land_price` and
+  `wealth` (a head).
+- **In the viewer:** seven more measures on the map: the price of land,
+  and an "economy and welfare" group of output a head over the last twelve
+  months, the cost of living, the real wage, wealth a head, inequality (the
+  Gini of wealth within each place) and the share underfed. Output (and
+  families' income in the charts) is in months of necessities, each month's
+  coins over that month's cost of living: in coins, a drought made output
+  look bigger (dear grain), and ten years of coins coming in inflated
+  both. A new chart group, "Economy and welfare", has fourteen charts:
+  output and income a head, the cost of living, the real wage, coins held
+  and gained, wealth a head, its Gini and the richest tenth's share, life
+  expectancy, deaths before five, the shares underfed and landless, and
+  debts against a year's income. The month's summary adds the real wage
+  and life expectancy.
+- **Smaller pages:** shares are now kept to half a percent and prices and
+  sums to 1% of their value (from a tenth of a percent and 0.4%): a fifth
+  fewer bytes. Ten years of a million with 31 measures is 10.7 MB (25
+  measures took 9.9 MB); at 100,000, 1.6 MB.
+- **Every run stays the same:** against the previous commit's binary,
+  every old column of the records and the whole chronicle are the same
+  byte for byte on seven settings (ten years at 100,000 with a drought, a
+  year at a million with a drought, after a plague with a plague, in debt
+  with a debt jubilee, the region of 20 and the village with a drought,
+  the city and 3 towns without the crafts).
+- **A drought at a million** (seed 42, month 4; yearly, without / with):
+
+| Year | Life expectancy, lowest | Deaths before five | Real wage | Output a head | Underfed, worst month | Wealth Gini | Debts / a year's income |
+|---|---|---|---|---|---|---|---|
+| 1 | 21.2 / 17.4 | 503 / 519 | 1.29 / 0.84 | 13.9 / 9.1 | 0.7% / 40.0% | 0.599 / 0.604 | 0.3% / 3.3% |
+| 2 | 19.5 / 8.5 | 527 / 602 | 1.34 / 0.92 | 15.0 / 12.3 | 2.9% / 41.4% | 0.607 / 0.608 | 1.8% / 5.6% |
+| 3 | 20.5 / 11.2 | 511 / 561 | 1.53 / 1.28 | 16.7 / 16.1 | 4.1% / 11.0% | 0.609 / 0.627 | 2.8% / 9.7% |
+| 5 | 20.8 / 20.3 | 504 / 503 | 1.94 / 2.19 | 19.1 / 21.3 | 3.4% / 4.0% | 0.597 / 0.617 | 2.7% / 5.1% |
+| 10 | 19.8 / 20.2 | 512 / 514 | 1.82 / 2.81 | 17.4 / 25.9 | 13.2% / 1.9% | 0.575 / 0.593 | 2.1% / 2.2% |
+
+  (real wage and Gini the year's mean; output a head over the twelve
+  months to December, in months of necessities)
+  - The drought costs a third of a year's output and of the real wage,
+    and two in five go underfed. At its worst, life expectancy at the
+    year's chances of dying is 8.5 years, and 602 of 1,000 born would die
+    before five.
+  - Debts climb against income for two years after it (to 9.7% of a
+    year's income, against 2.8%), and wealth grows more unequal (a Gini
+    of 0.627 against 0.609 in year three).
+  - Then the Malthusian rebound: fewer people (980,652 against 1,040,129
+    by year ten) and more land a head; by year ten pay buys half as much
+    again (2.81 against 1.82), output a head is half as much again, fewer
+    go hungry, and fewer are landless (29.9% against 35.4%).
+- **What they show about the model:**
+  - Life expectancy at birth is about 21 years in ordinary years, as the
+    mortality table makes it (28% die in their first year, 7% a year to
+    five). Estimates for England around 1300 are 25 to 35: for
+    calibration (step 11).
+  - Land loses 38% of its price in ten ordinary years (117 coins a plot to
+    72), which draws wealth a head down from 32.6 to 23.0 coins while the
+    coins in the region grow by half (5.0 to 7.4 million, from the
+    exports): also for calibration.
+- **Checked by tests:** one chance of dying at every age gives a life of
+  one over the yearly rate (within 2%) and the deaths before five that
+  chance makes; an age nobody is at takes its usual chance; wealth shared
+  equally is not unequal and all in one hand nearly all is (a family of
+  two counts as two people, a debt as nothing); the places' measures add
+  up to the region's (output, underfed, wealth, the cost of living; the
+  real wage is the wage over it; coins gained are the change in coins
+  held); life is as short as the mortality table says, and shorter in a
+  famine. In the viewer, packed numbers come back to their precision,
+  wealth below nothing included.

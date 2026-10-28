@@ -92,6 +92,8 @@
   function formatShown(series, v, gap) {
     if (!Number.isFinite(v)) return "–";
     const show = series.show;
+    // (a Gini coefficient is written as it is, 0 to 1)
+    if (series.unit.startsWith("Gini")) return gap ? fmtSigned(Math.abs(v).toFixed(2), v) : v.toFixed(2);
     if (gap) {
       if (show === "change" || show === "level") return fmtSigned(fmtPct(Math.abs(v)), v);
       if (show === "share") return fmtSigned((100 * Math.abs(v)).toFixed(1) + " pts", v);
@@ -141,7 +143,7 @@
             const i = t * P + p;
             const w = a === 0 ? q : q + firstArm[s][i];
             if (whole) whole[i] = q;
-            out[i] = kept.scale ? w / kept.scale : kept.unit * Math.expm1(w * kept.step);
+            out[i] = kept.scale ? w / kept.scale : Math.sign(w) * kept.unit * Math.expm1(Math.abs(w) * kept.step);
           }
         }
         if (whole) firstArm.push(whole);
@@ -847,8 +849,10 @@
     { key: "price_tools", label: "Tools", fmt: fmtLevel },
     { key: "price_salt", label: "Salt", fmt: fmtLevel },
     { key: "wage", label: "Pay, a month", fmt: fmtLevel },
+    { key: "real_wage", label: "Real wage", fmt: fmtLevel },
     { key: "deaths", label: "Deaths", fmt: fmtInt },
     { key: "emigrants", label: "Left", fmt: fmtInt },
+    { key: "life_expectancy", label: "Life expectancy", fmt: (v) => (Number.isFinite(v) ? v.toFixed(1) + " years" : "–") },
   ].filter((r) => REC[0][r.key]);
   function drawGlance() {
     const table = $("glance");
@@ -949,6 +953,9 @@
     { key: "pay", label: "Pay", fmt: fmtLevel },
     { key: "coins", label: "Coins a head", fmt: fmtLevel },
     { key: "debt", label: "Debt a family", fmt: fmtLevel },
+    { key: "real_wage", label: "Real wage", fmt: fmtLevel },
+    { key: "cost_of_living", label: "Cost of living", fmt: fmtLevel },
+    { key: "wealth", label: "Wealth a head", fmt: fmtLevel },
     { key: "deaths", label: "Deaths", fmt: fmtInt },
     { key: "left", label: "Leaving", fmt: fmtInt },
     { key: "arrived", label: "Arriving", fmt: fmtInt },
@@ -1126,7 +1133,32 @@
     return { node, draw, setMonth };
   }
 
+  // A measure over the last twelve months, month by month (in the first
+  // year, the months so far as a year's worth).
+  function lastYear(values) {
+    const out = [];
+    let sum = 0;
+    values.forEach((v, t) => { sum += v; if (t >= 12) sum -= values[t - 12]; out.push((sum * 12) / Math.min(t + 1, 12)); });
+    return out;
+  }
+  const ratio = (a, b) => a.map((v, t) => (b[t] > 0 ? v / b[t] : NaN));
   const REGION_CHARTS = [
+    { group: "Economy and welfare", note: "The cost of living is a grown-up's grain, firewood and salt for a month. Output (everything the trades made, at each month's prices) and families' income are in months of those necessities, so that a dearth or more coins don't make them look bigger. Wealth is what families own (land, animals, grain, coins and claims) less what they owe. Life expectancy is at birth, at the last twelve months' chances of dying.", items: [
+      { label: "Output a head", unit: "the last twelve months, in months of necessities", make: (r) => ratio(lastYear(ratio(r.output, r.cost_of_living)), r.population), fmt: fmtLevel },
+      { label: "Families' income a head", unit: "the last twelve months, in months of necessities", make: (r) => ratio(lastYear(ratio(r.family_income, r.cost_of_living)), r.population), fmt: fmtLevel },
+      { key: "cost_of_living", label: "Cost of living", unit: "coins a month for a grown-up", fmt: fmtLevel },
+      { key: "real_wage", label: "Real wage", unit: "months of necessities a month's pay buys", fmt: fmtLevel },
+      { key: "coins_held", label: "Coins in the region", unit: "held by families, trades, councils and dealers", fmt: fmtInt },
+      { key: "coins_gained", label: "Coins gained or lost", unit: "a month, with the world beyond, lords and state", fmt: fmtInt },
+      { key: "wealth", label: "Wealth a head", unit: "coins", fmt: fmtLevel },
+      { key: "wealth_gini", label: "Inequality of wealth", unit: "Gini, among people", fmt: (v) => (Number.isFinite(v) ? v.toFixed(2) : "–") },
+      { key: "top_tenth_wealth", label: "The richest tenth's share", unit: "of all families' wealth", fmt: (v) => fmtPct(v) },
+      { key: "life_expectancy", label: "Life expectancy", unit: "years, at birth", fmt: (v) => (Number.isFinite(v) ? v.toFixed(1) : "–") },
+      { key: "under_five_deaths", label: "Deaths before five", unit: "of 1,000 born", fmt: fmtInt },
+      { label: "Underfed", unit: "share of people", make: (r) => ratio(r.underfed, r.population), fmt: (v) => fmtPct(v) },
+      { label: "Landless", unit: "share of people", make: (r) => ratio(r.landless, r.population), fmt: (v) => fmtPct(v) },
+      { label: "Debt against income", unit: "debts over the last twelve months' income", make: (r) => ratio(r.debt, lastYear(r.family_income)), fmt: (v) => fmtPct(v) },
+    ] },
     { group: "People and food", items: [
       { key: "population", label: "People", fmt: fmtInt },
       { key: "ration", label: "Food eaten", unit: "share of need", fmt: (v) => fmtPct(v), guides: [SHORT, FAMINE] },
@@ -1186,11 +1218,19 @@
     regionCharts = [];
     const groups = [];
     for (const group of REGION_CHARTS) {
-      const items = group.items.filter((c) => REC[0][c.key] && REC.some((r) => r[c.key].some((v) => v !== 0)));
+      // (each chart's runs, read or made from the records; a measure the
+      // records lack, or nothing but zeros, gets no chart)
+      const items = group.items.map((c) => {
+        try {
+          return { ...c, lines: REC.map((r) => (c.make ? c.make(r) : r[c.key])) };
+        } catch (error) {
+          return { ...c, lines: null };
+        }
+      }).filter((c) => c.lines && c.lines.every(Array.isArray) && c.lines.some((line) => line.some((v) => v !== 0 && Number.isFinite(v))));
       if (!items.length) continue;
       const grid = el("div", { class: "chart-grid" });
       for (const c of items) {
-        const chart = makeChart({ title: c.label, unit: c.unit, lines: REC.map((r) => r[c.key]), fmt: c.fmt, guides: c.guides });
+        const chart = makeChart({ title: c.label, unit: c.unit, lines: c.lines, fmt: c.fmt, guides: c.guides });
         grid.append(chart.node);
         regionCharts.push(chart);
       }
@@ -1210,8 +1250,8 @@
       const tr = el("tr", {}, el("th", { text: String(yr) }));
       for (const c of items) {
         for (let a = 0; a < ARMS; a++) {
-          const vals = REC[a][c.key].filter((_, i) => REC[0].year[i] === yr);
-          tr.append(el("td", { text: c.fmt(vals.reduce((s, v) => s + v, 0) / vals.length) }));
+          const vals = c.lines[a].filter((v, i) => REC[0].year[i] === yr && Number.isFinite(v));
+          tr.append(el("td", { text: vals.length ? c.fmt(vals.reduce((s, v) => s + v, 0) / vals.length) : "–" }));
         }
       }
       return tr;

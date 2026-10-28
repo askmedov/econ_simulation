@@ -290,6 +290,131 @@ pub struct MonthRecord {
     pub accidents: i64,
     /// Active village events.
     pub events: String,
+    // Economic and welfare measures (Rust only), after the rest so that the
+    // columns before them stay where they were.
+    /// Coins' worth of everything the trades made this month, at this
+    /// month's prices (the farms' grain at harvest).
+    pub output: f64,
+    /// Coins a month for a grown-up's grain, firewood and salt (averaged
+    /// over people).
+    pub cost_of_living: f64,
+    /// A worker's monthly wage over the cost of living: months of a
+    /// grown-up's necessities a month's pay buys.
+    pub real_wage: f64,
+    /// Coins in the places: held by families, trades, councils and grain dealers.
+    pub coins_held: f64,
+    /// Coins the places gained this month (negative: lost), from the world
+    /// beyond, the lords, the state and coins lost.
+    pub coins_gained: f64,
+    /// Coins families earned this month: pay, sales and what councils paid them.
+    pub family_income: f64,
+    /// How unequal families' wealth a head is (land, animals, grain, coins
+    /// and claims, less debts), among people: the Gini coefficient.
+    pub wealth_gini: f64,
+    /// Share of the families' wealth held by the richest tenth of people.
+    pub top_tenth_wealth: f64,
+    /// Families' wealth a head, in coins.
+    pub wealth: f64,
+    /// Years a child born now would live if the last twelve months' chances
+    /// of dying at each age held for life.
+    pub life_expectancy: f64,
+    /// Of 1,000 born, deaths before the age of five at those chances.
+    pub under_five_deaths: f64,
+}
+
+/// Coins a month for a grown-up's necessities at each place's prices: a
+/// ration of grain, the year's mean firewood need, and the staples (salt)
+/// every person needs.
+pub fn cost_of_living(prices: &crate::grid::Grid, config: &Config) -> Vec<f64> {
+    let food = config.product_for("food");
+    let fuel = config.product_for("heating");
+    let firewood = config.needs.firewood.iter().sum::<f64>() / config.needs.firewood.len().max(1) as f64;
+    let staples: Vec<(usize, f64)> = (0..config.products.len())
+        .filter(|&p| config.products[p].use_ == "staple")
+        .map(|p| (p, crate::crafts::staple_need(config, p)))
+        .collect();
+    (0..prices.rows)
+        .map(|v| {
+            let row = prices.row(v);
+            config.food.adult_need * row[food]
+                + firewood * row[fuel]
+                + staples.iter().map(|&(p, need)| need * row[p]).sum::<f64>()
+        })
+        .collect()
+}
+
+/// What each family owns, less what it owes, in coins: its coins and
+/// claims on borrowers, its land at the place's `plot_price`, its animals
+/// at their usual worth (`livestock.value_months` of the place's wage) and
+/// its grain at the place's price, less its debts.
+pub fn family_wealth(world: &crate::world::World, plot_price: &[f64], config: &Config) -> Vec<f64> {
+    let hh = &world.households;
+    (0..hh.len())
+        .map(|h| {
+            let v = hh.location[h] as usize;
+            hh.money[h] + hh.lent[h] - hh.debt[h]
+                + hh.land[h] * plot_price[v]
+                + hh.animals[h] * config.livestock.value_months * world.wage_level[v]
+                + hh.grain[h] * world.prices.get(v, world.food)
+        })
+        .collect()
+}
+
+/// Life expectancy at birth, and deaths before the age of five per 1,000
+/// born, if each age's monthly chance of dying (`dying` over `people`, by
+/// age in years, the last for everyone older) held for life. An age nobody
+/// is at takes `usual(age)`, its usual monthly chance.
+pub fn life_table(people: &[f64], dying: &[f64], usual: impl Fn(usize) -> f64) -> (f64, f64) {
+    let last = people.len() - 1;
+    let monthly = |age: usize| if people[age] > 0.0 { dying[age] / people[age] } else { usual(age) };
+    let (mut alive, mut years, mut at_five) = (1.0, 0.0, 1.0);
+    for age in 0..last {
+        let yearly = 1.0 - (1.0 - monthly(age).clamp(0.0, 1.0)).powi(12);
+        let died = alive * yearly;
+        // (babies who die live about a third of their first year; others half of theirs)
+        years += alive - died * if age == 0 { 0.7 } else { 0.5 };
+        alive -= died;
+        if age == 4 {
+            at_five = alive;
+        }
+    }
+    // The oldest live on at their age's rate until all are gone.
+    let rate = -12.0 * (1.0 - monthly(last).clamp(0.0, 0.999_999)).ln();
+    years += if rate > 0.0 { alive / rate } else { 0.0 };
+    (years, 1000.0 * (1.0 - at_five))
+}
+
+/// How unequal `values` are among people (each value counting `weights`
+/// people; below nothing counts as nothing): the Gini coefficient (0 when
+/// everyone has the same, near 1 when one has all), and the share of the
+/// total held by the richest tenth of people.
+pub fn inequality(values: &[f64], weights: &[f64]) -> (f64, f64) {
+    let mut order: Vec<(f64, f64)> =
+        values.iter().zip(weights).filter(|(_, &w)| w > 0.0).map(|(&v, &w)| (v.max(0.0), w)).collect();
+    order.sort_unstable_by(|a, b| a.0.total_cmp(&b.0));
+    let people: f64 = order.iter().map(|&(_, w)| w).sum();
+    let total: f64 = order.iter().map(|&(v, w)| v * w).sum();
+    if people <= 0.0 || total <= 0.0 {
+        return (0.0, 0.0);
+    }
+    // Gini: one less twice the area under the Lorenz curve.
+    let (mut below, mut area) = (0.0, 0.0);
+    for &(v, w) in &order {
+        area += w * (2.0 * below + v * w);
+        below += v * w;
+    }
+    let gini = 1.0 - area / (people * total);
+    // The richest tenth, from the top down.
+    let (mut counted, mut held) = (0.0, 0.0);
+    for &(v, w) in order.iter().rev() {
+        let take = w.min(people / 10.0 - counted);
+        if take <= 0.0 {
+            break;
+        }
+        counted += take;
+        held += v * take;
+    }
+    (gini, held / total)
 }
 
 impl MonthRecord {
@@ -411,6 +536,17 @@ impl MonthRecord {
         f("poor_health", Cell::Int(self.poor_health));
         f("accidents", Cell::Int(self.accidents));
         f("events", Cell::Text(self.events.clone()));
+        f("output", Cell::Float(self.output));
+        f("cost_of_living", Cell::Float(self.cost_of_living));
+        f("real_wage", Cell::Float(self.real_wage));
+        f("coins_held", Cell::Float(self.coins_held));
+        f("coins_gained", Cell::Float(self.coins_gained));
+        f("family_income", Cell::Float(self.family_income));
+        f("wealth_gini", Cell::Float(self.wealth_gini));
+        f("top_tenth_wealth", Cell::Float(self.top_tenth_wealth));
+        f("wealth", Cell::Float(self.wealth));
+        f("life_expectancy", Cell::Float(self.life_expectancy));
+        f("under_five_deaths", Cell::Float(self.under_five_deaths));
     }
 
     /// The record as one flat row of (name, value).

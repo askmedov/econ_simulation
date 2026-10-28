@@ -29,10 +29,29 @@ use crate::world::{create_world, World};
 
 /// Measures kept for each place, month by month (see `Simulation::place_series`):
 /// people, born, died, share of food need eaten, grain price, people who
-/// left and who came, grain sent to the town, wool coins, and the share of
-/// their staples (salt) families got (1 where they need none).
-pub const PLACE_SERIES: [&str; 10] =
-    ["population", "births", "deaths", "ration", "food_price", "left", "arrived", "sent", "wool", "staples_bought"];
+/// left and who came, grain sent to the town, wool coins, the share of
+/// their staples (salt) families got (1 where they need none), the coins'
+/// worth the trades made, the cost of living (a grown-up's grain, firewood
+/// and salt for a month), people in families under 90% of their food, the
+/// price of a plot of land, and families' wealth a head (see
+/// `metrics::family_wealth`).
+pub const PLACE_SERIES: [&str; 15] = [
+    "population",
+    "births",
+    "deaths",
+    "ration",
+    "food_price",
+    "left",
+    "arrived",
+    "sent",
+    "wool",
+    "staples_bought",
+    "output",
+    "cost_of_living",
+    "underfed",
+    "land_price",
+    "wealth",
+];
 
 const MONTH_ABBR: [&str; 13] = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -41,10 +60,11 @@ pub struct Simulation {
     pub streams: RandomStreams,
     pub world: World,
     pub records: Vec<MonthRecord>,
-    pub log: Vec<String>,           // notable happenings, in order (as Python's)
-    pub chronicle: Chronicle,       // what happened, ranked by importance
-    short_since: Vec<Option<i64>>,  // place -> month rationing began
-    pub places: Vec<Vec<Vec<f64>>>, // per series in PLACE_SERIES: month by month, per place
+    pub log: Vec<String>,                               // notable happenings, in order (as Python's)
+    pub chronicle: Chronicle,                           // what happened, ranked by importance
+    short_since: Vec<Option<i64>>,                      // place -> month rationing began
+    pub places: Vec<Vec<Vec<f64>>>,                     // per series in PLACE_SERIES: month by month, per place
+    at_risk: std::collections::VecDeque<rules::AtRisk>, // the last twelve months, for the life table
 }
 
 /// What the world beyond pays a unit of a craft at each place (0: it buys
@@ -83,6 +103,7 @@ impl Simulation {
             chronicle: Chronicle::new(n),
             short_since: vec![None; n],
             places: vec![Vec::new(); PLACE_SERIES.len()],
+            at_risk: std::collections::VecDeque::new(),
         })
     }
 
@@ -110,6 +131,7 @@ impl Simulation {
         let is_town = self.world.geo.town.clone(); // market towns as places, on a map
         let on_map = self.world.geo.on_map;
         let alive_at_start = !self.extinct();
+        let coins_before = self.world.village_money();
         let month_of_year = self.world.month_of_year();
         // the stronghold where the state pays a garrison, if it does
         let garrisoned = (has_towns && config.state.enabled && config.state.garrison > 0.0)
@@ -1158,7 +1180,16 @@ impl Simulation {
         // 9. Deaths, births, ageing. Businesses with more orders than workers
         // take people on; those with too many let some go to trades that are
         // short. Farms aim to grow a little more than the place eats.
-        let died = rules::deaths(&mut world.population, &mortality, config, self.streams.get("deaths"), n, Some(&care));
+        let mut at_risk = rules::AtRisk::default();
+        let died = rules::deaths(
+            &mut world.population,
+            &mortality,
+            config,
+            self.streams.get("deaths"),
+            n,
+            Some(&care),
+            &mut at_risk,
+        );
         let cover = rules::wage_cover(&average_pay, &food_price, &need, &all_workers);
         // How well a family can live here: by its wage, or by what the land
         // yields per person after seed and the lord's share (a place thinned
@@ -1236,10 +1267,14 @@ impl Simulation {
         let switched = economy::move_workers(&mut world.population, &wanted, config, self.streams.get("jobs"));
         // Measure families before weddings move young people into new homes.
         let pop = &world.population;
-        let underfed: i64 = (0..pop.len())
-            .filter(|&i| family_share[pop.household[i] as usize] < 0.9)
-            .map(|i| pop.count[i] as i64)
-            .sum();
+        let underfed_here = rules::by_location(pop, n, |i| {
+            if family_share[pop.household[i] as usize] < 0.9 {
+                pop.count[i] as f64
+            } else {
+                0.0
+            }
+        });
+        let underfed = underfed_here.iter().sum::<f64>() as i64;
         let (mut landless_need, mut landless_eaten) = (0.0, 0.0);
         for h in 0..n_hh {
             if world.households.land[h] <= 0.0 {
@@ -1403,6 +1438,37 @@ impl Simulation {
         let workers_total = workers.sum();
         let comfort = config.product_for("comfort");
         let bought_comfort = bought[comfort].clone().unwrap_or_else(|| vec![0.0; n_hh]);
+        // Economic and welfare measures: only read, never used by a rule.
+        let output_here: Vec<f64> =
+            (0..n).map(|v| (0..nb).map(|b| made.get(v, b) * world.prices.get(v, product_of[b])).sum()).collect();
+        let living_here = metrics::cost_of_living(&world.prices, config);
+        let living = average(&living_here, &final_people.iter().map(|p| p.max(1e-9)).collect::<Vec<_>>());
+        let wage_now = if workers_total > 0.0 { earned.sum() / workers_total } else { 0.0 };
+        let net_worth = metrics::family_wealth(world, &plot_price, config);
+        let wealth_here = {
+            let total = market::by_village(&net_worth, &world.households.location, n);
+            (0..n).map(|v| div_or(total[v], final_people[v], 0.0)).collect::<Vec<f64>>()
+        };
+        let (wealth_gini, top_tenth_wealth) = {
+            let size = households::sizes(&world.population, world.households.len());
+            let head: Vec<f64> = (0..size.len()).map(|h| div_or(net_worth[h], size[h], 0.0)).collect();
+            metrics::inequality(&head, &size)
+        };
+        self.at_risk.push_back(at_risk);
+        if self.at_risk.len() > 12 {
+            self.at_risk.pop_front();
+        }
+        let (life_expectancy, under_five_deaths) = {
+            let mut window = rules::AtRisk::default();
+            for month in &self.at_risk {
+                for age in 0..=rules::OLDEST {
+                    window.people[age] += month.people[age];
+                    window.dying[age] += month.dying[age];
+                }
+            }
+            let usual = rules::MortalityTable::new(config);
+            metrics::life_table(&window.people, &window.dying, |age| usual.rate(age as i32))
+        };
         let record = MonthRecord {
             month_number,
             year: world.year(),
@@ -1493,7 +1559,7 @@ impl Simulation {
             food_cover: average(&supply_cover, &need_weights),
             wage_cover: average(&cover, &need_weights),
             food_price: average(&food_price_now, &need_weights),
-            wage: if workers_total > 0.0 { earned.sum() / workers_total } else { 0.0 },
+            wage: wage_now,
             savings: sum(&world.households.money),
             money_months: if sum(&earnings) > 0.0 { sum(&held) / sum(&earnings) } else { 0.0 },
             business_cash: world.cash.sum(),
@@ -1546,10 +1612,21 @@ impl Simulation {
             poor_health: metrics::poor_health(pop, config),
             accidents: hits.iter().map(|(_, k)| *k as i64).sum(),
             events: String::new(),
+            output: sum(&output_here),
+            cost_of_living: living,
+            real_wage: div_or(wage_now, living, 0.0),
+            coins_held: world.village_money(),
+            coins_gained: world.village_money() - coins_before,
+            family_income: sum(&all_income),
+            wealth_gini,
+            top_tenth_wealth,
+            wealth: div_or(net_worth.iter().sum(), sum(&final_people), 0.0),
+            life_expectancy,
+            under_five_deaths,
         };
         let staples_share: Vec<f64> =
             (0..n).map(|v| div_or(staples_bought_here[v], staples_needed_here[v], 1.0)).collect();
-        let series: [&[f64]; 10] = [
+        let series: [&[f64]; 15] = [
             &final_people,
             &born,
             &died,
@@ -1560,6 +1637,11 @@ impl Simulation {
             &exported,
             &wool_by_place,
             &staples_share,
+            &output_here,
+            &living_here,
+            &underfed_here,
+            &plot_price,
+            &wealth_here,
         ];
         for (k, values) in series.iter().enumerate() {
             self.places[k].push(values.to_vec());

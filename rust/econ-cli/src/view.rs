@@ -17,7 +17,7 @@ use econ_core::chronicle::{self, Chronicle};
 use econ_core::config::{Config, ScheduledEvent};
 use econ_core::geography;
 use econ_core::households;
-use econ_core::metrics::{Cell, MonthRecord};
+use econ_core::metrics::{self, Cell, MonthRecord};
 use econ_core::rules;
 use econ_core::starts;
 use econ_core::Simulation;
@@ -62,25 +62,34 @@ impl Show {
 }
 
 /// How finely the page keeps a measure: to 1/scale (a whole number of
-/// people, a tenth of a percent), or to `RELATIVE` of its value (a price,
-/// coins), which is as fine as a colour or a chart can show and takes far
-/// fewer bytes. A relative measure is kept as a whole number of steps of
-/// ln(1 + value / unit), so that 0 is kept exactly.
+/// people, half a percent), or to `RELATIVE` of its value (a price, coins),
+/// which is as fine as a colour or a chart can show and takes far fewer
+/// bytes. A relative measure is kept as a whole number of steps of
+/// ln(1 + |value| / unit), with its sign, so that 0 is kept exactly.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Kept {
     Scaled(f64),
     Relative { unit: f64 },
 }
 
-/// The step of a measure kept relative: 0.4% of its value.
-pub const RELATIVE: f64 = 0.004;
+/// The step of a measure kept relative: 1% of its value. (A tenth of a
+/// percent for shares and 0.4% for prices made a ten-year page of a million
+/// people a fifth bigger, with nothing more to see.)
+pub const RELATIVE: f64 = 0.01;
 
 impl Kept {
     /// `value` as a whole number of steps.
     pub fn whole(self, value: f64) -> i64 {
         match self {
             Kept::Scaled(scale) => (value * scale).round() as i64,
-            Kept::Relative { unit } => ((value.max(0.0) / unit).ln_1p() / RELATIVE.ln_1p()).round() as i64,
+            Kept::Relative { unit } => {
+                let steps = ((value.abs() / unit).ln_1p() / RELATIVE.ln_1p()).round() as i64;
+                if value < 0.0 {
+                    -steps
+                } else {
+                    steps
+                }
+            }
         }
     }
 
@@ -89,7 +98,14 @@ impl Kept {
     pub fn value(self, whole: i64) -> f64 {
         match self {
             Kept::Scaled(scale) => whole as f64 / scale,
-            Kept::Relative { unit } => unit * (whole as f64 * RELATIVE.ln_1p()).exp_m1(),
+            Kept::Relative { unit } => {
+                let size = unit * (whole.abs() as f64 * RELATIVE.ln_1p()).exp_m1();
+                if whole < 0 {
+                    -size
+                } else {
+                    size
+                }
+            }
         }
     }
 
@@ -146,8 +162,8 @@ fn measure(
 /// Prices and coins are kept to `RELATIVE` of their value, down to a
 /// thousandth of a coin.
 const COINS: Kept = Kept::Relative { unit: 0.001 };
-/// Shares to a tenth of a percent.
-const SHARE: Kept = Kept::Scaled(1000.0);
+/// Shares to half a percent.
+const SHARE: Kept = Kept::Scaled(200.0);
 /// Counts as whole numbers.
 const WHOLE: Kept = Kept::Scaled(1.0);
 
@@ -340,6 +356,83 @@ pub fn measures(config: &Config) -> Vec<Measure> {
             Show::Share,
             "high",
         ),
+        measure(
+            "land_price",
+            "Land",
+            "Money",
+            "coins a plot",
+            "What a plot of land fetches here: some years of its rent at the usual grain price.",
+            COINS,
+            Weight::People,
+            Show::Level,
+            "low",
+        ),
+        measure(
+            "output_a_head",
+            "Output",
+            "Economy and welfare",
+            "months of necessities a head a year",
+            "Everything the trades here made in the last twelve months (the farms' grain at harvest), a head, valued at each month's prices over that month's cost of living: in months of a grown-up's grain, firewood and salt.",
+            COINS,
+            Weight::People,
+            Show::Level,
+            "low",
+        ),
+        measure(
+            "cost_of_living",
+            "Cost of living",
+            "Economy and welfare",
+            "coins a month",
+            "What a grown-up's grain, firewood and salt cost here for a month.",
+            COINS,
+            Weight::People,
+            Show::Level,
+            "high",
+        ),
+        measure(
+            "real_wage",
+            "Real wage",
+            "Economy and welfare",
+            "months of necessities",
+            "A month's pay here over the cost of living: how many months of a grown-up's grain, firewood and salt it buys.",
+            COINS,
+            Weight::People,
+            Show::Level,
+            "low",
+        ),
+        measure(
+            "wealth",
+            "Wealth",
+            "Economy and welfare",
+            "coins a head",
+            "What families here own (land, animals, grain, coins and what they are owed) less what they owe, a head.",
+            COINS,
+            Weight::People,
+            Show::Level,
+            "low",
+        ),
+        measure(
+            "wealth_gini",
+            "Inequality",
+            "Economy and welfare",
+            "Gini of wealth",
+            "How unequal families' wealth a head is among the people here: 0 if everyone had the same, near 1 if one family had it all.",
+            SHARE,
+            Weight::People,
+            Show::Share,
+            "high",
+        ),
+        measure(
+            "underfed_share",
+            "Underfed",
+            "Economy and welfare",
+            "of people",
+            "The share of people in families that ate under 90% of their need this month.",
+            SHARE,
+            Weight::People,
+            Show::Share,
+            "high",
+        ),
     ]);
     if config.products.iter().any(|p| p.use_ == "staple") {
         out.push(measure(
@@ -417,15 +510,56 @@ pub fn watch(config: Config) -> Result<Watched, String> {
         people.push(month.people);
         families.push(month.families);
     }
-    // The measures the simulation keeps itself.
-    for (name, kept) in sim.place_series() {
-        if let Some(k) = measures.iter().position(|m| m.key == name) {
-            values[k] = kept;
+    // The measures the simulation keeps itself, and those made from them.
+    let series = sim.place_series();
+    let kept = |name: &str| &series.iter().find(|(n, _)| *n == name).expect("a place series").1;
+    for (name, months) in &series {
+        if let Some(k) = measures.iter().position(|m| m.key == *name) {
+            values[k] = months.clone();
         }
+    }
+    let per = |a: f64, b: f64| if b > 0.0 { a / b } else { 0.0 };
+    for (k, m) in measures.iter().enumerate() {
+        let made: Vec<Vec<f64>> = match m.key.as_str() {
+            "output_a_head" => {
+                // (each month's output over that month's cost of living: in
+                // a dearth grain is worth more coins, and coins come and go)
+                let (output, living) = (kept("output"), kept("cost_of_living"));
+                (0..months)
+                    .map(|t| {
+                        // (in the first year, the months so far, as a year's worth)
+                        let year = t.saturating_sub(11)..=t;
+                        let scale = 12.0 / year.clone().count() as f64;
+                        (0..output[t].len())
+                            .map(|v| {
+                                let made: f64 = year.clone().map(|s| per(output[s][v], living[s][v])).sum();
+                                per(scale * made, people[t][v])
+                            })
+                            .collect()
+                    })
+                    .collect()
+            }
+            "real_wage" => {
+                let pay = &values[measures.iter().position(|m| m.key == "pay").expect("pay is read")];
+                let living = kept("cost_of_living");
+                (0..months).map(|t| (0..pay[t].len()).map(|v| per(pay[t][v], living[t][v])).collect()).collect()
+            }
+            "underfed_share" => {
+                let underfed = kept("underfed");
+                (0..months)
+                    .map(|t| (0..underfed[t].len()).map(|v| per(underfed[t][v], people[t][v])).collect())
+                    .collect()
+            }
+            _ => continue,
+        };
+        values[k] = made;
     }
     let woods = sim.world.woods_normal.clone();
     Ok(Watched { records: sim.records, chronicle: sim.chronicle, values, people, families, woods })
 }
+
+/// Measures made from others after the run (see `watch`).
+const MADE_AFTER: [&str; 3] = ["output_a_head", "real_wage", "underfed_share"];
 
 /// What a month left in each place: a value per place for each measure the
 /// simulation doesn't keep (None for those it keeps), and people and
@@ -469,7 +603,7 @@ fn read_places(sim: &Simulation, measures: &[Measure]) -> PlacesNow {
     let values = measures
         .iter()
         .map(|m| {
-            if kept.contains(&m.key.as_str()) {
+            if kept.contains(&m.key.as_str()) || MADE_AFTER.contains(&m.key.as_str()) {
                 return None;
             }
             let value: Vec<f64> = match m.key.as_str() {
@@ -484,6 +618,19 @@ fn read_places(sim: &Simulation, measures: &[Measure]) -> PlacesNow {
                 "coins" => (0..n).map(|v| per(coins[v], people[v])).collect(),
                 "debt" => (0..n).map(|v| per(debt[v], families[v])).collect(),
                 "landless" => (0..n).map(|v| per(landless[v], people[v])).collect(),
+                "wealth_gini" => {
+                    // (land at this month's price, which the simulation keeps per place)
+                    let k = kept.iter().position(|&name| name == "land_price").expect("land prices are kept");
+                    let plot_price = sim.places[k].last().expect("a month has passed");
+                    let worth = metrics::family_wealth(world, plot_price, config);
+                    let mut by_place: Vec<(Vec<f64>, Vec<f64>)> = vec![(Vec::new(), Vec::new()); n];
+                    for (h, &members) in size.iter().enumerate() {
+                        let here = &mut by_place[hh.location[h] as usize];
+                        here.0.push(per(worth[h], members));
+                        here.1.push(members);
+                    }
+                    by_place.iter().map(|(head, members)| metrics::inequality(head, members).0).collect()
+                }
                 "woods" => (0..n)
                     .map(|v| if world.woods_normal[v] > 0.0 { world.woods[v] / world.woods_normal[v] } else { 1.0 })
                     .collect(),
@@ -1017,7 +1164,7 @@ mod tests {
         let base = vec![
             vec![vec![10.0, 200.0], vec![12.0, 190.0], vec![9.0, 0.0]],
             vec![vec![0.5, 1.0], vec![0.98765, 0.0], vec![-0.25, 2.5]],
-            vec![vec![1.0, 0.0], vec![2.75, 0.31], vec![4000.0, 0.0004]],
+            vec![vec![1.0, 0.0], vec![2.75, -3.2], vec![4000.0, 0.0004]],
         ];
         let mut with = base.clone();
         with[0][2][1] = 7.0;
@@ -1027,18 +1174,19 @@ mod tests {
         let packed = pack(&arms, &measures);
         let raw = miniz_oxide::inflate::decompress_to_vec_zlib(&packed).unwrap();
         let back = unpack(&raw, 2, &measures, 3, 2);
-        // counts exactly, shares to a tenth of a percent
+        // counts exactly, shares to half a percent
         assert_eq!(back[0][0], arms[0][0]);
         assert_eq!(back[1][0], arms[1][0]);
-        assert_eq!(back[0][1][1][0], 0.988);
+        assert_eq!(back[0][1][1][0], 0.99);
         assert_eq!(back[1][1][1][0], 0.5);
         assert_eq!(back[1][1][2], vec![-0.25, 2.5]);
-        // prices within a fifth of a percent, and nothing kept as nothing
+        // prices and wealth (which can be below nothing) within half a percent,
+        // and nothing kept as nothing
         for a in 0..2 {
             for t in 0..3 {
                 for p in 0..2 {
                     let (was, is) = (arms[a][2][t][p], back[a][2][t][p]);
-                    assert!((is - was).abs() <= 0.0021 * was + 1e-5, "{was} came back as {is}");
+                    assert!((is - was).abs() <= 0.0051 * was.abs() + 1e-5, "{was} came back as {is}");
                 }
             }
         }

@@ -36,13 +36,13 @@ validation runs.
 - **Code:** Python 3.13 + numpy, package `econ_sim/` (about 7,300 lines in
   27 modules), `tests/` (about 3,200 lines, 305 tests), `scripts/`
   (benchmark, sanity check, stress test).
-- **Latest work:** branch `claude/rust-viewer` (the viewer, Rust); the
+- **Latest work:** branch `claude/rust-indicators` (Rust); the
   Python model's latest is `claude/trade-network`, commit `a238613`
   ("PLAN: the trade network, measured"). `claude/busy-mendel-edwts2` is the
   designated hand-off branch and is kept fast-forwarded to the latest work.
   This file was added on `claude/project-status`.
 - **No pull requests** have been opened; work is on a chain of branches,
-  one per step (`claude/village-model` ... `claude/rust-viewer`), each
+  one per step (`claude/village-model` ... `claude/rust-indicators`), each
   built on the one before.
 - **All checks pass** at `a238613`: 305 tests (about 4 minutes), the full
   sanity check (3,010 runs over many settings, including regions), the
@@ -114,6 +114,16 @@ validation runs.
   a drought, grain is dearest in the villages next to the towns, every
   town falls into famine, and the towns lose more than half their people
   in two years, mostly to the villages.
+- **Economic and welfare indicators** (branch `claude/rust-indicators`;
+  PLAN.md, "Rust engine", section 17): the records gain output, the cost
+  of living, the real wage, coins held and gained, families' income,
+  wealth a head with its Gini and the richest tenth's share, life
+  expectancy at birth and deaths before five; the places gain output, the
+  cost of living, the underfed, the price of land and wealth. The viewer
+  maps seven of them and charts fourteen. Read-only: runs stay the same.
+  A drought at a million cuts life expectancy at its worst to 8.5 years
+  and the real wage by a third; ten years on, the struck region's pay buys
+  half as much again as the unstruck one's.
 - **Ten million people run** (branch `claude/rust-ten-million`; PLAN.md,
   "Rust engine", section 11): 24,600 villages, 984 towns, 13 outlets and
   a city of 148,246 (`export_config.py --large`, then `econ-sim --size
@@ -304,7 +314,7 @@ that is booked in the outside purse) and that **people add up**
 The Rust engine (`cd rust`; the binary is `target/release/econ-sim`):
 
 ```bash
-cargo build --release && cargo test --release       # 171 tests
+cargo build --release && cargo test --release       # 176 tests
 econ-sim --event drought@4 --runs 20                # the standard region of a million, with minds (4 min)
 econ-sim --size 100k --event drought@4 --runs 100   # the region of 100,000 (2 min)
 python ../scripts/export_config.py --large          # once: the region of ten million (7 MB, not in git)
