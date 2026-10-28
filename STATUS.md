@@ -3,13 +3,14 @@
 Written for whoever picks this project up next. Read this first, then
 [PLAN.md](PLAN.md) (design, every step's measurements and the roadmap) and
 [README.md](README.md) (how to run it). The hand-off for porting the model to
-Rust is [docs/RUST_HANDOFF.md](docs/RUST_HANDOFF.md); the next task, a viewer
-to watch the country evolve, is in [docs/GUI_HANDOFF.md](docs/GUI_HANDOFF.md).
+Rust is [docs/RUST_HANDOFF.md](docs/RUST_HANDOFF.md); the viewer to watch the
+country evolve is built (`econ-sim view`; its hand-off was
+[docs/GUI_HANDOFF.md](docs/GUI_HANDOFF.md)).
 
 Last updated: October 2026, after the Rust engine's milestones 1-7 and its
-Phase 3 work through ten million people, starting points, a ranked log and
-a richer economy of four resources (the Python model at the end of Phase 3
-step 4).
+Phase 3 work through ten million people, starting points, a ranked log, a
+richer economy of four resources and a viewer (the Python model at the end
+of Phase 3 step 4).
 
 ## What this is
 
@@ -35,12 +36,13 @@ validation runs.
 - **Code:** Python 3.13 + numpy, package `econ_sim/` (about 7,300 lines in
   27 modules), `tests/` (about 3,200 lines, 305 tests), `scripts/`
   (benchmark, sanity check, stress test).
-- **Latest work:** branch `claude/trade-network`, commit `a238613` ("PLAN:
-  the trade network, measured"). `claude/busy-mendel-edwts2` is the
+- **Latest work:** branch `claude/rust-viewer` (the viewer, Rust); the
+  Python model's latest is `claude/trade-network`, commit `a238613`
+  ("PLAN: the trade network, measured"). `claude/busy-mendel-edwts2` is the
   designated hand-off branch and is kept fast-forwarded to the latest work.
   This file was added on `claude/project-status`.
 - **No pull requests** have been opened; work is on a chain of branches,
-  one per step (`claude/village-model` ... `claude/trade-network`), each
+  one per step (`claude/village-model` ... `claude/rust-viewer`), each
   built on the one before.
 - **All checks pass** at `a238613`: 305 tests (about 4 minutes), the full
   sanity check (3,010 runs over many settings, including regions), the
@@ -98,6 +100,20 @@ validation runs.
   its countryside. Over ten years at a million, tools stay below their
   price without the crafts, families get about three-quarters of their
   salt, wages buy a third more food, and the region ends 4.4% bigger.
+- **A viewer** (branch `claude/rust-viewer`; PLAN.md, "Rust engine",
+  section 16): `econ-sim view --size 100k --event drought@4` writes one
+  HTML page (`output/viewer.html`) with the run and its pair in it, to
+  replay in any browser: a map of the places month by month, coloured by
+  any of 25 measures (food eaten, deaths, people, leaving and arriving,
+  the price of every good, pay, coins, debts, salt got, woods, the
+  resource trades' workers), with and without the forced events or the
+  gap between them; the region's 37 charts; and the chronicle of the
+  month, whose entries light up their places. Ten years at a million is a
+  9.9 MB page made in 72 s; at ten million it shows the 984 towns with
+  their countryside. Runs stay the same, month for month. Seen with it: in
+  a drought, grain is dearest in the villages next to the towns, every
+  town falls into famine, and the towns lose more than half their people
+  in two years, mostly to the villages.
 - **Ten million people run** (branch `claude/rust-ten-million`; PLAN.md,
   "Rust engine", section 11): 24,600 villages, 984 towns, 13 outlets and
   a city of 148,246 (`export_config.py --large`, then `econ-sim --size
@@ -288,7 +304,7 @@ that is booked in the outside purse) and that **people add up**
 The Rust engine (`cd rust`; the binary is `target/release/econ-sim`):
 
 ```bash
-cargo build --release && cargo test --release       # 162 tests
+cargo build --release && cargo test --release       # 171 tests
 econ-sim --event drought@4 --runs 20                # the standard region of a million, with minds (4 min)
 econ-sim --size 100k --event drought@4 --runs 100   # the region of 100,000 (2 min)
 python ../scripts/export_config.py --large          # once: the region of ten million (7 MB, not in git)
@@ -299,6 +315,8 @@ econ-sim starts --only standard,crowded --event drought@4   # what a drought doe
 econ-sim --start after-plague --set lord.demesne=0.4 --scale villages.land=1.2   # a start of your own
 econ-sim starts --size 100k --months 120 --only standard,few-ironworkers,village-crafts   # the iron trade
 econ-sim logs --size 100k --event drought@4 --log-level 2   # what happened, the most important first
+econ-sim view --size 100k --event drought@4         # a page to watch it, output/viewer.html (6 s; a million: 72 s)
+econ-sim view --size 100k --start crowded --event drought@4 --months 60 --page crowded.html --title "A crowded region's drought"
 econ-sim --population 1000 --event drought@4 --runs 200   # one village
 econ-sim --region 50 --event drought@4@0,12,11 --runs 40
 econ-sim minds --event drought@4 --runs 200         # minds against the rules
@@ -404,7 +422,7 @@ Phase 3, remaining steps, now in Rust (details in PLAN.md, "Build order"):
 | 10 | Individual workshops (firms) instead of one business per trade |
 | 11 | Calibration to England c. 1300; validation against the Great Famine |
 | 12 | 10 million people: a weighted sample, checked against a full million |
-| 13 | A region dashboard: maps and side-by-side what-ifs |
+| 13 | A region dashboard: maps and side-by-side what-ifs (the map and the paired what-if built: `econ-sim view`) |
 
 ### The Rust direction (the user's latest request)
 The user asked whether the model could have **fewer people, each with a

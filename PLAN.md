@@ -1077,7 +1077,7 @@ checks on region settings, and what-if numbers written up here:
 | 10 | `claude/firms` | individual workshops instead of one business per trade |
 | 11 | `claude/calibration` | England c. 1300 (or another reference); validation against the Great Famine |
 | 12 | `claude/ten-million` | a weighted sample (or cohorts) for 10 million people, checked against a full million |
-| 13 | `claude/region-dashboard` | maps and side-by-side what-ifs: prices, hunger, disease and migration by place |
+| 13 | `claude/region-dashboard` | maps and side-by-side what-ifs: prices, hunger, disease and migration by place (the map and the paired what-if built in Rust: `econ-sim view`, "Rust engine", section 16) |
 
 Steps 1-5 make a working region; 6-8 add the what-ifs people ask most
 (epidemics, wars, policy); 9-10 deepen the economy; 11-13 make it a
@@ -2743,3 +2743,153 @@ same results as before).
   back in bad (it needs businesses buying in the grain market, and
   farming planned for it); hides and tanning from the November cull;
   salt to keep the meat of the cull.
+
+### 16. A viewer: the region month by month (built)
+
+`econ-sim view` runs a region, and with forced events its pair from the
+same seed, and writes one HTML page with the whole run in it, to replay in
+any browser, offline too: the map of the places month by month, the
+region's measures over time and the chronicle alongside. The user chose a
+page that replays finished runs (a cloud session can't show a window or
+serve a port), prices first on the map with money and credit in view, and
+the paired what-if first. Rust only, and read-only: no rule changed.
+
+- **The command:** `econ-sim view --size 100k --event drought@4` writes
+  `output/viewer.html` (`--page FILE` to put it elsewhere, `--title` to
+  name it). It takes every option of a run (`--start`, `--set`,
+  `--scale`, `--seed`, `--config`...), runs ten years unless `--months`
+  says otherwise, and shows one seed and its pair (`--runs` above 1 is
+  refused). The page's code is in `rust/econ-cli/viewer/` (`page.html`,
+  `viewer.css`, `viewer.js`) and built into the binary; the pages
+  themselves stay out of git (`output/`).
+- **The page:**
+  - **The map:** each place is a cell (the pixels nearer it than any
+    other place, within reach), coloured by a measure, with the roads,
+    the river, the market towns, the city (ringed) and the border towns
+    (diamonds) on top, and on request the resources (iron and lead as
+    triangles, salt as rings, clay as squares) and the villages sized by
+    their people. Pointing at a place tells its value with and without
+    the forced events and the gap; choosing one opens its own panel.
+  - **Three views:** the run without the forced events, with them, and
+    the gap between them, which the map colours red where it is worse
+    (fewer people, less food, dearer goods, more debt).
+  - **25 measures a place** (at a million, with the crafts): food eaten,
+    grain in store, deaths; people against the start, leaving, arriving,
+    births; the price of grain, tools, salt, cloth, pots, firewood, iron
+    and lead; pay, coins a head, debt a family and the landless share;
+    salt got, the woods, and the workers of the four resource trades. And
+    the terrain.
+  - **Colours:** food eaten on a hunger scale (grey when fed, red from
+    97%, deep red under 80%, the chronicle's own thresholds); a measure
+    where more is worse in red, others in blue, light to dark (flipped in
+    dark mode); the gap and people against the start diverging, grey at
+    no change. Famine, deaths, leaving and people keep their colours over
+    the whole run, so a colour means the same in every month. Prices and
+    sums are coloured by this month's spread among the villages at first:
+    in a dearth grain is dear everywhere, and a scale over the whole run
+    paints the map one colour. A town, which grows no grain, would stretch
+    the scale and pale the countryside, so the villages set it. Either can
+    be switched.
+  - **Beside the map:** the month with the farming calendar (harvest,
+    sowing, shearing, the state's tax), the region's numbers this month
+    in both runs with famine flags, the chronicle of the month from rank
+    1 down (choose how much it tells; an entry lights its places on the
+    map; "earlier news" and "later news" jump to the months with entries
+    of rank 1 or 2) and the year in brief. A chosen place shows what it
+    is, its market town, its people then and now, and twelve charts of
+    its own in both runs.
+  - **Below:** 37 charts of the region's records in four groups (people
+    and food; prices; money and credit; towns, trades and beyond), both
+    runs, a cursor at the month, the forced events marked, and each
+    group's numbers by year in a table.
+  - **The months** along a bar at the foot of the window: play, pause,
+    speed, and a strip of the region's hunger month by month with the
+    forced events and the chronicle's rank-1 news marked on it. The page
+    opens at the hungriest month after the forced events begin.
+- **New measures, read-only:**
+  - Two more series per place in the simulation (`PLACE_SERIES`):
+    `arrived` (people who came) and `staples_bought` (the share of their
+    salt families got). They exist only inside a month's step; nothing
+    reads them back.
+  - The rest the viewer reads from the world after each month: the price
+    of each good, pay (each trade's pay weighted by its workers), coins a
+    head, debt a family, the landless share, grain in store a head, the
+    woods against their start, and the workers in each resource trade.
+  - The chronicle's line of a year's totals and its year in brief are
+    public (`chronicle::year_line`, `Chronicle::in_brief`), so the page
+    tells them as `log.txt` does; `text` is built from them and writes the
+    same.
+- **Every run stays the same:** against the previous commit's binary,
+  the records (all 127 columns, month for month) and the whole chronicle
+  (`econ-sim logs --log-level 4`) are the same byte for byte: ten years
+  at 100,000 with a drought, a year at a million with a drought, after a
+  plague with a plague in month 6, the region of 20 and the village with
+  a drought (three seeds each), the city and 3 towns without the crafts
+  (two seeds); `econ-sim starts` writes the same `starts.csv`; and
+  `econ-sim places` gives the same eight series, with the two new ones
+  added. A test checks that the viewer's runs give the records
+  `econ-sim` gives.
+- **Packing the data:** ten years of 25 measures for 2,558 places in two
+  runs is 15 million numbers. Each is kept as finely as a colour or a
+  chart can show it (counts whole, shares to a tenth of a percent, prices
+  and coins to 0.4% of their value, as a whole number of steps of
+  ln(1 + value / 0.001 coin), so that 0 stays 0); the paired run as its
+  gap from the first (nothing until the forced event); each place's months
+  as the change from the month before, in as few bytes as each needs; and
+  the whole squeezed with deflate (the `miniz_oxide` crate; the browser's
+  own DecompressionStream unpacks it) and written in base64. Prices kept
+  to a ten-thousandth of a coin made 2.1 MB at 100,000, which would have
+  been 16 MB at a million, the most a claude.ai page may be.
+
+| Region, ten years, paired | Page | Made in | Opens in (Chromium) |
+|---|---|---|---|
+| 100,000 (250 places) | 1.5 MB | 6 s | 0.7 s |
+| a million (2,558 places) | 9.9 MB | 72 s on two threads | 1.4 s |
+
+  It plays at up to 8 months a second at a million.
+- **Ten million:** above 5,000 places (or with `--by-town`) each market
+  town is shown with the villages that market there: counts added, the
+  rest weighted by people (debt by families, woods by what they held),
+  the town's resources and its villages' together, the roads and rivers
+  between towns. That makes 984 places at ten million. Checked at
+  100,000 (10 towns) and a million (98).
+- **What the viewer shows of a drought at a million** (seed 42, month 4,
+  ten years; decoded from the page and checked against the records):
+  - Grain is dearest in the villages next to the market towns: in
+    February of year 2, 2.95 a ration in the nearest quarter of villages
+    against 2.63 in the farthest (the correlation of price with distance
+    to the town is -0.72; without the drought 1.17 against 1.04, -0.13),
+    and the towns pay 10.0, three and a half times their villages.
+  - Every one of the 98 towns falls into famine, around month 10, and
+    848 of the 2,460 villages, around month 11. The towns hold 133,373
+    people at the start and 56,172 two years on (137,015 without the
+    drought): 45,338 leave them, and 86% of the people arriving anywhere
+    arrive in a village (46% without the drought, when the towns take the
+    larger share).
+  - In year two families get 54% of their salt in the villages and 81%
+    in the towns (76% and 95% without), and a village family owes 2.96
+    coins after two years against 1.05.
+- **Checked by tests:** the viewer's runs give the records `econ-sim`
+  gives; every place has every measure every month, and they add up to
+  the records (people, births, deaths, leavers, arrivals, families,
+  workers by trade, coins, debts, the landless; tools a plain mean over
+  places, as the records keep it); packed numbers come back to their
+  precision; base64 as browsers read it; a big region shown as its towns
+  with their countryside; the page carries its data and nothing that
+  ends its script early; and on the command line, one page with the run
+  and its pair, a region by its market towns, and no page without a map
+  or for several seeds.
+- **Checked in a browser** (Chromium with Playwright; the screenshots
+  looked at): at 1,400 by 900 in light and dark and at phone width, no
+  errors in the console and nothing wider than the window; choosing a
+  place, a chronicle entry, the gap, a measure and this month's colours,
+  and playing. Looking found what the tests didn't: the loading note
+  never went away, the 98 towns' markers swamped the map at a million,
+  prices over the whole run painted a famine month one colour, labels ran
+  off the map's edge, and an entry's places stayed lit after the month
+  moved on.
+- **Next, perhaps:** two starting points side by side on one page (now
+  a page each); interest and money by place once they vary (interest is
+  one rate today, 20% a year, so a map of it would be flat); zoom and pan
+  for ten million; and runs in the browser itself, with `econ-core`
+  built for WebAssembly (it would need to run without rayon).

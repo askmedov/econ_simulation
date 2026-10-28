@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{{TITLE}}</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&display=swap">
+<style>/*{{STYLE}}*/</style>
+</head>
+<body>
+<div class="page">
+  <header class="masthead">
+    <div class="heading">
+      <p class="kicker">A simulated region of England, c. 1300</p>
+      <h1>{{TITLE}}</h1>
+      <p class="subtitle" id="subtitle"></p>
+    </div>
+    <div class="arm-switch" id="arm-switch" role="radiogroup" aria-label="Which run the map shows"></div>
+  </header>
+
+  <div class="stage">
+    <section class="map-panel" aria-label="Map of the region">
+      <div class="map-controls">
+        <label class="field" for="measure"><span class="field-label">Colour the map by</span><select id="measure"></select></label>
+        <fieldset class="layers">
+          <legend class="sr-only">Draw on the map</legend>
+          <label for="layer-roads"><input type="checkbox" id="layer-roads" checked> Roads and river</label>
+          <label for="layer-resources"><input type="checkbox" id="layer-resources"> Resources</label>
+          <label for="layer-villages"><input type="checkbox" id="layer-villages"> Villages</label>
+        </fieldset>
+      </div>
+      <div class="map-body" id="map-body">
+        <div class="map-frame" id="map-frame">
+          <canvas id="map" role="img" aria-label="The region's places, coloured by the chosen measure"></canvas>
+          <div class="map-tip" id="map-tip" hidden></div>
+          <p class="loading" id="loading">Unpacking the run…</p>
+        </div>
+        <div class="map-key">
+          <div class="legend" id="legend"></div>
+          <label class="field scale-pick" for="scale"><span class="field-label">Colours span</span><select id="scale">
+            <option value="run" selected>the whole run</option>
+            <option value="month">this month</option>
+          </select></label>
+          <p class="measure-about" id="measure-about"></p>
+          <div class="symbols" id="symbols"></div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="side" aria-label="This month">
+      <div class="date-block">
+        <p class="date" id="date"></p>
+        <p class="season" id="season"></p>
+      </div>
+      <table class="glance" id="glance"></table>
+      <div class="tabs" role="tablist" aria-label="Beside the map">
+        <button type="button" role="tab" id="tab-chronicle" aria-selected="true" aria-controls="chronicle-panel">Chronicle</button>
+        <button type="button" role="tab" id="tab-place" aria-selected="false" aria-controls="place-panel">Place</button>
+      </div>
+      <div id="chronicle-panel" class="tab-panel" role="tabpanel" aria-labelledby="tab-chronicle">
+        <div class="chronicle-tools">
+          <button type="button" class="quiet" id="news-prev" title="The last month before this one with news of rank 1 or 2">‹ Earlier news</button>
+          <label for="rank" class="rank-pick"><span class="sr-only">How much to tell</span><select id="rank">
+            <option value="1">Rank 1 only</option>
+            <option value="2">Ranks 1 and 2</option>
+            <option value="3" selected>Ranks 1 to 3</option>
+            <option value="4">Everything</option>
+          </select></label>
+          <button type="button" class="quiet" id="news-next" title="The next month with news of rank 1 or 2">Later news ›</button>
+        </div>
+        <ol class="entries" id="entries"></ol>
+        <section class="year-brief" id="year-brief" aria-label="The year in brief"></section>
+      </div>
+      <div id="place-panel" class="tab-panel" role="tabpanel" aria-labelledby="tab-place" hidden></div>
+    </aside>
+  </div>
+
+  <section class="charts-section" aria-labelledby="charts-title">
+    <div class="section-head">
+      <h2 id="charts-title">The region, month by month</h2>
+      <div class="chart-legend" id="chart-legend"></div>
+    </div>
+    <div id="charts"></div>
+  </section>
+
+  <footer class="colophon" id="colophon"></footer>
+
+  <div class="timeline" id="timeline">
+    <button type="button" class="play" id="play" aria-label="Play"><svg viewBox="0 0 16 16" aria-hidden="true"><path id="play-icon" d="M4 2.5v11l9-5.5z"></path></svg></button>
+    <div class="track">
+      <canvas id="strip" aria-hidden="true"></canvas>
+      <input type="range" id="month" min="1" max="1" value="1" aria-label="Month of the run">
+    </div>
+    <output class="month-label" id="month-label" for="month"></output>
+    <label class="speed" for="speed"><span class="sr-only">Speed</span><select id="speed">
+      <option value="1">1 month a second</option>
+      <option value="2" selected>2 months a second</option>
+      <option value="4">4 months a second</option>
+      <option value="8">8 months a second</option>
+    </select></label>
+  </div>
+</div>
+<script id="run" type="application/json">{{DATA}}</script>
+<script>/*{{SCRIPT}}*/</script>
+</body>
+</html>

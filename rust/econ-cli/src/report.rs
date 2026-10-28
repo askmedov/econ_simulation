@@ -60,7 +60,7 @@ pub fn event_label(forced: &[ScheduledEvent]) -> String {
     forced.iter().map(|e| format!("{} in month {}", e.event.replace('_', " "), e.month)).collect::<Vec<_>>().join(", ")
 }
 
-fn forced_label(e: &ScheduledEvent) -> String {
+pub fn forced_label(e: &ScheduledEvent) -> String {
     let place = match e.near {
         Some((x, y, km)) => format!(" within {} km of ({}, {})", g(km), g(x), g(y)),
         None => String::new(),

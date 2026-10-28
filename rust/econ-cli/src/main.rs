@@ -10,6 +10,7 @@ mod run;
 mod sanity;
 mod starts;
 mod stress;
+mod view;
 
 use clap::{Parser, Subcommand};
 use options::RunArgs;
@@ -62,6 +63,24 @@ enum Command {
     },
     /// Each run's measures per place, one line of JSON each (with --event, both arms)
     Places(RunArgs),
+    /// A page to watch the run: the map month by month, the region's
+    /// measures and its chronicle, with and without the forced events; one
+    /// HTML file with its data in it, to open in a browser (ten years
+    /// unless --months says otherwise)
+    View {
+        /// Where to write the page (default: viewer.html in --out)
+        #[arg(long, value_name = "FILE")]
+        page: Option<String>,
+        /// The page's title (default: the forced events, and the start)
+        #[arg(long)]
+        title: Option<String>,
+        /// Show each market town with its countryside added in, rather than
+        /// every village (always done above 5,000 places)
+        #[arg(long)]
+        by_town: bool,
+        #[command(flatten)]
+        run: RunArgs,
+    },
     /// Each run's log, ranked by importance, year by year (with the forced
     /// events; --log-level for how much)
     Logs {
@@ -191,6 +210,10 @@ fn main() {
         Some(Command::Logs { flat, run: args }) => {
             threads(args.workers);
             args.config().and_then(|config| dump::logs(&config, &args.forced()?, args.runs, args.log_level, flat))
+        }
+        Some(Command::View { page, title, by_town, run }) => {
+            threads(run.workers);
+            view::run(&run, page.as_deref(), title.as_deref(), by_town)
         }
         Some(Command::Bench { config: Some(path), months, .. }) => {
             econ_core::Config::from_file(&path).map_err(|e| e.to_string()).and_then(|c| bench::run_config(c, months))

@@ -1,5 +1,9 @@
 # Watching the country evolve: the hand-off for a viewer
 
+**Built** on `claude/rust-viewer`: `econ-sim view`, a page that replays a
+run and its pair (PLAN.md, "Rust engine", section 16). What follows is the
+hand-off it was built from.
+
 Two parts: **the prompt** to give the next agent (copy it as it is), and
 **the detail** it points to. Read [STATUS.md](../STATUS.md) first for what
 the model is and how it is checked.

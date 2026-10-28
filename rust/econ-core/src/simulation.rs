@@ -27,8 +27,12 @@ use crate::towns::{self, Carts};
 use crate::work;
 use crate::world::{create_world, World};
 
-/// Measures kept for each place, month by month (see `Simulation::place_series`).
-pub const PLACE_SERIES: [&str; 8] = ["population", "births", "deaths", "ration", "food_price", "left", "sent", "wool"];
+/// Measures kept for each place, month by month (see `Simulation::place_series`):
+/// people, born, died, share of food need eaten, grain price, people who
+/// left and who came, grain sent to the town, wool coins, and the share of
+/// their staples (salt) families got (1 where they need none).
+pub const PLACE_SERIES: [&str; 10] =
+    ["population", "births", "deaths", "ration", "food_price", "left", "arrived", "sent", "wool", "staples_bought"];
 
 const MONTH_ABBR: [&str; 13] = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
@@ -763,6 +767,8 @@ impl Simulation {
             .collect();
         let cloth = config.product_for("comfort");
         let (mut staples_needed, mut staples_bought) = (0.0, 0.0);
+        // (and per place, for the viewer: only read, never used by a rule)
+        let (mut staples_needed_here, mut staples_bought_here) = (vec![0.0; n], vec![0.0; n]);
         // (the staples first: a family short of coins buys its salt, and
         // gathers its fuel on the commons)
         let staples_first = (0..config.products.len())
@@ -842,7 +848,12 @@ impl Simulation {
                         &mut crafts_sold,
                         &possible,
                     );
-                    staples_bought += got.map_or(0.0, |g| g.iter().sum::<f64>());
+                    staples_bought += got.as_ref().map_or(0.0, |g| g.iter().sum::<f64>());
+                    for (h, &wanted) in want.iter().enumerate() {
+                        let v = hh_loc[h] as usize;
+                        staples_needed_here[v] += wanted;
+                        staples_bought_here[v] += got.as_ref().map_or(0.0, |g| g[h]);
+                    }
                 }
                 _ => {
                     trade(
@@ -1536,8 +1547,20 @@ impl Simulation {
             accidents: hits.iter().map(|(_, k)| *k as i64).sum(),
             events: String::new(),
         };
-        let series: [&[f64]; 8] =
-            [&final_people, &born, &died, &share, &food_price_now, &moves.left, &exported, &wool_by_place];
+        let staples_share: Vec<f64> =
+            (0..n).map(|v| div_or(staples_bought_here[v], staples_needed_here[v], 1.0)).collect();
+        let series: [&[f64]; 10] = [
+            &final_people,
+            &born,
+            &died,
+            &share,
+            &food_price_now,
+            &moves.left,
+            &moves.arrived,
+            &exported,
+            &wool_by_place,
+            &staples_share,
+        ];
         for (k, values) in series.iter().enumerate() {
             self.places[k].push(values.to_vec());
         }

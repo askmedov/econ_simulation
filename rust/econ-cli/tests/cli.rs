@@ -225,3 +225,53 @@ fn the_log_goes_year_by_year_with_the_most_important_first() {
     let output = econ_sim(&["logs", "--population", "1000", "--months", "12", "--flat"]);
     assert!(String::from_utf8_lossy(&output.stdout).contains("Year 1, "));
 }
+
+/// The data a viewer page carries.
+fn page_data(html: &str) -> serde_json::Value {
+    let start = "<script id=\"run\" type=\"application/json\">";
+    let from = html.find(start).expect("the page has its data") + start.len();
+    let to = from + html[from..].find("</script>").unwrap();
+    serde_json::from_str(&html[from..to]).unwrap()
+}
+
+#[test]
+fn the_viewer_writes_one_page_with_the_run_and_its_pair_in_it() {
+    let out = folder("view");
+    let page = out.join("drought.html");
+    let report = run(
+        &["view", "--size", "100k", "--months", "6", "--event", "drought@4", "--page", page.to_str().unwrap()],
+        &out,
+    );
+    assert!(report.contains("Wrote"));
+    let html = std::fs::read_to_string(&page).unwrap();
+    assert!(html.starts_with("<!doctype html>"));
+    assert!(html.contains("<title>Drought in month 4</title>"));
+    let data = page_data(&html);
+    assert_eq!(data["places"]["name"].as_array().unwrap().len(), 250);
+    assert_eq!(data["months"], 6);
+    assert_eq!(data["arms"][1]["label"], "With the drought");
+    assert_eq!(data["records"][1]["month_number"].as_array().unwrap().len(), 6);
+    assert_eq!(files(&out), ["drought.html"], "nothing else is written");
+}
+
+#[test]
+fn a_big_region_can_be_viewed_by_its_market_towns() {
+    let out = folder("view-by-town");
+    run(&["view", "--size", "100k", "--months", "3", "--by-town"], &out);
+    let data = page_data(&std::fs::read_to_string(out.join("viewer.html")).unwrap());
+    assert_eq!(data["by_town"], true);
+    assert_eq!(data["places"]["name"].as_array().unwrap().len(), 10);
+    let people: i64 = data["places"]["people"].as_array().unwrap().iter().map(|p| p.as_i64().unwrap()).sum();
+    assert_eq!(people, data["about"]["people"].as_i64().unwrap(), "every village is in its town's countryside");
+    assert_eq!(data["arms"].as_array().unwrap().len(), 1, "without forced events there is one run");
+}
+
+#[test]
+fn the_viewer_shows_one_run_of_a_region_on_a_map() {
+    let output = econ_sim(&["view", "--population", "1000", "--months", "3"]);
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("a region on a map"));
+    let output = econ_sim(&["view", "--size", "100k", "--months", "3", "--runs", "2"]);
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("--seed"));
+}

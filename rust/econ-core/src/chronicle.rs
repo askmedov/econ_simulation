@@ -521,40 +521,16 @@ impl Chronicle {
         years.dedup();
         for year in years {
             let months: Vec<&MonthRecord> = records.iter().filter(|r| r.year == year).collect();
-            let (first, last) = (months[0], months[months.len() - 1]);
-            let start_people = first.population + first.deaths - first.births;
-            let sum = |f: &dyn Fn(&MonthRecord) -> i64| months.iter().map(|r| f(r)).sum::<i64>();
-            let lowest = months.iter().map(|r| r.food_price).fold(f64::INFINITY, f64::min);
-            let highest = months.iter().map(|r| r.food_price).fold(f64::NEG_INFINITY, f64::max);
-            let worst = months.iter().map(|r| r.ration).fold(f64::INFINITY, f64::min);
-            out += &format!(
-                "Year {year} ({} to {}): {} people to {} ({:+.1}%); {} born, {} died, {} left; grain {:.2} to {:.2}; worst month {:.0}% fed\n",
-                &MONTH_NAME[first.month as usize][..3],
-                &MONTH_NAME[last.month as usize][..3],
-                thousands(start_people),
-                thousands(last.population),
-                100.0 * (last.population as f64 / start_people.max(1) as f64 - 1.0),
-                thousands(sum(&|r| r.births)),
-                thousands(sum(&|r| r.deaths)),
-                thousands(sum(&|r| r.emigrants)),
-                lowest,
-                highest,
-                100.0 * worst,
-            );
-            let entries: Vec<&Entry> = self.entries.iter().filter(|e| e.year == year).collect();
-            let mut brief: Vec<&Entry> = entries.iter().copied().filter(|e| e.rank == 1).collect();
-            if brief.is_empty() {
-                brief = entries.iter().copied().filter(|e| e.rank == 2).collect();
-                brief.sort_by(|a, b| b.people.total_cmp(&a.people));
-                brief.truncate(3);
-                brief.sort_by_key(|e| e.month_number);
-            }
+            out += &year_line(records, year);
+            out += "\n";
+            let brief = self.in_brief(year);
             if !brief.is_empty() {
                 out += "  In brief:\n";
-                for line in brief_lines(&brief) {
+                for line in brief {
                     out += &format!("    {line}\n");
                 }
             }
+            let entries: Vec<&Entry> = self.entries.iter().filter(|e| e.year == year).collect();
             for month in &months {
                 let mut here: Vec<&Entry> = entries
                     .iter()
@@ -581,6 +557,46 @@ impl Chronicle {
         }
         out
     }
+
+    /// The year in brief: its rank-1 entries, or else its three biggest of
+    /// rank 2, with runs of months of famine, deaths or flight in one line.
+    pub fn in_brief(&self, year: i64) -> Vec<String> {
+        let entries: Vec<&Entry> = self.entries.iter().filter(|e| e.year == year).collect();
+        let mut brief: Vec<&Entry> = entries.iter().copied().filter(|e| e.rank == 1).collect();
+        if brief.is_empty() {
+            brief = entries.iter().copied().filter(|e| e.rank == 2).collect();
+            brief.sort_by(|a, b| b.people.total_cmp(&a.people));
+            brief.truncate(3);
+            brief.sort_by_key(|e| e.month_number);
+        }
+        brief_lines(&brief)
+    }
+}
+
+/// A year's totals in a line: people at its start and end, born, died and
+/// left, the grain price's range and its worst month.
+pub fn year_line(records: &[MonthRecord], year: i64) -> String {
+    let months: Vec<&MonthRecord> = records.iter().filter(|r| r.year == year).collect();
+    let (first, last) = (months[0], months[months.len() - 1]);
+    let start_people = first.population + first.deaths - first.births;
+    let sum = |f: &dyn Fn(&MonthRecord) -> i64| months.iter().map(|r| f(r)).sum::<i64>();
+    let lowest = months.iter().map(|r| r.food_price).fold(f64::INFINITY, f64::min);
+    let highest = months.iter().map(|r| r.food_price).fold(f64::NEG_INFINITY, f64::max);
+    let worst = months.iter().map(|r| r.ration).fold(f64::INFINITY, f64::min);
+    format!(
+        "Year {year} ({} to {}): {} people to {} ({:+.1}%); {} born, {} died, {} left; grain {:.2} to {:.2}; worst month {:.0}% fed",
+        &MONTH_NAME[first.month as usize][..3],
+        &MONTH_NAME[last.month as usize][..3],
+        thousands(start_people),
+        thousands(last.population),
+        100.0 * (last.population as f64 / start_people.max(1) as f64 - 1.0),
+        thousands(sum(&|r| r.births)),
+        thousands(sum(&|r| r.deaths)),
+        thousands(sum(&|r| r.emigrants)),
+        lowest,
+        highest,
+        100.0 * worst,
+    )
 }
 
 /// The year in brief, one line an entry, but a run of months of deaths,
