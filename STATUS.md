@@ -36,13 +36,13 @@ validation runs.
 - **Code:** Python 3.13 + numpy, package `econ_sim/` (about 7,300 lines in
   27 modules), `tests/` (about 3,200 lines, 305 tests), `scripts/`
   (benchmark, sanity check, stress test).
-- **Latest work:** branch `claude/rust-indicators` (Rust); the
+- **Latest work:** branch `claude/rust-lenders` (Rust); the
   Python model's latest is `claude/trade-network`, commit `a238613`
   ("PLAN: the trade network, measured"). `claude/busy-mendel-edwts2` is the
   designated hand-off branch and is kept fast-forwarded to the latest work.
   This file was added on `claude/project-status`.
 - **No pull requests** have been opened; work is on a chain of branches,
-  one per step (`claude/village-model` ... `claude/rust-indicators`), each
+  one per step (`claude/village-model` ... `claude/rust-lenders`), each
   built on the one before.
 - **All checks pass** at `a238613`: 305 tests (about 4 minutes), the full
   sanity check (3,010 runs over many settings, including regions), the
@@ -124,6 +124,20 @@ validation runs.
   A drought at a million cuts life expectancy at its worst to 8.5 years
   and the real wage by a third; ten years on, the struck region's pay buys
   half as much again as the unstruck one's.
+- **Moneylenders in the towns, and an interest rate that moves** (branch
+  `claude/rust-lenders`; PLAN.md, "Rust engine", section 18; the user's
+  direction: financialization): each market town's richest families put
+  half their coins into lending, to the town and its villages, for what
+  no neighbour will lend; they lend on bonds, not land, share every
+  repayment and loss by their claims, and spend their profits in the
+  town. Each place's rate follows the borrowing asked against the coins
+  on offer (20% at the usual 3%, between 10% and 60%). On by default;
+  `--set finance.enabled=false` (or `--start village-credit`) gives the
+  old credit, month for month. In a drought at a million credit averages
+  36% in year two (60% in the towns all winter), the lenders lend 238,000
+  coins in two years and are left owed 73,000 by villagers. They save no
+  lives; where coins are scarce, dear money costs families half as much
+  land again to foreclosure.
 - **Ten million people run** (branch `claude/rust-ten-million`; PLAN.md,
   "Rust engine", section 11): 24,600 villages, 984 towns, 13 outlets and
   a city of 148,246 (`export_config.py --large`, then `econ-sim --size
@@ -314,7 +328,7 @@ that is booked in the outside purse) and that **people add up**
 The Rust engine (`cd rust`; the binary is `target/release/econ-sim`):
 
 ```bash
-cargo build --release && cargo test --release       # 176 tests
+cargo build --release && cargo test --release       # 183 tests
 econ-sim --event drought@4 --runs 20                # the standard region of a million, with minds (4 min)
 econ-sim --size 100k --event drought@4 --runs 100   # the region of 100,000 (2 min)
 python ../scripts/export_config.py --large          # once: the region of ten million (7 MB, not in git)
@@ -405,6 +419,9 @@ The machine this was built on: 4 cores, Python 3.13 / numpy 2.x in
   runs with new seeds, in either engine. Its two "nonsense" checks
   (population up half in 3 years, a price twentyfold) fire in 1-2% of
   century runs.
+- **The 10m region needs re-exporting** after the finance settings were
+  added (`python scripts/export_config.py --large`): an old
+  `region10m.json` lacks them, and the engine refuses it.
 - **A Python bug, mirrored in Rust:** in a shearing month on a map with
   towns, `worth` is overwritten by the wool's worth, so foreclosure and
   the credit limit value animals at their wool price. Fixing it in both

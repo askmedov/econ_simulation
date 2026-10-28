@@ -320,6 +320,21 @@ pub struct MonthRecord {
     pub life_expectancy: f64,
     /// Of 1,000 born, deaths before the age of five at those chances.
     pub under_five_deaths: f64,
+    // The towns' lenders and the interest rate (Rust only: see `finance`).
+    /// The yearly interest rate on debts, averaged over people.
+    pub interest_rate: f64,
+    /// Coins the towns' lenders hold.
+    pub lenders_coins: f64,
+    /// Coins owed to the towns' lenders.
+    pub lenders_claims: f64,
+    /// Coins they lent this month.
+    pub lenders_lent: f64,
+    /// Coins repaid to them this month.
+    pub lenders_repaid: f64,
+    /// Coins of their claims written off or cancelled this month.
+    pub lenders_lost: f64,
+    /// Coins they spent in their towns this month.
+    pub lenders_spent: f64,
 }
 
 /// Coins a month for a grown-up's necessities at each place's prices: a
@@ -547,6 +562,13 @@ impl MonthRecord {
         f("wealth", Cell::Float(self.wealth));
         f("life_expectancy", Cell::Float(self.life_expectancy));
         f("under_five_deaths", Cell::Float(self.under_five_deaths));
+        f("interest_rate", Cell::Float(self.interest_rate));
+        f("lenders_coins", Cell::Float(self.lenders_coins));
+        f("lenders_claims", Cell::Float(self.lenders_claims));
+        f("lenders_lent", Cell::Float(self.lenders_lent));
+        f("lenders_repaid", Cell::Float(self.lenders_repaid));
+        f("lenders_lost", Cell::Float(self.lenders_lost));
+        f("lenders_spent", Cell::Float(self.lenders_spent));
     }
 
     /// The record as one flat row of (name, value).

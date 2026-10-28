@@ -12,6 +12,7 @@ use crate::economy::{self, Workforce};
 use crate::environment;
 use crate::events::{self, EventState, Weather};
 use crate::farms;
+use crate::finance;
 use crate::grid::{average, div_or, Grid};
 use crate::healthcare;
 use crate::households;
@@ -33,9 +34,10 @@ use crate::world::{create_world, World};
 /// their staples (salt) families got (1 where they need none), the coins'
 /// worth the trades made, the cost of living (a grown-up's grain, firewood
 /// and salt for a month), people in families under 90% of their food, the
-/// price of a plot of land, and families' wealth a head (see
-/// `metrics::family_wealth`).
-pub const PLACE_SERIES: [&str; 15] = [
+/// price of a plot of land, families' wealth a head (see
+/// `metrics::family_wealth`), the yearly interest rate, and what its
+/// borrowers owe the town's lenders (see `finance`).
+pub const PLACE_SERIES: [&str; 17] = [
     "population",
     "births",
     "deaths",
@@ -51,6 +53,8 @@ pub const PLACE_SERIES: [&str; 15] = [
     "underfed",
     "land_price",
     "wealth",
+    "interest_rate",
+    "owed_to_lenders",
 ];
 
 const MONTH_ABBR: [&str; 13] = ["", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -199,9 +203,15 @@ impl Simulation {
         let farm = config.farming();
         let world = &mut self.world;
         let food = world.food;
+        // The towns' lenders, if any (see `finance`).
+        let finance_on = config.finance.enabled;
+        let has_lenders = finance_on && world.lenders.any();
+        world.lenders.flows = finance::Flows::default();
         // Debts grow by a month's interest; a ruler may cancel them.
-        let interest = credit::accrue_interest(&mut world.households, config);
-        let cancelled = credit::cancel_debts(&mut world.households, &mods.debt_cancel);
+        let interest =
+            credit::accrue_interest(&mut world.households, &world.interest, has_lenders.then_some(&mut world.lenders));
+        let cancelled =
+            credit::cancel_debts(&mut world.households, &mods.debt_cancel, has_lenders.then_some(&mut world.lenders));
         // Soldiers or raiders take grain and animals.
         let mut farm_grain = world.farm_grain();
         let (requisitioned, _taken_from_lord) =
@@ -679,7 +689,29 @@ impl Simulation {
             let worth = credit::collateral(&world.households, &plot_price, &animal_worth);
             let personal: Vec<f64> =
                 (0..n_hh).map(|h| config.credit.personal_months * world.wage_level[hh_loc[h] as usize]).collect();
-            borrowed = credit::borrow(&mut world.households, &short, &spare, &worth, &personal, n, config);
+            if finance_on {
+                // Neighbours lend more of their spare coins at a high rate, the
+                // town's lenders what they can't; the rate follows the borrowing
+                // asked against the coins on offer.
+                let willing = finance::willing(&world.interest, config);
+                let borrowing = credit::borrow_from(
+                    &mut world.households,
+                    &short,
+                    &spare,
+                    &worth,
+                    &personal,
+                    n,
+                    config,
+                    Some(&willing),
+                    has_lenders.then_some(&mut world.lenders),
+                );
+                let could_lend = world.lenders.could_lend(&market::by_village(&members, &hh_loc, n), config);
+                let offer: Vec<f64> = (0..n).map(|v| borrowing.offered[v] + could_lend[v]).collect();
+                world.lenders.move_rates(&mut world.interest, &borrowing.asked, &offer, config);
+                borrowed = borrowing.lent;
+            } else {
+                borrowed = credit::borrow(&mut world.households, &short, &spare, &worth, &personal, n, config);
+            }
         }
         let short: Vec<f64> = (0..n_hh).map(|h| (food_cost[h] - world.households.money[h]).max(0.0)).collect();
         let spare: Vec<f64> = (0..n_hh).map(|h| world.households.money[h] - coin_target[h]).collect();
@@ -1017,6 +1049,13 @@ impl Simulation {
             for h in 0..n_hh {
                 income[h] += servants[h];
             }
+            // and what the towns' lenders spend of their profits there
+            if has_lenders {
+                let (paid, _) = world.lenders.spend(&hh_loc, &members, config);
+                for h in 0..n_hh {
+                    income[h] += paid[h];
+                }
+            }
             // and the state's pay to its garrison and officials in the stronghold
             if let Some(stronghold) = garrisoned {
                 if world.lord.garrison_pay.is_none() {
@@ -1069,9 +1108,28 @@ impl Simulation {
         // outgrow a family's animals and land cost them those.
         let all_income: Vec<f64> = (0..n_hh).map(|h| income[h] + staff_income[h] + healer_income[h]).collect();
         let spare: Vec<f64> = (0..n_hh).map(|h| world.households.money[h] - coin_target[h]).collect();
-        let repaid = credit::repay(&mut world.households, &all_income, n, config, Some(&spare));
-        let repaid_in_grain = credit::repay_in_grain(&mut world.households, &family_food, &food_price, config);
-        let foreclosed = credit::foreclose(&mut world.households, &plot_price, &animal_worth, config);
+        let repaid = credit::repay(
+            &mut world.households,
+            &all_income,
+            n,
+            config,
+            Some(&spare),
+            has_lenders.then_some(&mut world.lenders),
+        );
+        let repaid_in_grain = credit::repay_in_grain(
+            &mut world.households,
+            &family_food,
+            &food_price,
+            config,
+            has_lenders.then_some(&world.lenders),
+        );
+        let foreclosed = credit::foreclose(
+            &mut world.households,
+            &plot_price,
+            &animal_worth,
+            config,
+            has_lenders.then_some(&world.lenders),
+        );
         // Once a year, after harvest, the state collects its tax in coin (or
         // seizes grain from families without the coins).
         let mut state_tax = lords::TaxTake { coins: vec![0.0; n], grain: vec![0.0; n] };
@@ -1099,7 +1157,8 @@ impl Simulation {
             })
             .collect();
         let owed = world.households.minds.is_some().then(|| world.households.lent.clone());
-        let written_off = credit::default(&mut world.households, &limit, n, config);
+        let written_off =
+            credit::default(&mut world.households, &limit, n, config, has_lenders.then_some(&mut world.lenders));
         if let (Some(owed), Some(minds)) = (&owed, &mut world.households.minds) {
             minds.remember_losses(owed, &world.households.lent);
         }
@@ -1363,7 +1422,7 @@ impl Simulation {
         let size = households::sizes(&world.population, world.households.len());
         let gone: Vec<bool> = size.iter().map(|&s| s == 0.0).collect();
         let owed = world.households.minds.is_some().then(|| world.households.lent.clone());
-        credit::write_off(&mut world.households, &gone, n);
+        credit::write_off(&mut world.households, &gone, n, has_lenders.then_some(&mut world.lenders));
         if let (Some(owed), Some(minds)) = (&owed, &mut world.households.minds) {
             minds.remember_losses(owed, &world.households.lent);
         }
@@ -1623,10 +1682,17 @@ impl Simulation {
             wealth: div_or(net_worth.iter().sum(), sum(&final_people), 0.0),
             life_expectancy,
             under_five_deaths,
+            interest_rate: average(&world.interest, &final_people.iter().map(|p| p.max(1e-9)).collect::<Vec<_>>()),
+            lenders_coins: sum(&world.lenders.cash),
+            lenders_claims: sum(&world.lenders.claims),
+            lenders_lent: world.lenders.flows.lent,
+            lenders_repaid: world.lenders.flows.repaid,
+            lenders_lost: world.lenders.flows.lost,
+            lenders_spent: world.lenders.flows.spent,
         };
         let staples_share: Vec<f64> =
             (0..n).map(|v| div_or(staples_bought_here[v], staples_needed_here[v], 1.0)).collect();
-        let series: [&[f64]; 15] = [
+        let series: [&[f64]; 17] = [
             &final_people,
             &born,
             &died,
@@ -1642,6 +1708,8 @@ impl Simulation {
             &underfed_here,
             &plot_price,
             &wealth_here,
+            &world.interest,
+            &world.lenders.claims,
         ];
         for (k, values) in series.iter().enumerate() {
             self.places[k].push(values.to_vec());

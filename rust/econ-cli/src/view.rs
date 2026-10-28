@@ -367,6 +367,40 @@ pub fn measures(config: &Config) -> Vec<Measure> {
             Show::Level,
             "low",
         ),
+    ]);
+    if config.finance.enabled {
+        let f = &config.finance;
+        out.extend([
+            Measure {
+                key: "interest_rate".into(),
+                label: "Interest".into(),
+                group: "Money",
+                unit: "a year",
+                about: format!(
+                    "The yearly interest on debts here: {:.0}% when borrowers ask for the usual share of the coins on offer to lend, more when they ask for more, between {:.0}% and {:.0}%.",
+                    100.0 * config.credit.interest,
+                    100.0 * f.lowest_rate,
+                    100.0 * f.highest_rate
+                ),
+                kept: Kept::Scaled(1000.0),
+                weight: Weight::People,
+                show: Show::Share,
+                worse: "high",
+            },
+            measure(
+                "lenders_debt",
+                "Owed to town lenders",
+                "Money",
+                "coins a family",
+                "What families here owe the moneylenders of their market town, a family.",
+                COINS,
+                Weight::Families,
+                Show::Level,
+                "high",
+            ),
+        ]);
+    }
+    out.extend([
         measure(
             "output_a_head",
             "Output",
@@ -544,6 +578,10 @@ pub fn watch(config: Config) -> Result<Watched, String> {
                 let living = kept("cost_of_living");
                 (0..months).map(|t| (0..pay[t].len()).map(|v| per(pay[t][v], living[t][v])).collect()).collect()
             }
+            "lenders_debt" => {
+                let owed = kept("owed_to_lenders");
+                (0..months).map(|t| (0..owed[t].len()).map(|v| per(owed[t][v], families[t][v])).collect()).collect()
+            }
             "underfed_share" => {
                 let underfed = kept("underfed");
                 (0..months)
@@ -559,7 +597,7 @@ pub fn watch(config: Config) -> Result<Watched, String> {
 }
 
 /// Measures made from others after the run (see `watch`).
-const MADE_AFTER: [&str; 3] = ["output_a_head", "real_wage", "underfed_share"];
+const MADE_AFTER: [&str; 4] = ["output_a_head", "real_wage", "underfed_share", "lenders_debt"];
 
 /// What a month left in each place: a value per place for each measure the
 /// simulation doesn't keep (None for those it keeps), and people and

@@ -17,6 +17,7 @@ pub mod economy;
 pub mod environment;
 pub mod events;
 pub mod farms;
+pub mod finance;
 pub mod geography;
 pub mod grid;
 pub mod healthcare;

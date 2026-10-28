@@ -900,6 +900,50 @@ class CraftsConfig:
 
 
 @dataclass(frozen=True)
+class FinanceConfig:
+    """Moneylenders in the market towns, and an interest rate that moves.
+    (Rust only.)
+
+    In each market town merchants lend coins to the families of the town
+    and its countryside whom no neighbour will lend to. They start with
+    `capital_share` of the coins held by the richest fifth of the town's
+    families, lend up to `lend_share` of their purse in a month, and each
+    month spend `spend_share` of what they own beyond their starting
+    capital in the town (paying townsfolk). They lend on bonds, not on land:
+    a debt they can't recover is written off. They share in every
+    repayment, loss and decree as the village's own lenders do.
+
+    Each place's interest rate follows the borrowing asked there against
+    the coins on offer to lend (its families' and its town lenders'), both
+    averaged over `rate_months`: it is `credit.interest` when borrowers ask
+    for `usual_share` of what is on offer, higher when they ask for more
+    and lower when coins go begging, as the ratio to the power
+    `rate_response`, between `lowest_rate` and `highest_rate`. Families
+    with spare coins lend more of them when the rate is high
+    (`supply_response`).
+
+    Off, every debt grows at `credit.interest` and only neighbours lend."""
+
+    enabled: bool = True
+    # Medieval town lenders (burgesses, Italian merchants, before 1290 the
+    # Jews) lent from trading capital; a town's richest families put part
+    # of their coins into it.
+    capital_share: float = 0.5
+    lend_share: float = 0.25
+    spend_share: float = 0.05
+    # Rates ran from a tenth (secured, plentiful coin) to a half and more
+    # (the Jews' twopence a pound a week was 43% a year).
+    lowest_rate: float = 0.1
+    highest_rate: float = 0.6
+    # In ordinary months borrowers ask for 0.5% to 5% of the coins on offer
+    # in a place (in the region of 100,000), in a drought 10% to 30%.
+    usual_share: float = 0.03
+    rate_response: float = 0.5
+    rate_months: float = 6.0
+    supply_response: float = 0.5
+
+
+@dataclass(frozen=True)
 class ChronicleConfig:
     """What the chronicle, the run's log ranked by importance, tells. (Rust only.)
 
@@ -1225,6 +1269,7 @@ class Config:
     minds: MindsConfig = field(default_factory=MindsConfig)
     chronicle: ChronicleConfig = field(default_factory=ChronicleConfig)
     crafts: CraftsConfig = field(default_factory=CraftsConfig)
+    finance: FinanceConfig = field(default_factory=FinanceConfig)
     products: tuple[ProductSpec, ...] = DEFAULT_PRODUCTS
     businesses: tuple[BusinessSpec, ...] = DEFAULT_BUSINESSES
     events: tuple[EventSpec, ...] = DEFAULT_EVENTS

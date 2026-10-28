@@ -2994,3 +2994,153 @@ one thread: 0.518 s against 0.521 s).
   held); life is as short as the mortality table says, and shorter in a
   famine. In the viewer, packed numbers come back to their precision,
   wealth below nothing included.
+
+### 18. Moneylenders in the towns, and an interest rate that moves (built)
+
+The user asked for financialization: lenders in the model, and an
+interest rate that moves (they had said they want interest rates and
+money in it in the long run). Until now a village's only lenders were its
+own families with coins to spare, at one rate, 20% a year. Now the market
+towns have moneylenders, and each place's rate follows the borrowing asked
+there against the coins on offer. Rust only: the settings are Python's
+`FinanceConfig` (`finance.rs`), on by default; switched off
+(`--set finance.enabled=false`, or `--start village-credit`), the engine
+gives month for month the same results as before.
+
+- **The towns' lenders:**
+  - **Who:** in each market town, the richest fifth of its families put
+    half their coins into lending at the start (`capital_share`): coins
+    moved, none made.
+  - **To whom:** the families of the town and of the villages that market
+    there, for what no neighbour will lend: in each place neighbours lend
+    first, at the place's rate, and the town's lenders lend the rest of
+    the borrowing asked, as far as a quarter of their purse a month goes
+    (`lend_share`), shared among their places by what each lacks.
+  - **On bonds, not land:** they hold claims on each place's borrowers,
+    as the neighbours who lent do, and share in every repayment (in coin:
+    debtors pay their neighbours' share in grain), write-off, decree and
+    death by their claims. They take no land or animals: a borrower's
+    land and animals settle only the neighbours' share of a debt, and the
+    rest stays owed until it is repaid or written off.
+  - **Living on their profits:** each month they spend a twentieth of
+    what they own beyond their starting capital (`spend_share`) in their
+    town, paying its families.
+- **The rate:** each place's yearly rate is `credit.interest` (20%) times
+  (the borrowing asked over the coins on offer, over `usual_share`) to the
+  power a half, between 10% and 60%, both averaged over six months. The
+  coins on offer are the neighbours' (half their spare coins, as before)
+  and the town lenders' (their month's budget, shared among their places
+  by people). Neighbours lend more of their spare coins at a high rate:
+  (the rate over 20%) to the power a half (`supply_response`). Every debt
+  in a place, and every claim on it, grows at the place's rate.
+- **The records** gain `interest_rate` (averaged over people),
+  `lenders_coins`, `lenders_claims`, and this month's `lenders_lent`,
+  `lenders_repaid`, `lenders_lost` and `lenders_spent`; the places
+  `interest_rate` and `owed_to_lenders`. The invariants: debts balance the
+  neighbours' claims and the town lenders' in every place, and the
+  lenders' coins, claims and the rates are never negative or not a
+  number. Coins are conserved: the lenders' purses are counted among the
+  coins in the places.
+- **The chronicle** tells when credit grows dear (1.4 times its usual
+  rate, rank 2) and when it no longer is, as it does grain.
+- **The viewer** maps each place's rate and what its families owe the
+  town lenders, and charts the region's rate and the lenders' coins,
+  claims, lending, repayments, losses and spending.
+- **A judgement call, and the measurement behind it:** with the rate set
+  by the borrowing asked against all the coins on offer, it sat at its
+  10% floor nearly always (11.5% even in a drought): in the region of
+  100,000, borrowers ask for 0.5% to 5% of the coins on offer in a
+  typical place in ordinary months, and 10% to 30% in a drought (the
+  hundredth place, where everyone is short, a hundred times what is on
+  offer). So the rate is the usual one when borrowers ask for the usual
+  share, `usual_share` = 3%. And with a tenth of a purse a month from 30%
+  of the richest fifth's coins, the town lenders lent 200 coins a month
+  in the drought, against 5,000 borrowed in all: they lend a quarter of
+  half now.
+- **Every run without them stays the same:** with `--set
+  finance.enabled=false`, the records and the whole chronicle are the
+  same byte for byte as the previous commit's on seven settings (ten years
+  at 100,000 with a drought, a year at a million with a drought, after a
+  plague with a plague, in debt with a debt jubilee, the region of 20 and
+  the village with a drought, the city and 3 towns without the crafts).
+  Parity with Python (`scripts/parity.py`) turns them off, and the
+  village agrees on every measure.
+- **A drought at a million** (seed 42, month 4, ten years; the lenders
+  start with 97,000 coins):
+
+| Year | Interest, mean (highest month) | Lent by town lenders | Repaid to them | Written off | Owed to them, December | Debts, mean |
+|---|---|---|---|---|---|---|
+| 1 | 17.3% (29.0%) | 143,897 | 142,788 | 619 | 1,966 | 86,164 |
+| 2 | 35.9% (42.1%) | 93,990 | 84,910 | 820 | 13,816 | 561,188 |
+| 3 | 26.7% (29.0%) | 28,654 | 4,862 | 1,845 | 50,902 | 790,984 |
+| 4 | 22.0% (23.4%) | 9,353 | 9,690 | 4,639 | 72,710 | 760,523 |
+| 5 | 16.8% (19.6%) | 3,239 | 14,455 | 5,732 | 82,029 | 650,559 |
+| 10 | 13.3% (14.1%) | 220 | 7,842 | 8,617 | 73,088 | 403,205 |
+
+  (without the drought: interest 11% to 17% a year, the lenders lend
+  22,012 coins in year one and little after)
+  - In the dearth the rate nearly trebles. In the towns, where nobody has
+    coins to spare, it stands at the ceiling, 60%, through the first
+    winter, and the lenders lend there first, at short term: by the end
+    of year one the towns have repaid them. From the second year the
+    villages' rates run at 25% to 41% (a tenth of them above 50%), and
+    the lenders' claims are all on villagers who can't repay: by year
+    five they are owed 82,000 coins, and they write off 6,000 to 9,000
+    coins of it a year.
+  - Over the ten years the lenders' coins and claims come to 116,000
+    against the 97,000 they started with; they spend 6,000 to 14,000 coins
+    a year in their towns.
+- **What they change** (finance on / off; four starts at 100,000, a
+  drought in month 4, five years, four seeds; and a million, ten years):
+
+| Start | Interest, mean / highest | Extra deaths per 1,000 | Plots foreclosed | Landless at the end | Wealth Gini at the end |
+|---|---|---|---|---|---|
+| standard | 15.0% / 42.6% | 54.3 / 53.0 | 177 / 160 | 34.0% / 34.3% | 0.593 / 0.593 |
+| short-of-coin | 21.2% / 59.6% | 79.6 / 77.0 | 332 / 222 | 35.3% / 34.9% | 0.606 / 0.603 |
+| in-debt | 19.5% / 56.6% | 92.5 / 90.4 | 1,663 / 1,585 | 43.3% / 43.7% | 0.678 / 0.678 |
+| lean-barns | 29.1% / 59.4% | 134.2 / 135.2 | 995 / 581 | 35.7% / 34.8% | 0.641 / 0.629 |
+| a million, ten years | 14.9% / 42.2% | 6.4 / 7.0 | 5,475 / 5,279 | 35.1% / 35.2% | 0.562 / 0.561 |
+
+  (with finance off the rate is 20% everywhere; extra deaths over the
+  whole run, against the same seeds without the drought)
+  - **The lenders save no lives:** extra deaths are within a few per
+    1,000 either way. Their coins go where neighbours have none to lend,
+    but at a dear rate and to families already short.
+  - **Dear money costs land where coins are scarce:** when the region is
+    short of coin or its barns are lean, the rate reaches its ceiling,
+    debts grow (a mean of 81,590 coins against 71,750 from lean barns),
+    and lenders take half to three-quarters more land (332 plots against
+    222, 995 against 581); the landless and the Gini rise a little.
+  - **In ordinary times credit is cheaper:** rates of 11% to 17% instead
+    of 20%, and slightly more borrowing.
+- **Checks:** the invariants and coins every month (in every test that
+  runs a region, now with the lenders); the full sanity check (3,010
+  runs) fails only the century setting, on its "nonsense" checks in 5 of
+  60 runs, as it did without the lenders (3 of 60): a known issue. Its
+  count of coins now includes the lenders' purses. The stress test flags
+  five of 67 scenarios over 40 years, as it did before (a village of 300,
+  droughts every other year, a region with a city, plenty of land, and
+  now a region of 20 villages, whose pay buys 2.66 times a worker's food
+  against a ceiling of 2.5, instead of everything in year two). A month of
+  a million takes the same time (0.49 to 0.51 s on one thread). The
+  Python tests (312) and village parity pass.
+- **Changed tests:** "a stronghold keeps more people with its garrison
+  paid there" asked each of three seeds to agree; one goes the other way
+  with the lenders (960 people against 1,001), as three of eight do
+  without them, while on average the garrison still keeps more (24 more
+  with the lenders, 18 without). It now compares six seeds' total.
+- **Checked by tests:** without finance every debt grows at the usual
+  rate and only neighbours lend; the towns' lenders start with part of
+  the richest townsfolk's coins and no coin is made; the rate is the
+  usual one when borrowers ask for the usual share of what is on offer
+  (higher when they ask more, the floor when nobody asks, the ceiling
+  when nothing is on offer); the towns' lenders lend what neighbours
+  cannot, as far as their budget goes, and debts balance both claims;
+  they take no land and share losses by their claims; they spend their
+  profits in their town; and in a drought credit grows dear, the towns'
+  lenders lend and the books balance every month. A new starting point,
+  `village-credit`, is the old credit.
+- **Next, perhaps:** lenders who take land for bad debts (the Statute
+  Merchant let them), and hold it as absentee landlords; lending to
+  lords and the state; credit sales by merchants (wool bought ahead);
+  interest that differs by borrower (secured or not).

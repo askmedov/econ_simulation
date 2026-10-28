@@ -66,6 +66,7 @@ fn coins(r: &MonthRecord) -> f64 {
         + r.business_cash
         + r.treasury
         + r.dealers_cash
+        + r.lenders_coins
         + r.lord_purse
         + r.state_purse
         + r.town_purse

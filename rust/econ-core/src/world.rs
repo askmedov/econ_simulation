@@ -6,6 +6,7 @@ use crate::crafts;
 use crate::economy;
 use crate::environment;
 use crate::events::{ActiveEvent, LastStarted};
+use crate::finance::Lenders;
 use crate::geography::{self, Geography};
 use crate::grid::{average, div_or, Grid, Grid3};
 use crate::households::{self, Households};
@@ -74,6 +75,10 @@ pub struct World {
     pub lacking: Vec<Vec<bool>>,
     /// Where each place lacking a good gets it from (per product: see `crafts`).
     pub supply: Vec<Option<crafts::SupplyLine>>,
+    /// The market towns' moneylenders (see `finance`).
+    pub lenders: Lenders,
+    /// The yearly interest rate on debts in each place.
+    pub interest: Vec<f64>,
 }
 
 impl World {
@@ -112,12 +117,14 @@ impl World {
         self.names.len()
     }
 
-    /// Coins held in the places: by families, businesses, councils and grain dealers.
+    /// Coins held in the places: by families, businesses, councils, grain
+    /// dealers and the towns' lenders.
     pub fn village_money(&self) -> f64 {
         self.households.money.iter().sum::<f64>()
             + self.cash.sum()
             + self.council.treasury.iter().sum::<f64>()
             + self.dealers_cash.iter().sum::<f64>()
+            + self.lenders.cash.iter().sum::<f64>()
     }
 
     /// Every coin there was at the start: in the places, taken by the lord
@@ -250,6 +257,8 @@ pub fn create_world(config: &Config, streams: &mut RandomStreams) -> Result<Worl
     if config.credit.initial_debt_months > 0.0 {
         crate::credit::start_in_debt(&mut households, &wage, config.credit.initial_debt_months);
     }
+    // The towns' lenders put part of the richest townsfolk's coins into lending.
+    let lenders = Lenders::start(&mut households, &geo, config);
 
     let effort = economy::labor(&population, &force, config, None, false);
     let made =
@@ -404,6 +413,8 @@ pub fn create_world(config: &Config, streams: &mut RandomStreams) -> Result<Worl
         skill,
         lacking,
         supply,
+        lenders,
+        interest: vec![config.credit.interest; n],
     })
 }
 

@@ -1050,6 +1050,18 @@
    ]
   ]
  },
+ "finance": {
+  "enabled": true,
+  "capital_share": 0.5,
+  "lend_share": 0.25,
+  "spend_share": 0.05,
+  "lowest_rate": 0.1,
+  "highest_rate": 0.6,
+  "usual_share": 0.03,
+  "rate_response": 0.5,
+  "rate_months": 6.0,
+  "supply_response": 0.5
+ },
  "products": [
   {
    "name": "food",

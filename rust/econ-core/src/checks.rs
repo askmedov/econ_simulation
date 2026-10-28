@@ -31,16 +31,17 @@ pub fn broken_invariants(world: &World) -> Vec<String> {
     if !close(&held, &world.land, &world.land, 1.0) {
         broken.push("land not conserved".into());
     }
-    // Debts and claims on them balance in every place.
+    // Debts and claims on them balance in every place: the families'
+    // claims and the town lenders'.
     let debt = per_place(&hh.debt);
-    let lent = per_place(&hh.lent);
+    let lent: Vec<f64> = per_place(&hh.lent).iter().zip(&world.lenders.claims).map(|(a, b)| a + b).collect();
     let bigger: Vec<f64> = debt.iter().zip(&lent).map(|(a, b)| a.max(*b)).collect();
     if !close(&debt, &lent, &bigger, 1000.0) {
         // (a thousandth of a coin)
         broken.push("debts and claims don't balance".into());
     }
     // Nothing held is negative.
-    let held: [(&str, &[f64]); 16] = [
+    let held: [(&str, &[f64]); 19] = [
         ("grain", &hh.grain),
         ("money", &hh.money),
         ("land", &hh.land),
@@ -57,6 +58,9 @@ pub fn broken_invariants(world: &World) -> Vec<String> {
         ("woods", &world.woods),
         ("dealers' grain", &world.dealers_grain),
         ("dealers' coins", &world.dealers_cash),
+        ("lenders' coins", &world.lenders.cash),
+        ("lenders' claims", &world.lenders.claims),
+        ("interest rates", &world.interest),
     ];
     for (name, values) in held {
         if values.iter().any(|v| !v.is_finite() || *v < -1e-9) {

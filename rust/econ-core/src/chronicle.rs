@@ -74,6 +74,7 @@ pub struct Chronicle {
     usual_leaving: Option<f64>, // a month, per person
     grain: Dearness,
     goods: Vec<(String, Dearness)>, // tools and the staples, by name
+    credit: Dearness,               // the interest rate (with the towns' lenders: see `finance`)
     city_hungry: bool,
     famine_people: f64, // in famine last month
 }
@@ -459,6 +460,25 @@ impl Chronicle {
                 (Some(false), _) => {
                     let what = format!("{good} no longer dear: {price:.2} {unit}");
                     self.note(r, 3, kinds.1, what, total, Vec::new(), listed);
+                }
+                (None, _) => {}
+            }
+        }
+
+        // Credit grown dear (the rate moves with the borrowing asked).
+        if config.finance.enabled {
+            match self.credit.month(r.interest_rate, cfg.price_surge) {
+                (Some(true), usual) => {
+                    let what = format!(
+                        "Credit is dear: {:.0}% a year, {:.1} times its usual rate",
+                        100.0 * r.interest_rate,
+                        r.interest_rate / usual
+                    );
+                    self.note(r, 2, "credit dear", what, total, Vec::new(), listed);
+                }
+                (Some(false), _) => {
+                    let what = format!("Credit is no longer dear: {:.0}% a year", 100.0 * r.interest_rate);
+                    self.note(r, 3, "credit dear over", what, total, Vec::new(), listed);
                 }
                 (None, _) => {}
             }

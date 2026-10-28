@@ -422,6 +422,23 @@ pub struct CraftsConfig {
     pub exports: Vec<(String, f64, f64)>,
 }
 
+/// Moneylenders in the market towns and an interest rate that moves (see
+/// `finance.rs`; Python's `FinanceConfig`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct FinanceConfig {
+    pub enabled: bool,
+    pub capital_share: f64,
+    pub lend_share: f64,
+    pub spend_share: f64,
+    pub lowest_rate: f64,
+    pub highest_rate: f64,
+    pub usual_share: f64,
+    pub rate_response: f64,
+    pub rate_months: f64,
+    pub supply_response: f64,
+}
+
 /// What the chronicle tells (see `chronicle.rs`; Python's `ChronicleConfig`).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -517,6 +534,7 @@ pub struct Config {
     pub minds: MindsConfig,
     pub chronicle: ChronicleConfig,
     pub crafts: CraftsConfig,
+    pub finance: FinanceConfig,
     pub products: Vec<ProductSpec>,
     pub businesses: Vec<BusinessSpec>,
     pub events: Vec<EventSpec>,

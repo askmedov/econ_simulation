@@ -376,7 +376,9 @@ fn run_case(fx: &Fixture, function: &str, a: &Value, out: &Value) {
         ),
         "credit.accrue_interest" => {
             let mut hh = fx.households(&a["households"]);
-            check(&credit::accrue_interest(&mut hh, cfg), &out["returned"], &what);
+            // (Python's one rate, in every place; no town lenders)
+            let places = hh.location.iter().map(|&v| v as usize + 1).max().unwrap_or(1);
+            check(&credit::accrue_interest(&mut hh, &vec![cfg.credit.interest; places], None), &out["returned"], &what);
             check_households(&hh, &out["households"], &what)
         }
         "credit.borrow" => {
@@ -396,14 +398,14 @@ fn run_case(fx: &Fixture, function: &str, a: &Value, out: &Value) {
         "credit.repay" => {
             let mut hh = fx.households(&a["households"]);
             let spare = vecf(&a["spare"]);
-            let repaid = credit::repay(&mut hh, &vecf(&a["income"]), n_of(&a["n"]), cfg, Some(&spare));
+            let repaid = credit::repay(&mut hh, &vecf(&a["income"]), n_of(&a["n"]), cfg, Some(&spare), None);
             check(&repaid, &out["returned"], &what);
             check_households(&hh, &out["households"], &what)
         }
         "credit.repay_in_grain" => {
             let mut hh = fx.households(&a["households"]);
             check(
-                &credit::repay_in_grain(&mut hh, &vecf(&a["need"]), &vecf(&a["food_price"]), cfg),
+                &credit::repay_in_grain(&mut hh, &vecf(&a["need"]), &vecf(&a["food_price"]), cfg, None),
                 &out["returned"],
                 &what,
             );
@@ -411,7 +413,7 @@ fn run_case(fx: &Fixture, function: &str, a: &Value, out: &Value) {
         }
         "credit.foreclose" => {
             let mut hh = fx.households(&a["households"]);
-            let f = credit::foreclose(&mut hh, &vecf(&a["plot_price"]), &vecf(&a["animal_price"]), cfg);
+            let f = credit::foreclose(&mut hh, &vecf(&a["plot_price"]), &vecf(&a["animal_price"]), cfg, None);
             check(&f.animals, &out["animals"], &what);
             check(&f.land, &out["land"], &what);
             check(&f.value, &out["value"], &what);
@@ -419,7 +421,7 @@ fn run_case(fx: &Fixture, function: &str, a: &Value, out: &Value) {
         }
         "credit.default" => {
             let mut hh = fx.households(&a["households"]);
-            check(&credit::default(&mut hh, &vecf(&a["limit"]), n_of(&a["n"]), cfg), &out["returned"], &what);
+            check(&credit::default(&mut hh, &vecf(&a["limit"]), n_of(&a["n"]), cfg, None), &out["returned"], &what);
             check_households(&hh, &out["households"], &what)
         }
         "credit.sell_land" => {
@@ -431,12 +433,12 @@ fn run_case(fx: &Fixture, function: &str, a: &Value, out: &Value) {
         }
         "credit.cancel_debts" => {
             let mut hh = fx.households(&a["households"]);
-            check(&credit::cancel_debts(&mut hh, &vecf(&a["share"])), &out["returned"], &what);
+            check(&credit::cancel_debts(&mut hh, &vecf(&a["share"]), None), &out["returned"], &what);
             check_households(&hh, &out["households"], &what)
         }
         "credit.write_off" => {
             let mut hh = fx.households(&a["households"]);
-            credit::write_off(&mut hh, &vecb(&a["gone"]), n_of(&a["n"]));
+            credit::write_off(&mut hh, &vecb(&a["gone"]), n_of(&a["n"]), None);
             check_households(&hh, &out["households"], &what)
         }
 

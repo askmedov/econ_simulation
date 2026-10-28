@@ -125,4 +125,9 @@ STARTS: tuple[Start, ...] = (
         "Only the village's four crafts: no iron, salt, pots or lead, no crafts sold beyond the region",
         set=(("crafts.enabled", False),),
     ),
+    Start(
+        "village-credit",
+        "Only neighbours lend, at one rate: no moneylenders in the towns, and interest of 20% a year everywhere",
+        set=(("finance.enabled", False),),
+    ),
 )
