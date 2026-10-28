@@ -3,7 +3,8 @@
 Written for whoever picks this project up next. Read this first, then
 [PLAN.md](PLAN.md) (design, every step's measurements and the roadmap) and
 [README.md](README.md) (how to run it). The hand-off for porting the model to
-Rust is [docs/RUST_HANDOFF.md](docs/RUST_HANDOFF.md).
+Rust is [docs/RUST_HANDOFF.md](docs/RUST_HANDOFF.md); the next task, a viewer
+to watch the country evolve, is in [docs/GUI_HANDOFF.md](docs/GUI_HANDOFF.md).
 
 Last updated: October 2026, after the Rust engine's milestones 1-7 and its
 Phase 3 work through ten million people, starting points, a ranked log and
